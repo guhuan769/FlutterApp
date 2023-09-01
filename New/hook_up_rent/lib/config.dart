@@ -8,6 +8,6 @@
  */
 class Config {
   static const CommonIcon = 'CommonIcon';
-  static const BaseUrl = 'http://192.168.101.6:5118';
+  static const BaseUrl = 'http://192.168.101.5:5118';
   // static const BaseUrl = 'https://localhost:44332';
 }
