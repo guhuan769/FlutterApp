@@ -17,9 +17,13 @@ import 'package:hook_up_rent/pages/utils/store.dart';
 import 'package:hook_up_rent/routes.dart';
 import 'package:hook_up_rent/scoped_model/auth.dart';
 import 'package:hook_up_rent/widgets/page_content.dart';
+
 //添加依赖
 import 'dart:convert';
 import 'package:scoped_model/scoped_model.dart';
+
+//記住密碼
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -34,19 +38,53 @@ class _LoginPageState extends State<LoginPage> {
 
   var usernameController = TextEditingController();
   var passwordController = TextEditingController();
+  bool _rememberMe = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // _loginHandle();
+    _loadSavedLoginInfo();
+  }
+
+  void _loadSavedLoginInfo() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _rememberMe = prefs.getBool('rememberMeBool') ?? false;
+      if (_rememberMe == true) {
+        usernameController.text = prefs.getString('username') ?? '';
+        passwordController.text = prefs.getString('passwordString') ?? '';
+      } else {
+        usernameController.text = '';
+        passwordController.text = '';
+      }
+    });
+  }
 
   _loginHandle() async {
     try {
-      var username = await usernameController.text;
-      var password = await passwordController.text;
-      if (username == '' || password == '') {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      // var username = await usernameController.text;
+      // var password = await passwordController.text;
+      final TextEditingController username = TextEditingController();
+      final TextEditingController password = TextEditingController();
+      // setState(() {
+      //   if (_rememberMe) {
+      //     usernameController.text = prefs.getString('username') ?? '';
+      //     passwordController.text = prefs.getString('passwordString') ?? '';
+      //     _rememberMe = prefs.getBool('rememberMeBool') ?? false;
+      //   }
+      // });
+      if (usernameController.text == '' || passwordController.text == '') {
         CommonToast.showToast('用户名或密码不能为空!');
       }
 
       const url = '/api/LoginLoginByUserNameAndPwd';
-      var params = {'userName': username, 'password': password};
+      var params = {
+        'userName': usernameController.text,
+        'password': passwordController.text
+      };
       var res;
-
       res = await DioHttp.of(context).post(url, params);
 
       // var resMap = json.decode(res.data.toString());
@@ -60,6 +98,7 @@ class _LoginPageState extends State<LoginPage> {
         await store.setString(StoreKeys.token, token);
 
         ScopedModelHelper.getModel<AuthModel>(context).login(token, context);
+
         Timer(Duration(seconds: 1), () {
           //回到上一页面
           // Navigator.of(context).pop();
@@ -69,6 +108,15 @@ class _LoginPageState extends State<LoginPage> {
     } catch (error, stacktrace) {
       CommonToast.showToast('网络无法访问 ERROR: ${error}');
     }
+  }
+
+  void _saveLoginInfo() {
+    setState(() async {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString('username', usernameController.text);
+      await prefs.setString('passwordString', passwordController.text);
+      await prefs.setBool('rememberMeBool', _rememberMe);
+    });
   }
 
   @override
@@ -113,23 +161,39 @@ class _LoginPageState extends State<LoginPage> {
                 child: Text("登录"),
                 onPressed: () {
                   _loginHandle();
+                  _saveLoginInfo();
                   // Navigator.pushReplacementNamed(context, Routes.home);
                 },
                 // style: ElevatedButton.styleFrom(padding: EdgeInsets.all(110)),
               ),
             ),
+            Row(
+              children: <Widget>[
+                Checkbox(
+                  value: _rememberMe,
+                  onChanged: (value) {
+                    setState(() {
+                      if (value != null) {
+                        _rememberMe = value;
+                      }
+                    });
+                  },
+                ),
+                Text('记住密码'),
+              ],
+            ),
             Padding(padding: EdgeInsets.all(10)),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Text(
-                //   '还没有账号,',
-                // ),
-                // TextButton(
-                //     onPressed: () {
-                //       Navigator.pushReplacementNamed(context, '/register');
-                //     },
-                //     child: Text('去注册~'))
+                Text(
+                  '还没有账号,',
+                ),
+                TextButton(
+                    onPressed: () {
+                      // Navigator.pushReplacementNamed(context, '/register');
+                    },
+                    child: Text('去注册~'))
               ],
             )
           ],

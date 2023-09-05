@@ -45,7 +45,6 @@ class CommonImage extends StatelessWidget {
         fit: fit,
       );
     }
-
     assert(false, '图片地址 SRC 不合法');
     return Container();
   }

@@ -17,6 +17,7 @@ import 'package:hook_up_rent/pages/production/line_detail_control/line_detail_co
 import 'package:hook_up_rent/pages/utils/dio_http.dart';
 import 'package:hook_up_rent/pages/utils/store.dart';
 import 'package:hook_up_rent/widgets/common_image.dart';
+import 'package:hook_up_rent/config.dart';
 
 var textStyle = const TextStyle(
   color: Colors.black,
@@ -36,6 +37,7 @@ class _LineDetailControlItemState extends State<LineDetailControlItem> {
   List tabs = []; //"步骤1", "步骤2", "步骤3"
   bool IsShow = false;
   late Timer _timer;
+
   @override
   void initState() {
     // TODO: implement initState
@@ -73,115 +75,138 @@ class _LineDetailControlItemState extends State<LineDetailControlItem> {
                     child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    Flex(
+                      direction: Axis.horizontal,
                       children: [
-                        Text(
-                          '设备名称 ',
-                          style: textStyle,
-                        ),
-                        Text(
-                          '${widget.data.deviceName}',
-                          style: textStyle,
-                        ),
-                        // Expanded(
-                        //   child: Text("123321"),
-                        // ),
-                        // Expanded(
-                        //     child: Container(
-                        //   child: Row(
-                        //     mainAxisAlignment: MainAxisAlignment.end,
-                        //     children: [
-                        //       Row(
-                        //         children: [
-                        //           // Text('更多 ', style: textStyle),
-                        //           TextButton(
-                        //             child: Text(!IsShow ? '更多' : '收起',
-                        //                 style: textStyle),
-                        //             onPressed: () {
-                        //               setState(() {
-                        //                 IsShow = !IsShow;
-                        //               });
-                        //             },
-                        //           ),
-                        //         ],
-                        //       )
-                        //     ],
-                        //   ),
-                        // ))
+                        Expanded(
+                            flex: 3,
+                            child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  '设备名称 ',
+                                  style: textStyle,
+                                ),
+                                Text(
+                                  '${widget.data.deviceName}',
+                                  style: textStyle,
+                                ),
+                                // Expanded(
+                                //   child: Text("123321"),
+                                // ),
+                                // Expanded(
+                                //     child: Container(
+                                //   child: Row(
+                                //     mainAxisAlignment: MainAxisAlignment.end,
+                                //     children: [
+                                //       Row(
+                                //         children: [
+                                //           // Text('更多 ', style: textStyle),
+                                //           TextButton(
+                                //             child: Text(!IsShow ? '更多' : '收起',
+                                //                 style: textStyle),
+                                //             onPressed: () {
+                                //               setState(() {
+                                //                 IsShow = !IsShow;
+                                //               });
+                                //             },
+                                //           ),
+                                //         ],
+                                //       )
+                                //     ],
+                                //   ),
+                                // ))
+                              ],
+                            ),
+                            Row(
+                              children: [
+                                Text(
+                                  '设备状态 ',
+                                  style: textStyle,
+                                ),
+                                // Text(
+                                //   '${widget.data.runState}',
+                                //   style: textStyle,
+                                // ),
+                                if (widget.data.runStateInt == 1)
+                                  Container(
+                                    // width: 80,
+                                    child: Row(
+                                      children: [
+                                        // Text('状态 ',
+                                        //     style: textStyle),
+                                        CommonImage(
+                                          'static/images/run.png',
+                                          width: 40,
+                                          height: 40,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                if (widget.data.runStateInt == 2)
+                                  Container(
+                                    // width: 80,
+                                    child: Row(
+                                      children: [
+                                        // Text('状态 ',
+                                        //     style: textStyle),
+                                        CommonImage(
+                                          'static/images/stop.png',
+                                          width: 40,
+                                          height: 40,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                if (widget.data.runStateInt == 3)
+                                  Container(
+                                    // width: 80,
+                                    child: Row(
+                                      children: [
+                                        // Text('状态 ',
+                                        //     style: textStyle),
+                                        CommonImage(
+                                          'static/images/complete.png',
+                                          width: 40,
+                                          height: 40,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                if (widget.data.runStateInt == 4)
+                                  Container(
+                                    // width: 80,
+                                    child: Row(
+                                      children: [
+                                        // Text('状态 ',
+                                        //     style: textStyle),
+                                        CommonImage(
+                                          'static/images/yellow.png',
+                                          width: 40,
+                                          height: 40,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        )),
+                        Expanded(
+                            child: Row(
+                              children: [
+                                CommonImage(
+                                  // 'static/images/yellow.png',
+                                  '${Config.BaseUrl}/api/FileGetImage/show/691306b4-72f8-40d8-8157-1c06e3b8c1bd.png',
+                                  width: 40,
+                                  height: 40,
+                                ),
+                              ],
+                            ))
                       ],
-                    ),
-                    Row(
-                      children: [
-                        Text(
-                          '设备状态 ',
-                          style: textStyle,
-                        ),
-                        // Text(
-                        //   '${widget.data.runState}',
-                        //   style: textStyle,
-                        // ),
-                        if (widget.data.runStateInt == 1)
-                          Container(
-                            // width: 80,
-                            child: Row(
-                              children: [
-                                // Text('状态 ',
-                                //     style: textStyle),
-                                CommonImage(
-                                  'static/images/run.png',
-                                  width: 40,
-                                  height: 40,
-                                ),
-                              ],
-                            ),
-                          ),
-                        if (widget.data.runStateInt == 2)
-                          Container(
-                            // width: 80,
-                            child: Row(
-                              children: [
-                                // Text('状态 ',
-                                //     style: textStyle),
-                                CommonImage(
-                                  'static/images/stop.png',
-                                  width: 40,
-                                  height: 40,
-                                ),
-                              ],
-                            ),
-                          ),
-                        if (widget.data.runStateInt == 3)
-                          Container(
-                            // width: 80,
-                            child: Row(
-                              children: [
-                                // Text('状态 ',
-                                //     style: textStyle),
-                                CommonImage(
-                                  'static/images/complete.png',
-                                  width: 40,
-                                  height: 40,
-                                ),
-                              ],
-                            ),
-                          ),
-                        if (widget.data.runStateInt == 4)
-                          Container(
-                            // width: 80,
-                            child: Row(
-                              children: [
-                                // Text('状态 ',
-                                //     style: textStyle),
-                                CommonImage(
-                                  'static/images/yellow.png',
-                                  width: 40,
-                                  height: 40,
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
+                    )
+
                     // if (IsShow)
                     //   Container(
                     //       margin: const EdgeInsets.only(top: 5),
@@ -259,7 +284,7 @@ class _LineDetailControlItemState extends State<LineDetailControlItem> {
                   ],
                 )),
               ],
-            )
+            ),
           ],
         ),
       ),
