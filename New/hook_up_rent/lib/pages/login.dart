@@ -191,6 +191,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 TextButton(
                     onPressed: () {
+                      CommonToast.showToast('待开放功能....');
                       // Navigator.pushReplacementNamed(context, '/register');
                     },
                     child: Text('去注册~'))

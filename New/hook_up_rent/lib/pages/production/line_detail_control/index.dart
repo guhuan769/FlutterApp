@@ -100,24 +100,24 @@ class _LineDetailControlState extends State<LineDetailControl> {
             child: Container(
               child: Row(
                 children: [
-                  Text('运行中 ', style: textStyle),
+                  Text('正常 ', style: textStyle),
                   CommonImage(
                     'static/images/run.png',
                     width: 40,
                     height: 40,
                   ),
-                  Text('未运行 ', style: textStyle),
+                  Text('停止 ', style: textStyle),
                   CommonImage(
                     'static/images/yellow.png',
                     width: 40,
                     height: 40,
                   ),
-                  Text('已完成 ', style: textStyle),
-                  CommonImage(
-                    'static/images/complete.png',
-                    width: 40,
-                    height: 40,
-                  ),
+                  // Text('已完成 ', style: textStyle),
+                  // CommonImage(
+                  //   'static/images/complete.png',
+                  //   width: 40,
+                  //   height: 40,
+                  // ),
                   Text('故障 ', style: textStyle),
                   CommonImage(
                     'static/images/stop.png',
@@ -128,16 +128,17 @@ class _LineDetailControlState extends State<LineDetailControl> {
               ),
             ),
           ),
-          Padding(
-            //工序
-            padding: const EdgeInsets.all(0.0),
-            child: Container(
-              decoration: BoxDecoration(color: Colors.white),
-              child: LineProcessManagement(
-                detailId: widget.detailId,
-              ),
-            ),
-          ),
+          // //工序管理
+          // Padding(
+          //   //工序
+          //   padding: const EdgeInsets.all(0.0),
+          //   child: Container(
+          //     decoration: BoxDecoration(color: Colors.white),
+          //     child: LineProcessManagement(
+          //       detailId: widget.detailId,
+          //     ),
+          //   ),
+          // ),
           Column(
             children: [
               if (widget.dataList!.length == 0) Text('没有相关设备信息'),

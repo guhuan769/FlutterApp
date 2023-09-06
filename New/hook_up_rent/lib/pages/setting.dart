@@ -41,9 +41,12 @@ class _SettingPageState extends State<SettingPage> {
             padding: const EdgeInsets.all(10.0),
             child: Column(children: [
               Container(
-                width: 310,
+
                 child: ElevatedButton(
-                  child: Center(child: Text("退出登录")),
+                  child: FractionallySizedBox(
+                    widthFactor: 0.92,
+                    child: Center(child: Text("退出登录")),
+                  ),
                   onPressed: () {
                     CommonToast.showToast('已经退出登录');
                     // Navigator.of(context).pushReplacementNamed('login');

@@ -81,129 +81,129 @@ class _LineDetailControlItemState extends State<LineDetailControlItem> {
                         Expanded(
                             flex: 3,
                             child: Column(
-                          children: [
-                            Row(
                               children: [
-                                Text(
-                                  '设备名称 ',
-                                  style: textStyle,
+                                Row(
+                                  children: [
+                                    Text(
+                                      '设备名称 ',
+                                      style: textStyle,
+                                    ),
+                                    Text(
+                                      '${widget.data.deviceName}',
+                                      style: textStyle,
+                                    ),
+                                    // Expanded(
+                                    //   child: Text("123321"),
+                                    // ),
+                                    // Expanded(
+                                    //     child: Container(
+                                    //   child: Row(
+                                    //     mainAxisAlignment: MainAxisAlignment.end,
+                                    //     children: [
+                                    //       Row(
+                                    //         children: [
+                                    //           // Text('更多 ', style: textStyle),
+                                    //           TextButton(
+                                    //             child: Text(!IsShow ? '更多' : '收起',
+                                    //                 style: textStyle),
+                                    //             onPressed: () {
+                                    //               setState(() {
+                                    //                 IsShow = !IsShow;
+                                    //               });
+                                    //             },
+                                    //           ),
+                                    //         ],
+                                    //       )
+                                    //     ],
+                                    //   ),
+                                    // ))
+                                  ],
                                 ),
-                                Text(
-                                  '${widget.data.deviceName}',
-                                  style: textStyle,
+                                Row(
+                                  children: [
+                                    Text(
+                                      '设备状态 ',
+                                      style: textStyle,
+                                    ),
+                                    // Text(
+                                    //   '${widget.data.runState}',
+                                    //   style: textStyle,
+                                    // ),
+                                    if (widget.data.runStateInt == 1)
+                                      Container(
+                                        // width: 80,
+                                        child: Row(
+                                          children: [
+                                            // Text('状态 ',
+                                            //     style: textStyle),
+                                            CommonImage(
+                                              'static/images/run.png',
+                                              width: 40,
+                                              height: 40,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    if (widget.data.runStateInt == 2)
+                                      Container(
+                                        // width: 80,
+                                        child: Row(
+                                          children: [
+                                            // Text('状态 ',
+                                            //     style: textStyle),
+                                            CommonImage(
+                                              'static/images/stop.png',
+                                              width: 40,
+                                              height: 40,
+                                            ),
+                                          ],
+    ),
+                                      ),
+                                    if (widget.data.runStateInt == 3)
+                                      Container(
+                                        // width: 80,
+                                        child: Row(
+                                          children: [
+                                            // Text('状态 ',
+                                            //     style: textStyle),
+                                            CommonImage(
+                                              'static/images/complete.png',
+                                              width: 40,
+                                              height: 40,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    if (widget.data.runStateInt == 4)
+                                      Container(
+                                        // width: 80,
+                                        child: Row(
+                                          children: [
+                                            // Text('状态 ',
+                                            //     style: textStyle),
+                                            CommonImage(
+                                              'static/images/yellow.png',
+                                              width: 40,
+                                              height: 40,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                  ],
                                 ),
-                                // Expanded(
-                                //   child: Text("123321"),
-                                // ),
-                                // Expanded(
-                                //     child: Container(
-                                //   child: Row(
-                                //     mainAxisAlignment: MainAxisAlignment.end,
-                                //     children: [
-                                //       Row(
-                                //         children: [
-                                //           // Text('更多 ', style: textStyle),
-                                //           TextButton(
-                                //             child: Text(!IsShow ? '更多' : '收起',
-                                //                 style: textStyle),
-                                //             onPressed: () {
-                                //               setState(() {
-                                //                 IsShow = !IsShow;
-                                //               });
-                                //             },
-                                //           ),
-                                //         ],
-                                //       )
-                                //     ],
-                                //   ),
-                                // ))
                               ],
-                            ),
-                            Row(
-                              children: [
-                                Text(
-                                  '设备状态 ',
-                                  style: textStyle,
-                                ),
-                                // Text(
-                                //   '${widget.data.runState}',
-                                //   style: textStyle,
-                                // ),
-                                if (widget.data.runStateInt == 1)
-                                  Container(
-                                    // width: 80,
-                                    child: Row(
-                                      children: [
-                                        // Text('状态 ',
-                                        //     style: textStyle),
-                                        CommonImage(
-                                          'static/images/run.png',
-                                          width: 40,
-                                          height: 40,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                if (widget.data.runStateInt == 2)
-                                  Container(
-                                    // width: 80,
-                                    child: Row(
-                                      children: [
-                                        // Text('状态 ',
-                                        //     style: textStyle),
-                                        CommonImage(
-                                          'static/images/stop.png',
-                                          width: 40,
-                                          height: 40,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                if (widget.data.runStateInt == 3)
-                                  Container(
-                                    // width: 80,
-                                    child: Row(
-                                      children: [
-                                        // Text('状态 ',
-                                        //     style: textStyle),
-                                        CommonImage(
-                                          'static/images/complete.png',
-                                          width: 40,
-                                          height: 40,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                if (widget.data.runStateInt == 4)
-                                  Container(
-                                    // width: 80,
-                                    child: Row(
-                                      children: [
-                                        // Text('状态 ',
-                                        //     style: textStyle),
-                                        CommonImage(
-                                          'static/images/yellow.png',
-                                          width: 40,
-                                          height: 40,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ],
-                        )),
+                            )),
                         Expanded(
                             child: Row(
-                              children: [
-                                CommonImage(
-                                  // 'static/images/yellow.png',
-                                  '${Config.BaseUrl}/api/FileGetImage/show/691306b4-72f8-40d8-8157-1c06e3b8c1bd.png',
-                                  width: 40,
-                                  height: 40,
-                                ),
-                              ],
-                            ))
+                          children: [
+                            CommonImage(
+                              // 'static/images/yellow.png',
+                              '${Config.BaseUrl}/api/FileGetImage/show/691306b4-72f8-40d8-8157-1c06e3b8c1bd.png',
+                              width: 60,
+                              height: 60,
+                            ),
+                          ],
+                        ))
                       ],
                     )
 

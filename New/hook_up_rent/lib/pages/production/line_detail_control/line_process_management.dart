@@ -22,6 +22,7 @@ var textStyle = const TextStyle(
 
 class LineProcessManagement extends StatefulWidget {
   final String detailId;
+
   const LineProcessManagement({super.key, required this.detailId});
 
   @override
@@ -34,6 +35,7 @@ class _LineProcessManagementState extends State<LineProcessManagement> {
   bool IsShow = false;
   int i = 0;
   late Timer _timer;
+
   @override
   void initState() {
     // TODO: implement initState
