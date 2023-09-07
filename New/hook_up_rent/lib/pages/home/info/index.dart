@@ -24,13 +24,14 @@ class Info extends StatelessWidget {
     //   super.initState();
     // }
     return Padding(
-      padding: EdgeInsets.all(9),
+      padding: EdgeInsets.all(9.0),
       child: Container(
       
         child: Column(
           children: [
             if (showTitle)
               Container(
+
                 alignment: Alignment.centerLeft,
                 padding: EdgeInsets.all(10.0),
                 child: Text(

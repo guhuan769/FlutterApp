@@ -12,14 +12,16 @@ import 'dart:ffi';
 class LineDetailEntity {
   late String key;
   late final String deviceName;
+  late final String deviceImg;
   late final String runState;
   late final int runStateInt;
 
-  LineDetailEntity(this.key, this.deviceName, this.runState,this.runStateInt);
+  LineDetailEntity(this.key, this.deviceName,this.deviceImg, this.runState,this.runStateInt);
 
   LineDetailEntity.fromJson(Map<String, dynamic> json) {
     key = json["key"];
     deviceName = json["deviceName"];
+    deviceImg = json["deviceImg"];
     runState = json["runState"];
     runStateInt = json["runStateInt"];
     

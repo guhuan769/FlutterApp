@@ -198,7 +198,7 @@ class _LineDetailControlItemState extends State<LineDetailControlItem> {
                           children: [
                             CommonImage(
                               // 'static/images/yellow.png',
-                              '${Config.BaseUrl}/api/FileGetImage/show/691306b4-72f8-40d8-8157-1c06e3b8c1bd.png',
+                              '${Config.BaseUrl}/api/${widget.data.deviceImg}',
                               width: 60,
                               height: 60,
                             ),

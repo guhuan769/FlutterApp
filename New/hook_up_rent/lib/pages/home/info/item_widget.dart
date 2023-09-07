@@ -14,6 +14,7 @@ var textStyleButton = TextStyle(color: Colors.green);
 
 class ItemWidget extends StatelessWidget {
   final productionLineStatistics data;
+
   const ItemWidget({super.key, required this.data});
 
   @override
@@ -25,7 +26,7 @@ class ItemWidget extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(8.0),
         child: Container(
-            height: 100.0,
+            height: 60.0,
             // padding: EdgeInsets.only(left: 10.0, right: 10.0, bottom: 10.0),
             child: Row(
               children: [
@@ -46,7 +47,7 @@ class ItemWidget extends StatelessWidget {
                         Expanded(
                           flex: 22,
                           child: Container(
-                            height: 100.0,
+                            height: 60.0,
                             color: Colors.white,
                             // decoration: BoxDecoration(borderRadius: BorderRadius(Radius.circular(5))),
                             child: Column(
@@ -70,7 +71,6 @@ class ItemWidget extends StatelessWidget {
                                   ],
                                 ),
                                 Row(
-                                  // mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
                                       '今日产量 ',
@@ -80,15 +80,6 @@ class ItemWidget extends StatelessWidget {
                                       '${data.todayYield}',
                                       style: textStyle,
                                     ),
-                                    // Text(
-                                    //   data.time,
-                                    //   style: textStyle,
-                                    // ),
-                                  ],
-                                ),
-                                Row(
-                                  // mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
                                     Text(
                                       '    周产量 ',
                                       style: textStyle,
@@ -97,15 +88,6 @@ class ItemWidget extends StatelessWidget {
                                       '${data.weekYield}',
                                       style: textStyle,
                                     ),
-                                    // Text(
-                                    //   data.time,
-                                    //   style: textStyle,
-                                    // ),
-                                  ],
-                                ),
-                                Row(
-                                  // mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
                                     Text(
                                       '    年产量 ',
                                       style: textStyle,
@@ -114,12 +96,59 @@ class ItemWidget extends StatelessWidget {
                                       '${data.yearYield}',
                                       style: textStyle,
                                     ),
-                                    // Text(
-                                    //   data.time,
-                                    //   style: textStyle,
+                                    // Row(
+                                    //   // mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    //   children: [
+                                    //     Text(
+                                    //       '今日产量 ',
+                                    //       style: textStyle,
+                                    //     ),
+                                    //     Text(
+                                    //       '${data.todayYield}',
+                                    //       style: textStyle,
+                                    //     ),
+                                    //     // Text(
+                                    //     //   data.time,
+                                    //     //   style: textStyle,
+                                    //     // ),
+                                    //   ],
+                                    // ),
+                                    // Row(
+                                    //   // mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    //   children: [
+                                    //     Text(
+                                    //       '    周产量 ',
+                                    //       style: textStyle,
+                                    //     ),
+                                    //     Text(
+                                    //       '${data.weekYield}',
+                                    //       style: textStyle,
+                                    //     ),
+                                    //     // Text(
+                                    //     //   data.time,
+                                    //     //   style: textStyle,
+                                    //     // ),
+                                    //   ],
+                                    // ),
+                                    // Row(
+                                    //   // mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    //   children: [
+                                    //     Text(
+                                    //       '    年产量 ',
+                                    //       style: textStyle,
+                                    //     ),
+                                    //     Text(
+                                    //       '${data.yearYield}',
+                                    //       style: textStyle,
+                                    //     ),
+                                    //     // Text(
+                                    //     //   data.time,
+                                    //     //   style: textStyle,
+                                    //     // ),
+                                    //   ],
                                     // ),
                                   ],
-                                ),
+                                )
                               ],
                             ),
                           ),
@@ -127,14 +156,14 @@ class ItemWidget extends StatelessWidget {
                         Expanded(
                           flex: 1,
                           child: Container(
-                              height: 100.0,
+                              height: 60.0,
                               color: Colors.white,
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Row(
                                     children: [
-                                      Text('> ', style: textStyleButton),
+                                      Text('...', style:textStyleButton),
                                     ],
                                   )
                                 ],
