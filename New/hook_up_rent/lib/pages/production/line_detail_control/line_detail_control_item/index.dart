@@ -79,7 +79,7 @@ class _LineDetailControlItemState extends State<LineDetailControlItem> {
                       direction: Axis.horizontal,
                       children: [
                         Expanded(
-                            flex: 3,
+                            flex: 2,
                             child: Column(
                               children: [
                                 Row(
@@ -199,8 +199,8 @@ class _LineDetailControlItemState extends State<LineDetailControlItem> {
                             CommonImage(
                               // 'static/images/yellow.png',
                               '${Config.BaseUrl}/api/${widget.data.deviceImg}',
-                              width: 60,
-                              height: 60,
+                              width: 80,
+                              height: 80,
                             ),
                           ],
                         ))
