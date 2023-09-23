@@ -57,7 +57,7 @@ dependencies:
 
   shared_preferences: ^2.1.0
 
-  #这是个啥插件啊 注释一下啊
+  #这是个啥插件啊 注释一下啊  该插件是用于获取系统版本号
   package_info_plus: any
 
   
