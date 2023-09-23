@@ -25,7 +25,28 @@ apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
 
+
+
+
+
 android {
+
+    // 自定义APK安装包名，只需更改outputFileName的拼接赋值
+    // Android Studio 可以在控制台点击路径打开目录，不能点击则Run cd path
+    // 输出路径：build/app/outputs/apk/debug/
+    // 输出路径：build/app/outputs/apk/release/
+    // 输出路径：build/app/outputs/apk/profile/
+//    println("Apk out info:")
+//    applicationVariants.all { variant ->
+//        variant.outputs.all {
+//            def appName = 'MyAppName'
+//            def buildType = variant.variantData.variantConfiguration.buildType.name
+//            // 输入结果如：MyAppName-0.5.1-release.apk
+//            outputFileName = "${appName}-${defaultConfig.versionName}-${buildType}.apk"
+//            println("  L Terminal Run : cd "+ rootProject.buildDir + "/app/outputs/apk/${buildType}/" + "  file: ${outputFileName}")
+//        }
+//    }
+
     namespace "com.example.hook_up_rent"
     compileSdkVersion flutter.compileSdkVersion
     ndkVersion flutter.ndkVersion
@@ -52,6 +73,18 @@ android {
         targetSdkVersion flutter.targetSdkVersion
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
+    }
+
+    // 修改输出APP名 gh
+    applicationVariants.all {
+        variant ->
+            variant.outputs.all {
+                output ->
+                    if (outputFile.name.endsWith('.apk')) {
+                        def fileName = "oriental"
+                        outputFileName = "数据监控系统 v${variant.versionName}.apk"
+                    }
+            }
     }
 
     buildTypes {

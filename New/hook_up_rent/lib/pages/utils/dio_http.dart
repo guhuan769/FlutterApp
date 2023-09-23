@@ -31,10 +31,12 @@ class DioHttp {
     // if (_client != null || context != this.context) {
     this.context = context;
     var options = BaseOptions(
-        baseUrl: Config.BaseUrl,
-        connectTimeout: Duration(milliseconds: 1000 * 10),
-        receiveTimeout: Duration(milliseconds: 1000 * 3),
-        extra: {'context': context});
+      baseUrl: Config.BaseUrl,
+      connectTimeout: Duration(milliseconds: 1000 * 10),
+      receiveTimeout: Duration(milliseconds: 1000 * 3),
+      extra: {'context': context},
+      responseType: ResponseType.json,
+    );
 
     var client = Dio(options);
     this._client = client;

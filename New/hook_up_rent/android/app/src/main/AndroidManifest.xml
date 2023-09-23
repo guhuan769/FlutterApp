@@ -7,7 +7,7 @@
     <!-- 查看网络状态 -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <application
-        android:label="MES系统"
+        android:label="数据监控系统"
         android:name="${applicationName}"
         android:icon="@mipmap/logo">
         <activity
