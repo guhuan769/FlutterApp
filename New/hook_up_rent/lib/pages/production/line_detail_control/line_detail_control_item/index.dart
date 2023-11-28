@@ -152,7 +152,7 @@ class _LineDetailControlItemState extends State<LineDetailControlItem> {
                                             // Text('状态 ',
                                             //     style: textStyle),
                                             CommonImage(
-                                              'static/images/stop.png',
+                                              'static/images/yellow.png',
                                               width: 40,
                                               height: 40,
                                             ),
@@ -182,7 +182,7 @@ class _LineDetailControlItemState extends State<LineDetailControlItem> {
                                             // Text('状态 ',
                                             //     style: textStyle),
                                             CommonImage(
-                                              'static/images/yellow.png',
+                                              'static/images/stop.png',
                                               width: 40,
                                               height: 40,
                                             ),

@@ -82,7 +82,8 @@ android {
                 output ->
                     if (outputFile.name.endsWith('.apk')) {
                         def fileName = "oriental"
-                        outputFileName = "数据监控系统 v${variant.versionName}.apk"
+                        //outputFileName = "数据监控系统 v${variant.versionName}.apk"
+                        outputFileName = "数据监控系统.apk"
                     }
             }
     }

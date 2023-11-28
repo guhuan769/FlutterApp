@@ -81,7 +81,7 @@ class ItemWidget extends StatelessWidget {
                                       style: textStyle,
                                     ),
                                     Text(
-                                      '    周产量 ',
+                                      '    近周产量 ',
                                       style: textStyle,
                                     ),
                                     Text(
@@ -89,7 +89,7 @@ class ItemWidget extends StatelessWidget {
                                       style: textStyle,
                                     ),
                                     Text(
-                                      '    年产量 ',
+                                      '    近年产量 ',
                                       style: textStyle,
                                     ),
                                     Text(

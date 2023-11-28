@@ -96,16 +96,16 @@ class _HomePageState extends State<HomePage> {
                 child: Container(
                   padding: EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.green,
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text("发现新版本",style: TextStyle(color: Colors.white),),
+                      Text("发现新版本",style: TextStyle(color: Colors.black54),),
                       Padding(
                         padding: EdgeInsets.symmetric(vertical: 10),
-                        child: Text("发现新版本$version 更新内容待扩展...",style: TextStyle(color: Colors.white),),
+                        child: Text("发现新版本$version 更新内容待扩展...",style: TextStyle(color: Colors.black54),),
                       ),
                       _isDownload
                           ? Padding(
@@ -183,8 +183,15 @@ class _HomePageState extends State<HomePage> {
                                 });
                               },
                               child: Container(
+                                height: 60,
                                 padding: EdgeInsets.all(6),
-                                child: Text("更新",style: TextStyle(color: Colors.white),),
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: Colors.grey,
+                                        width: 1,
+                                  ),
+                                ),
+                                child: Center(child: Text("点击我更新",style: TextStyle(color: Colors.black54,fontSize: 20))),
                               ),
                             ),
                     ],
