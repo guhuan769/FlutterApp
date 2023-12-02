@@ -37,13 +37,28 @@ class _LineDetailControlItemState extends State<LineDetailControlItem> {
   List tabs = []; //"步骤1", "步骤2", "步骤3"
   bool IsShow = false;
   late Timer _timer;
-
+  int _start = 10;
   @override
   void initState() {
     // TODO: implement initState
     _onLoading();
+
     // var bbb = widget.data;
-    // _timer = Timer.periodic(const Duration(seconds: 1), (timer) {});
+    const oneSec = const Duration(seconds: 1);
+    _timer = new Timer.periodic(
+      oneSec,
+          (Timer timer) => setState(
+            () {
+          // if (_start < 1) {
+          //   timer.cancel();
+          // } else {
+          //   _start = _start - 1;
+          // }
+              //_start++;
+              _onLoading();
+        },
+      ),
+    );
     // super.initState();
   }
 
