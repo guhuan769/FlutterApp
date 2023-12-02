@@ -8,6 +8,7 @@
  */
 
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:hook_up_rent/pages/charts/horizontal_bar_label_chart.dart';
 import 'package:hook_up_rent/pages/production/line_detail/line_detail_entity.dart';
@@ -24,7 +25,27 @@ class LineDetail extends StatefulWidget {
 }
 
 class _LineDetailState extends State<LineDetail> {
-  final List<LineDetailEntity> lines = [];
+  List<LineDetailEntity> lines = [];
+
+  late Timer _timer;
+  void startTimer() {
+    const oneSec = const Duration(seconds: 5);
+    _timer = new Timer.periodic(
+      oneSec,
+          (Timer timer) => setState(
+            () {
+              _onLoading();
+        },
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
   void _onLoading() async {
     Store store = await Store.getInstance();
     var token = await store.getString(StoreKeys.token);
@@ -34,7 +55,22 @@ class _LineDetailState extends State<LineDetail> {
     var resMap = json.decode(res.toString());
     setState(() {
       for (var json in resMap["data"]) {
-        lines.add(LineDetailEntity.fromJson(json));
+        // var aa = json["runStateInt"];
+
+        if(lines.any((e) => e.key == json["key"]))
+        {
+          // print("我来了 ${aa}");
+          // lines.where((e) => e.key == json["key"]).first.runStateInt = 2;
+          //想根据key查询某条数据并且更改状态
+          // LineDetailEntity entity = lines.firstWhere((e) => e.key == json["key"]);
+          // entity.runStateInt = 1;
+          lines.firstWhere((e) => e.key == json["key"]).runStateInt = json["runStateInt"];
+          // print(lines.firstWhere((e) => e.key == json["key"]));
+        }
+        else{
+          lines.add(LineDetailEntity.fromJson(json));
+        }
+
       }
     });
   }
@@ -43,8 +79,13 @@ class _LineDetailState extends State<LineDetail> {
   void initState() {
     //初始化数据
     // TODO: implement initState
+    //加个定时器
+
+
     _onLoading();
-    super.initState();
+    startTimer();
+
+    // super.initState();
   }
 
   @override

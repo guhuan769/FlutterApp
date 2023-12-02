@@ -14,7 +14,7 @@ class LineDetailEntity {
   late final String deviceName;
   late final String deviceImg;
   late final String runState;
-  late final int runStateInt;
+  late int runStateInt;
 
   LineDetailEntity(this.key, this.deviceName,this.deviceImg, this.runState,this.runStateInt);
 
@@ -32,7 +32,7 @@ class LineDetailEntity {
   }
 
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = new Map<String, dynamic>();
+    Map<String, dynamic> data = new Map<String, dynamic>();
     data['key'] = this.key;
     data['deviceName'] = this.deviceName;
     data['runState'] = this.runState;

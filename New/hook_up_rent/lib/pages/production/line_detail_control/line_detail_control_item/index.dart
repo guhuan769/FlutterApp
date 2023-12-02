@@ -44,21 +44,21 @@ class _LineDetailControlItemState extends State<LineDetailControlItem> {
     _onLoading();
 
     // var bbb = widget.data;
-    const oneSec = const Duration(seconds: 1);
-    _timer = new Timer.periodic(
-      oneSec,
-          (Timer timer) => setState(
-            () {
-          // if (_start < 1) {
-          //   timer.cancel();
-          // } else {
-          //   _start = _start - 1;
-          // }
-              //_start++;
-              _onLoading();
-        },
-      ),
-    );
+    const oneSec = const Duration(seconds: 2);
+    // _timer = new Timer.periodic(
+    //   oneSec,
+    //       (Timer timer) => setState(
+    //         () {
+    //       // if (_start < 1) {
+    //       //   timer.cancel();
+    //       // } else {
+    //       //   _start = _start - 1;
+    //       // }
+    //           //_start++;
+    //           _onLoading();
+    //     },
+    //   ),
+    // );
     // super.initState();
   }
 

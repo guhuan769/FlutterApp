@@ -7,6 +7,8 @@
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
 import 'dart:convert';
+import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:hook_up_rent/pages/charts/horizontal_bar_label_chart.dart';
@@ -41,6 +43,10 @@ class LineDetailControl extends StatefulWidget {
 class _LineDetailControlState extends State<LineDetailControl> {
   late productionLineStatistics lineDetail =
       productionLineStatistics('', 'lineName', 0, 0, 0, 0);
+
+  // late Timer _timer;
+
+
   void _init() async {
     Store store = await Store.getInstance();
     var token = await store.getString(StoreKeys.token);
@@ -66,8 +72,25 @@ class _LineDetailControlState extends State<LineDetailControl> {
   @override
   void initState() {
     // TODO: implement initState
-    super.initState();
+    // super.initState();
+    const oneSec = const Duration(seconds: 2);
+    // _timer = new Timer.periodic(
+    //   oneSec,
+    //       (Timer timer) => setState(
+    //         () {
+    //       // if (_start < 1) {
+    //       //   timer.cancel();
+    //       // } else {
+    //       //   _start = _start - 1;
+    //       // }
+    //           //_start++;
+    //           // _onLoading();
+    //           _init();
+    //     },
+    //   ),
+    // );
     _init();
+
   }
 
   @override
