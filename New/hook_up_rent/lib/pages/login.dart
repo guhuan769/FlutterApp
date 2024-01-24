@@ -124,7 +124,7 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       appBar: AppBar(
         title: Center(
-          child: Text('登录'),
+          child: Text('数据监控系统-登录'),
         ),
       ),
       body: SafeArea(
