@@ -8,7 +8,7 @@
  */
 class Config {
   static const CommonIcon = 'CommonIcon';
-  static const BaseUrl = 'http://117.174.127.220:5118';
+  static const BaseUrl = 'http://117.174.127.220:48889';
   // static const BaseUrl = 'http://192.168.101.5:5118';
   // static const BaseUrl = 'https://127.0.0.1:5118';
 }
