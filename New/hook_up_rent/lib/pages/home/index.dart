@@ -142,6 +142,10 @@ class _HomePageState extends State<HomePage> {
                           : InkWell(
                               onTap: () {
                                 // Navigator.pop(context);
+
+                                //String url =
+                                 //   "${Config.BaseUrl}/api/FileDownload/Download?subDirectory=${resMap['data'][0]["path"]}";
+
                                 String url =
                                     "${Config.BaseUrl}/api/FileDownload/Download?subDirectory=${resMap['data'][0]["path"]}";
                                 UpdateModel updateModel = UpdateModel(
