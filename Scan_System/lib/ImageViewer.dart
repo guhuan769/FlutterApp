@@ -1,26 +1,40 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 
-class ImageViewer extends StatelessWidget {
+class ImageViewer extends StatefulWidget {
   final List<String> imageUrls;
 
-  ImageViewer({required this.imageUrls});
+  // ImageViewer({required this.imageUrls});
+  const ImageViewer({super.key, required this.imageUrls});
+  @override
+  // ignore: library_private_types_in_public_api
+  _ImageViewerState createState() => _ImageViewerState();
+}
+
+class _ImageViewerState extends State<ImageViewer> {
+  int currentIndex = 0;
 
   @override
   Widget build(BuildContext context) {
+    int currentIndex = 0;
     return Scaffold(
+      appBar: AppBar(
+        title: Text('图片 ${currentIndex + 1} / ${widget.imageUrls.length}'),
+      ),
       body: PhotoViewGallery.builder(
-        itemCount: imageUrls.length,
+        itemCount: widget.imageUrls.length,
         builder: (context, index) {
           return PhotoViewGalleryPageOptions(
-            imageProvider: NetworkImage(imageUrls[index]),
+            imageProvider: FileImage(File(widget.imageUrls[index])),//NetworkImage(imageUrls[index]),
             minScale: PhotoViewComputedScale.contained,
             maxScale: PhotoViewComputedScale.covered * 2,
           );
         },
-        scrollPhysics: BouncingScrollPhysics(),
-        backgroundDecoration: BoxDecoration(
+        scrollPhysics: const BouncingScrollPhysics(),
+        backgroundDecoration: const BoxDecoration(
           color: Colors.black,
         ),
         pageController: PageController(),

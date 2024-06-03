@@ -3,24 +3,26 @@
 // import 'package:flutter_advanced_networkimage_2/provider.dart';
 // import 'package:flutter_advanced_networkimage_2/transition.dart';
 // import 'package:flutter_advanced_networkimage_2/zoomable.dart';
+
+// class CustomImageView extends StatefulWidget {
+//   const CustomImageView({super.key});
 //
-// // class CustomImageView extends StatefulWidget {
-// //   const CustomImageView({super.key});
-// //
-// //   @override
-// //   State<CustomImageView> createState() => _CustomImageViewState();
-// // }
-// //
-// // class _CustomImageViewState extends State<CustomImageView> {
-// //   @override
-// //   Widget build(BuildContext context) {
-// //     return Scaffold(
-// //       body: Container(
-// //         child: Text('123'),
-// //       ),
-// //     );
-// //   }
-// // }
+//   @override
+//   State<CustomImageView> createState() => _CustomImageViewState();
+// }
+//
+// class _CustomImageViewState extends State<CustomImageView> {
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       body: Container(
+//         child: Text('123'),
+//       ),
+//     );
+//   }
+// }
+
+//
 //
 // final networkUriReg = RegExp('^http');
 // final localUriReg = RegExp('^static');
