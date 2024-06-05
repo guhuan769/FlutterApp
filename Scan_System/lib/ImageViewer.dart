@@ -17,28 +17,49 @@ class ImageViewer extends StatefulWidget {
 class _ImageViewerState extends State<ImageViewer> {
   int currentIndex = 0;
 
+  void _onPageChanged(int index) {
+    setState(() {
+      currentIndex = index;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    int currentIndex = 0;
+    // int currentIndex = 0;
     return Scaffold(
       appBar: AppBar(
         title: Text('图片 ${currentIndex + 1} / ${widget.imageUrls.length}'),
       ),
-      body: PhotoViewGallery.builder(
-        itemCount: widget.imageUrls.length,
-        builder: (context, index) {
-          return PhotoViewGalleryPageOptions(
-            imageProvider: FileImage(File(widget.imageUrls[index])),//NetworkImage(imageUrls[index]),
-            minScale: PhotoViewComputedScale.contained,
-            maxScale: PhotoViewComputedScale.covered * 2,
-          );
-        },
-        scrollPhysics: const BouncingScrollPhysics(),
-        backgroundDecoration: const BoxDecoration(
-          color: Colors.black,
+      body: Stack(
+        children:<Widget>[
+          // ElevatedButton(onPressed: () async {
+          //
+          // },
+          //   child: const Text('删除当前照片'),
+          // ),
+          PhotoViewGallery.builder(
+          itemCount: widget.imageUrls.length,
+          builder: (context, index) {
+            // setState(() {
+            //   currentIndex = index+1;
+            // });
+            return PhotoViewGalleryPageOptions(
+              imageProvider: FileImage(File(widget.imageUrls[index])),//NetworkImage(imageUrls[index]),
+              minScale: PhotoViewComputedScale.contained,
+              maxScale: PhotoViewComputedScale.covered * 2,
+            );
+          },
+          scrollPhysics: const BouncingScrollPhysics(),
+          backgroundDecoration: const BoxDecoration(
+            color: Colors.black,
+          ),
+          pageController: PageController(initialPage: currentIndex),
+          onPageChanged: _onPageChanged,
         ),
-        pageController: PageController(),
+        ]
       ),
     );
   }
 }
+
+

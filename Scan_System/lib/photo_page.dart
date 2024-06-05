@@ -1,28 +1,33 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
 
-class MyAppTwo extends StatelessWidget {
+class PhotoPage extends StatefulWidget {
+
+  const PhotoPage({super.key});
+
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      home: QRScannerPage(),
-    );
-  }
+  State<PhotoPage> createState() => _PhotoPageState();
 }
 
-class QRScannerPage extends StatefulWidget {
-  @override
-  _QRScannerPageState createState() => _QRScannerPageState();
-}
+class _PhotoPageState extends State<PhotoPage> {
 
-class _QRScannerPageState extends State<QRScannerPage> {
   final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
   QRViewController? controller;
   Barcode? result;
   bool isQRCodeDetected = false;
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+
+    setState(() {
+      isQRCodeDetected = false;
+    });
+
+  }
 
   @override
   void reassemble() {
@@ -35,6 +40,16 @@ class _QRScannerPageState extends State<QRScannerPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 假设您有一个动态路由，并且在路由参数中传递了一个Map
+    var routeSettings = ModalRoute.of(context)?.settings;
+    Map<dynamic, dynamic> arguments;
+    if (routeSettings?.arguments != null) {
+      // 使用as关键字将Object?转换为Map<dynamic, dynamic>
+      arguments = routeSettings?.arguments as Map<dynamic, dynamic>;
+      // 现在您可以安全地使用这个Map
+      debugPrint('debugPrint ---  ${arguments['id']}');
+    }
+
     return Scaffold(
       body: Stack(
         children: <Widget>[
@@ -63,15 +78,24 @@ class _QRScannerPageState extends State<QRScannerPage> {
 
           Positioned(
             bottom: 10,
-            child: Container(
+            child: SizedBox(
               width: MediaQuery.of(context).size.width,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
                   ElevatedButton(
-                    onPressed: isQRCodeDetected ? _captureImage : null,
-                    child: const Text('拍照'),
+                    onPressed:isQRCodeDetected ? _captureImage : isQRCodeDetected==false? null:null,
+                    child: const Text('进入相机拍照',style:TextStyle(color: Colors.green)),
                   ),
+                  ElevatedButton(onPressed: (){
+                    Navigator.of(context).pop();
+                  }, child: const Text('返回主页'))
+                  // InkWell(
+                  //     onTap: (){
+                  //       Navigator.of(context).pop();
+                  //     },
+                  //     child:
+                  // ),
                 ],
               ),
             ),
@@ -79,7 +103,19 @@ class _QRScannerPageState extends State<QRScannerPage> {
         ],
       ),
     );
+
+    //   Scaffold(body:
+    //   Center(
+    //       child: InkWell(
+    //          onTap: (){
+    //             Navigator.of(context).pop();
+    //          },
+    //           child: const Text('返回主页')
+    //       ),
+    //   )
+    // );
   }
+
 
   void _onQRViewCreated(QRViewController controller) {
     setState(() {
@@ -94,11 +130,27 @@ class _QRScannerPageState extends State<QRScannerPage> {
   }
 
   void _captureImage() async {
+
+    // setState(() {
+    //   isQRCodeDetected = false;
+    //   return;
+    // });
+
     final ImagePicker _picker = ImagePicker();
     final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
     if (photo != null) {
       // TODO: 进行拍照后的处理，比如显示确认保存取消界面
     }
+
+    setState(() {
+      isQRCodeDetected = false;
+    });
+  }
+
+  void _initQRCFlase() async {
+    setState(() {
+      isQRCodeDetected = false;
+    });
   }
 
   @override
@@ -106,4 +158,7 @@ class _QRScannerPageState extends State<QRScannerPage> {
     controller?.dispose();
     super.dispose();
   }
+
 }
+
+

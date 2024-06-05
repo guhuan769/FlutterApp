@@ -48,12 +48,11 @@ class _NewApplicationState extends State<NewApplication> {
             )
         ),
         home:Scaffold(
+          // backgroundColor: Colors.red,
           appBar: AppBar(
           title: const Text("扫描"),
         ),
-
         body:  _buildPage(_selectIndex),
-
         bottomNavigationBar: BottomNavigationBar(
           selectedItemColor: Colors.pink,
           unselectedItemColor:Colors.grey[800],
