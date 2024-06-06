@@ -50,7 +50,7 @@ class _NewApplicationState extends State<NewApplication> {
         home:Scaffold(
           // backgroundColor: Colors.red,
           appBar: AppBar(
-          title: const Text("扫描"),
+          title: Text('${_items[_selectIndex].label}'),
         ),
         body:  _buildPage(_selectIndex),
         bottomNavigationBar: BottomNavigationBar(

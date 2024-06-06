@@ -100,6 +100,7 @@ class _ScanPageState extends State<ScanPage> {
                   // 动态路由
                   Navigator.of(context).push(MaterialPageRoute(
                       settings: const RouteSettings(
+
                           arguments: {
                             "id":10,
                             "name":"_我爱你"
