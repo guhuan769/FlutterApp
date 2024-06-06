@@ -8,6 +8,7 @@ import 'package:scan_system/Utils/common_toast.dart';
 // import 'package:scan_system/Utils/common_toast.dart';
 import 'package:scan_system/new_custom_image_view.dart';
 import 'package:scan_system/photo_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 ///清除0KB图片
@@ -63,11 +64,11 @@ class _ScanPageState extends State<ScanPage> {
     // TODO: implement initState
     super.initState();
 
-    setState(() {
-      myImageUrls.add('/data/user/0/com.gh.scan_system/cache/cb60d413-b7b2-457e-8a3b-91e4670bb7596665434917045779569.jpg');
-      myImageUrls.add('/data/data/com.gh.scan_system/cache/5a567018-4da1-4064-a97d-920f6b109d257341716346130330151.jpg');
-      myImageUrls.add('/data/data/com.gh.scan_system/cache/60d0cbeb-c3f8-4e80-9247-86ce8fcf93462550480970746920720.jpg');
-    });
+    // setState(() {
+    //   myImageUrls.add('/data/user/0/com.gh.scan_system/cache/cb60d413-b7b2-457e-8a3b-91e4670bb7596665434917045779569.jpg');
+    //   myImageUrls.add('/data/data/com.gh.scan_system/cache/5a567018-4da1-4064-a97d-920f6b109d257341716346130330151.jpg');
+    //   myImageUrls.add('/data/data/com.gh.scan_system/cache/60d0cbeb-c3f8-4e80-9247-86ce8fcf93462550480970746920720.jpg');
+    // });
 
     // TODO: 删除所有图片
     //deleteFiles()
@@ -105,7 +106,14 @@ class _ScanPageState extends State<ScanPage> {
                           }
                       ),
                       builder: (context)=>  const PhotoPage())
-                  );
+                  ).then((result) async {
+                    SharedPreferences pref = await SharedPreferences.getInstance();
+                    if(pref != null){
+                        debugPrint("${pref.getBool("isSelect")}");
+                    }
+                    // _addImageUrl('');
+                    // CommonToast.showToast('回调函数');
+                  });
                 },
                   child: const Text('拍照'),
                 ),

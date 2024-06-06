@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PhotoPage extends StatefulWidget {
 
@@ -88,7 +89,7 @@ class _PhotoPageState extends State<PhotoPage> {
                     child: const Text('进入相机拍照',style:TextStyle(color: Colors.green)),
                   ),
                   ElevatedButton(onPressed: (){
-                    Navigator.of(context).pop();
+                    Navigator.of(context).pop('OK');
                   }, child: const Text('返回主页'))
                   // InkWell(
                   //     onTap: (){
@@ -140,6 +141,9 @@ class _PhotoPageState extends State<PhotoPage> {
     final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
     if (photo != null) {
       // TODO: 进行拍照后的处理，比如显示确认保存取消界面
+      SharedPreferences pref = await SharedPreferences.getInstance();
+      pref.setBool("isSelect", false);
+      pref.setString("imgPath", photo.path);
     }
 
     setState(() {
