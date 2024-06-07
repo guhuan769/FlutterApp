@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
+import 'package:scan_system/model/img_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class PhotoPage extends StatefulWidget {
@@ -141,9 +142,12 @@ class _PhotoPageState extends State<PhotoPage> {
     final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
     if (photo != null) {
       // TODO: 进行拍照后的处理，比如显示确认保存取消界面
-      SharedPreferences pref = await SharedPreferences.getInstance();
-      pref.setBool("isSelect", false);
-      pref.setString("imgPath", photo.path);
+
+      testSqflite();
+
+      // SharedPreferences pref = await SharedPreferences.getInstance();
+      // pref.setBool("isSelect", false);
+      // pref.setString("imgPath", photo.path);
     }
 
     setState(() {

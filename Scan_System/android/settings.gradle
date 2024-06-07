@@ -35,7 +35,7 @@ plugins {
     //参考连接 更改 plugins 的版本号
     //https://kotlinlang.org/docs/gradle-configure-project.html#apply-the-plugin
 //    id "com.android.application" version "7.3.0" apply false //Gradle 最小和最大版本
-    id "com.android.application" version "7.3.0" apply false //Gradle 最小和最大版本
+    id "com.android.application" version '8.1.1' apply false //Gradle 最小和最大版本
 
     id "org.jetbrains.kotlin.android" version "1.7.10" apply false //KGP 版本
 }
