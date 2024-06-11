@@ -10,6 +10,8 @@ import 'package:scan_system/new_custom_image_view.dart';
 import 'package:scan_system/photo_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'new_photo_page.dart';
+
 
 ///清除0KB图片
 void deleteEmptyFiles(String dirPath) {
@@ -76,86 +78,92 @@ class _ScanPageState extends State<ScanPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children:<Widget>[ Container(
-            decoration: const BoxDecoration(
-              color: Colors.black,
-              borderRadius: BorderRadius.all(Radius.circular(30)), // 设置四周圆角为30
-            ),
-          height: MediaQuery.of(context).size.height,
-          width: MediaQuery.of(context).size.width,
-            margin: const EdgeInsets.all(5.0), //容器外补白
-            child: myImageUrls.isEmpty ? const Center(child: Text('无照片',style:TextStyle(color: Colors.white,fontSize: 40,fontFamily: '黑体') ,)) : ImageViewer(imageUrls: myImageUrls), //const NewCustomImageView(),
-        ),
-        Positioned(
-          bottom: 10,
-          child: SizedBox(
+    return PopScope(
+      canPop: false, // 当false时，阻止当前路由被弹出。
+      onPopInvoked: (didPop) async {
+        CommonToast.showHint(context);
+      },
+      child: Scaffold(
+        body: Stack(
+          children:<Widget>[ Container(
+              decoration: const BoxDecoration(
+                color: Colors.black,
+                borderRadius: BorderRadius.all(Radius.circular(30)), // 设置四周圆角为30
+              ),
+            height: MediaQuery.of(context).size.height,
             width: MediaQuery.of(context).size.width,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                ElevatedButton(onPressed: () async {
-                  // TODO:导航到拍照界面
-                  // 动态路由
-                  Navigator.of(context).push(MaterialPageRoute(
-                      settings: const RouteSettings(
-
-                          arguments: {
-                            "id":10,
-                            "name":"_我爱你"
-                          }
-                      ),
-                      builder: (context)=>  const PhotoPage())
-                  ).then((result) async {
-                    SharedPreferences pref = await SharedPreferences.getInstance();
-                    if(pref != null){
-                        debugPrint("${pref.getBool("isSelect")}");
-                    }
-                    // _addImageUrl('');
-                    // CommonToast.showToast('回调函数');
-                  });
-                },
-                  child: const Text('拍照'),
-                ),
-                ElevatedButton(onPressed: () async {
-                  setState(() {
-                    myImageUrls.clear();
-                  });
-                },
-                  child: const Text('删除所有照片'),
-                ),
-                ElevatedButton(onPressed: () async {
-                  CommonToast.showToast('未开发');
-                },
-                  child: const Text('传输至服务端'),
-                ),
-
-                //// 该组件用于测试
-                // ElevatedButton(onPressed: () async {
-                //   final ImagePicker _picker = ImagePicker();
-                //   // 使用相机拍摄新照片
-                //   final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
-                //   if (photo != null) {
-                //     File file = File(photo.path);
-                //     final parentFolder = p.dirname(photo.path);
-                //     photoPath = photo.path;
-                //     parentFolderStr = parentFolder;
-                //     _addImageUrl(photo.path);
-                //     deleteEmptyFiles(parentFolder);
-                //   }
-                //   // print('parentFolderStr =========== $parentFolderStr');
-                //   if(parentFolderStr!= null){
-                //     deleteEmptyFiles(parentFolderStr);
-                //   }
-                // },
-                //   child: const Text('Test按钮'),
-                // ),
-              ],
+              margin: const EdgeInsets.all(5.0), //容器外补白
+              child: myImageUrls.isEmpty ? const Center(child: Text('无照片',style:TextStyle(color: Colors.white,fontSize: 40,fontFamily: '黑体') ,)) : ImageViewer(imageUrls: myImageUrls), //const NewCustomImageView(),
+          ),
+          Positioned(
+            bottom: 10,
+            child: SizedBox(
+              width: MediaQuery.of(context).size.width,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  ElevatedButton(onPressed: () async {
+                    // TODO:导航到拍照界面
+                    // 动态路由
+                    Navigator.of(context).push(MaterialPageRoute(
+                        settings: const RouteSettings(
+      
+                            arguments: {
+                              "id":10,
+                              "name":"_我爱你"
+                            }
+                        ),
+                        builder: (context)=> const NewPhotoPage() )//const PhotoPage()
+                    ).then((result) async {
+                      SharedPreferences pref = await SharedPreferences.getInstance();
+                      if(pref != null){
+                          debugPrint("${pref.getBool("isSelect")}");
+                      }
+                      // _addImageUrl('');
+                      // CommonToast.showToast('回调函数');
+                    });
+                  },
+                    child: const Text('拍照'),
+                  ),
+                  ElevatedButton(onPressed: () async {
+                    setState(() {
+                      myImageUrls.clear();
+                    });
+                  },
+                    child: const Text('删除所有照片'),
+                  ),
+                  ElevatedButton(onPressed: () async {
+                    CommonToast.showToast('未开发');
+                  },
+                    child: const Text('传输至服务端'),
+                  ),
+      
+                  //// 该组件用于测试
+                  // ElevatedButton(onPressed: () async {
+                  //   final ImagePicker _picker = ImagePicker();
+                  //   // 使用相机拍摄新照片
+                  //   final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
+                  //   if (photo != null) {
+                  //     File file = File(photo.path);
+                  //     final parentFolder = p.dirname(photo.path);
+                  //     photoPath = photo.path;
+                  //     parentFolderStr = parentFolder;
+                  //     _addImageUrl(photo.path);
+                  //     deleteEmptyFiles(parentFolder);
+                  //   }
+                  //   // print('parentFolderStr =========== $parentFolderStr');
+                  //   if(parentFolderStr!= null){
+                  //     deleteEmptyFiles(parentFolderStr);
+                  //   }
+                  // },
+                  //   child: const Text('Test按钮'),
+                  // ),
+                ],
+              ),
             ),
           ),
+        ],
         ),
-      ],
       ),
     );
   }

@@ -24,7 +24,7 @@ class Application extends StatelessWidget {
         model: AuthModel(),
         child: MaterialApp(
           theme: ThemeData(primarySwatch: Colors.green),
-          home: LoginPage(),
+          home: const LoginPage(),
           // home: HomePage(),
           onGenerateRoute: router.generator,
         ));

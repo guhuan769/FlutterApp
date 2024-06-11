@@ -7,8 +7,8 @@ import 'package:scan_system/my_app_three.dart';
 import 'package:scan_system/new_application.dart';
 
 void main() {
-  runApp(NewApplication());
-  // runApp(MyAppThree());
+  runApp(const NewApplication());
+  // runApp(MyApp());
 }
 
 
