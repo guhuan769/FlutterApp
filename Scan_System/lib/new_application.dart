@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:scan_system/Utils/common_toast.dart';
 import 'package:scan_system/home_page.dart';
+import 'package:scan_system/my_page.dart';
 import 'package:scan_system/scan_page.dart';
+import 'package:scan_system/setting_page.dart';
 
 class NewApplication extends StatefulWidget {
   const NewApplication({super.key});
@@ -10,27 +13,6 @@ class NewApplication extends StatefulWidget {
 }
 
 class _NewApplicationState extends State<NewApplication> {
-  final List<BottomNavigationBarItem> _items = <BottomNavigationBarItem>[
-    const BottomNavigationBarItem(
-      label: '扫描',
-      icon: Icon(Icons.scanner),
-    ),
-    const BottomNavigationBarItem(
-      label: '我的',
-      icon: Icon(Icons.person),
-    ),
-  ];
-
-  final List<Widget> _pages = [
-    const ScanPage(),
-    const HomePage(),
-  ];
-
-  int _selectIndex = 0;
-
-  Widget _buildPage(int index) {
-    return _pages[index];
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,26 +29,7 @@ class _NewApplicationState extends State<NewApplication> {
               fontSize: 20,
             )),
       ),
-      home: Scaffold(
-        // backgroundColor: Colors.red,
-        appBar: AppBar(
-          title: Text('${_items[_selectIndex].label}'),
-        ),
-        body: _buildPage(_selectIndex),
-
-        bottomNavigationBar: BottomNavigationBar(
-          selectedItemColor: Colors.pink,
-          unselectedItemColor: Colors.grey[800],
-          type: BottomNavigationBarType.fixed,
-          items: _items,
-          currentIndex: _selectIndex,
-          onTap: (index) {
-            setState(() {
-              _selectIndex = index;
-            });
-          },
-        ),
-      ),
+      home:const HomePage()
     );
   }
 }

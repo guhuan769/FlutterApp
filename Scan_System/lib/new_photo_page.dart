@@ -4,7 +4,13 @@ import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:scan_system/Utils/common_toast.dart';
 import 'package:scan_system/model/img_model.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:scan_system/scan_page.dart';
+import 'package:scan_system/sqflite/DBHelper.dart';
+import 'package:scan_system/sqflite/DBUtil.dart';
+import 'package:scan_system/sqflite/img_table.dart';
+
+import 'model/image_model.dart';
+
 
 class NewPhotoPage extends StatefulWidget {
   const NewPhotoPage({super.key});
@@ -17,11 +23,16 @@ class _PhotoPageState extends State<NewPhotoPage> {
   MobileScannerController controller = MobileScannerController();
   bool isQRCodeDetected = false;
 
+  // var dataList = "";
+  // late Dbutil dbUtil;
+  // ImgTable imgTable = new ImgTable();
+
   @override
   void initState() {
     super.initState();
     // 初始化状态
     isQRCodeDetected = false;
+    // imgTable.initDB();
   }
 
   @override
@@ -98,6 +109,12 @@ class _PhotoPageState extends State<NewPhotoPage> {
     if (photo != null) {
       // 进行拍照后的处理
       // ...
+      // imgTable.insertData(photo.path);
+      ImageModel img = ImageModel();
+      img.imgName = 'img';
+      img.isSelect = false;
+      img.path = photo.path;
+      bool flag = await DBHelper.insert('img',img.toMap());
     }
     // 重置二维码检测状态
     setState(() {
@@ -111,27 +128,5 @@ class _PhotoPageState extends State<NewPhotoPage> {
     super.dispose();
   }
 
-// Future<bool?> _showHint() {
-//   return showDialog<bool>(
-//       context: context,
-//       builder: (BuildContext context) {
-//         return AlertDialog(
-//           title: const Text('提示'),
-//           content: const Text('您确定要退出当前页面吗?'),
-//           actions: [
-//             ElevatedButton(
-//               onPressed: () async {
-//                 Navigator.of(context).pop(true);
-//               },
-//               child: const Text('确定'),
-//             ),
-//             ElevatedButton(
-//                 onPressed: () async {
-//                   Navigator.of(context).pop(false);
-//                 },
-//                 child: const Text('取消'))
-//           ],
-//         );
-//       });
-// }
+
 }
