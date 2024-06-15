@@ -82,6 +82,7 @@ class _PhotoPageState extends State<NewPhotoPage> {
                 width: 300,
                 height: 300,
                 decoration: BoxDecoration(
+                  // border: Border.all(color: Colors.green, width: 8),
                   border: Border.all(color: Colors.red, width: 8),
                 ),
               ),
@@ -91,6 +92,7 @@ class _PhotoPageState extends State<NewPhotoPage> {
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: isQRCodeDetected ? Colors.green : Colors.white10,
+        // onPressed: _captureImage, //
         onPressed: isQRCodeDetected ? _captureImage : _captureMessage, //
         child: const Icon(Icons.camera_alt_sharp),
       ),

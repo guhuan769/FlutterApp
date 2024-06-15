@@ -46,7 +46,6 @@ class _HomePageState extends State<HomePage> {
           if (_items[_selectIndex].label == "我的")
             IconButton(
                 onPressed: () {
-                  CommonToast.showToast('msg');
                   Navigator.of(context)
                       .push(MaterialPageRoute(
                       settings: const RouteSettings(

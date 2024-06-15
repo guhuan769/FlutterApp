@@ -1,18 +1,18 @@
 
-class ConfigPage {
-  ConfigPage({
+class ConfigModel {
+  ConfigModel({
       this.id,
       this.ip, 
       this.port, 
       this.isProhibit,});
 
-  ConfigPage.fromJson(dynamic json) {
+  ConfigModel.fromJson(dynamic json) {
     id = json['id'];
     ip = json['Ip'];
     port = json['port'];
     isProhibit = json['isProhibit'];
   }
-  
+
   int? id;
   String? ip;
   int? port;
