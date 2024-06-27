@@ -43,8 +43,8 @@ class _ImageViewerState extends State<ImageViewer> {
             //   currentIndex = index+1;
             // });
             return PhotoViewGalleryPageOptions(
-              imageProvider: FileImage(File(widget.imageUrls![index].path!)),
-              //NetworkImage(imageUrls[index]),
+              imageProvider: FileImage(File(widget.imageUrls![index].path!)), // 本地图片
+              //NetworkImage(imageUrls[index]),   网络图片
               minScale: PhotoViewComputedScale.contained,
               maxScale: PhotoViewComputedScale.covered * 2,
             );
