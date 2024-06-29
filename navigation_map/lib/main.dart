@@ -1,7 +1,28 @@
+import 'dart:ffi';
+
+import 'dart:typed_data';
+import 'package:crclib/catalog.dart';
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:crclib/crclib.dart';
+import 'package:crclib/catalog.dart';
 
 void main() {
-   runApp(const MyApp());
+  // 使用Crc16Xz算法计算字符串"123456789"的CRC值
+  // Int16 decNumber = 1;
+  BigInt decNumber = BigInt.from(0x01);
+  Uint8List hexNumber = Uint8List(1);
+  hexNumber[0] = 0x01;
+  // BigInt unsignedResult = bigIntNumber.toUnsigned(64);
+  final crcValue = Crc16X25().convert(hexNumber);
+  // final crcValue = Crc16X25().convert(utf8.encode('10'));
+  String hexString = crcValue.toRadixString(16);
+  print('CRC Value: $hexString'); // 输出应为0xCBF43926
+
+  // const data = Uint8List.fromList([1, 2, 3, 4, 5]);
+  // final crc16 = xmodem.calculate(data);
+
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -25,6 +46,8 @@ class _MyHomePageState extends State<MyHomePage> {
   double y = 200;
   double X_Position = 0.00;
   double Y_Position = 0.00;
+
+  // Crc32Xz().convert(utf8.encode('123456789')) == 0xCBF43926
 
   @override
   Widget build(BuildContext context) {
@@ -64,7 +87,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   width: constraints.widthConstraints().maxWidth,
                   height: constraints.heightConstraints().maxHeight,
                   color: Colors.yellow,
-                  child: CustomPaint(painter: FaceOutlinePainter(X_Position,Y_Position)),
+                  child: CustomPaint(
+                      painter: FaceOutlinePainter(X_Position, Y_Position)),
                 ),
               ),
             ),
@@ -82,7 +106,7 @@ class FaceOutlinePainter extends CustomPainter {
   FaceOutlinePainter(this.x_position, this.y_position);
 
   @override
-  void paint(Canvas canvas, Size size) {
+  void paint(Canvas canvas, size) {
     final paint = Paint();
     paint.style = PaintingStyle.stroke;
     paint.strokeWidth = 4.0;
