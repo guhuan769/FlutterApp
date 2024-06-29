@@ -10,13 +10,21 @@ import 'package:crclib/catalog.dart';
 void main() {
   // 使用Crc16Xz算法计算字符串"123456789"的CRC值
   // Int16 decNumber = 1;
+  int aa =11111;
   BigInt decNumber = BigInt.from(0x01);
   Uint8List hexNumber = Uint8List(1);
   hexNumber[0] = 0x01;
+  // ByteData byteData = ;
+  List<String> names = ["James", "Carl", "Rick", "Tony", "Justin"];
+  for (var name in names) {
+    print(name);
+  }
+
   // BigInt unsignedResult = bigIntNumber.toUnsigned(64);
   final crcValue = Crc16X25().convert(hexNumber);
   // final crcValue = Crc16X25().convert(utf8.encode('10'));
   String hexString = crcValue.toRadixString(16);
+
   print('CRC Value: $hexString'); // 输出应为0xCBF43926
 
   // const data = Uint8List.fromList([1, 2, 3, 4, 5]);
