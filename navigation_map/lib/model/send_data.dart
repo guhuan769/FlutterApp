@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:ffi' as ffi;
-// import 'dart:nativewrappers/_internal/vm/lib/ffi_native_type_patch.dart';
 import 'dart:typed_data';
 
 class SendData {
@@ -32,10 +31,6 @@ class SendData {
   int sn = 0;
   List<Datas>? datas = [];
 
-  // Uint8List aa = Uint8List(2);
-  // aa[0] = cmd;
-  // aa.addAll(sn)
-
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{};
     map['CRCHigh'] = cRCHigh;
@@ -46,6 +41,10 @@ class SendData {
       map['Datas'] = datas?.map((v) => v.toJson()).toList();
     }
     return map;
+  }
+  // TODO: 把所有的字节发出去
+  Uint8List? buildAllBytes(){
+    return null;
   }
 
   Uint8List buildBytes() {

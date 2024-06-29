@@ -14,11 +14,6 @@ void main() {
   BigInt decNumber = BigInt.from(0x01);
   Uint8List hexNumber = Uint8List(1);
   hexNumber[0] = 0x01;
-  // ByteData byteData = ;
-  List<String> names = ["James", "Carl", "Rick", "Tony", "Justin"];
-  for (var name in names) {
-    print(name);
-  }
 
   // BigInt unsignedResult = bigIntNumber.toUnsigned(64);
   final crcValue = Crc16X25().convert(hexNumber);
