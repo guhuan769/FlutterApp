@@ -1,11 +1,10 @@
-import 'dart:ffi';
-
 import 'dart:typed_data';
 import 'package:crclib/catalog.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:crclib/crclib.dart';
 import 'package:crclib/catalog.dart';
+import 'package:navigation_map/application.dart';
 
 void main() {
   // 使用Crc16Xz算法计算字符串"123456789"的CRC值
@@ -13,7 +12,7 @@ void main() {
   int aa =11111;
   BigInt decNumber = BigInt.from(0x01);
   Uint8List hexNumber = Uint8List(1);
-  hexNumber[0] = 0x01;
+  hexNumber[0] = 3;
 
   // BigInt unsignedResult = bigIntNumber.toUnsigned(64);
   final crcValue = Crc16X25().convert(hexNumber);
@@ -25,7 +24,8 @@ void main() {
   // const data = Uint8List.fromList([1, 2, 3, 4, 5]);
   // final crc16 = xmodem.calculate(data);
 
-  runApp(const MyApp());
+  //runApp(const MyApp());
+  runApp(const Application());
 }
 
 class MyApp extends StatelessWidget {

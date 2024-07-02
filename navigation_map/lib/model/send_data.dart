@@ -10,7 +10,8 @@ class SendData {
     required this.sn,
     this.datas,
   })  : assert(cRCHigh! >= 0 && cRCHigh <= 255, ' cRCHigh must wait 8 '),
-        assert(cRCLow! >= 0 && cRCLow <= 255, ' cRCLow must wait 8 ');
+        assert(cRCLow! >= 0 && cRCLow <= 255, ' cRCLow must wait 8 '),
+        assert(1==1,'');
 
   SendData.fromJson(dynamic json) {
     cRCHigh = json['CRCHigh'];
