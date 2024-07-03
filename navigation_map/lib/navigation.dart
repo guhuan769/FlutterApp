@@ -47,10 +47,9 @@ class _NavigationState extends State<Navigation> {
                   List<dynamic> relativeOperationList =
                       relativeOperation.split(','); // 使用短横线和竖线作为分隔符
 
-                  Datas data_0x5e0 =
-                      Datas(address: 0x5e0, length: 12, datas: relativeOperationList);
-                  Datas data_0x5f1 =
-                  Datas(address: 0x5f1, length: 1, data: 1);
+                  Datas data_0x5e0 = Datas(
+                      address: 0x5e0, length: 12, datas: relativeOperationList);
+                  Datas data_0x5f1 = Datas(address: 0x5f1, length: 1, data: 1);
                   List<Datas> dataList = [];
                   dataList.add(data_0x5e0);
                   dataList.add(data_0x5f1);
@@ -62,10 +61,11 @@ class _NavigationState extends State<Navigation> {
                       sn: 10,
                       datas: dataList);
 
-                  Uint8List buildData = sendData.buildBytes();
-                  final crcValue = Crc16X25().convert(buildData);
-                  // Crc16X25().
-                  //String hexString = buildData.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
+                  sendData.buildBytesAddCrc();
+
+                  // 获取完整的数据帧
+                  Uint8List sendAll = sendData.buildAllBytes()!;
+
                 },
                 icon: const Icon(Icons.send)),
             // ElevatedButton(onPressed: (){}, child: Text('data'))

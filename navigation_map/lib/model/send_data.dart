@@ -53,7 +53,7 @@ class SendData {
     return null;
   }
 
-  Uint8List buildBytes() {
+  Uint8List buildBytesAddCrc() {
     // 初始化 ByteData 对象
     int byteDataLength = 1024;
     ByteData byteData = ByteData(byteDataLength); // 假设足够大以容纳所有数据
@@ -104,7 +104,7 @@ class SendData {
           case 0x253:
           case 0x251:
           case 0x5f1:
-            byteData.setInt32(offset, item.data,Endian.little);
+            byteData.setInt32(offset, item.data, Endian.little);
             offset += 1;
             break;
           case 0x3c:
@@ -114,7 +114,7 @@ class SendData {
           case 0x72:
           case 0x73:
           case 0x74:
-            byteData.setInt32(offset, item.data,Endian.little);
+            byteData.setInt32(offset, item.data, Endian.little);
             offset += 4;
             break;
           case 0x290:
@@ -139,9 +139,10 @@ class SendData {
     int crcIntValue = crcValue.toBigInt().toInt();
     var high8Bits = (crcIntValue >> 8) & 0xFF;
     var low8Bits = crcIntValue & 0xFF;
-
+    cRCHigh = high8Bits;
+    cRCLow = low8Bits;
     // 返回 Uint8List
-    return byteData.buffer.asUint8List(0, offset);
+    return dataArray;
   }
 }
 
