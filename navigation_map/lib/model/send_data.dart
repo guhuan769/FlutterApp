@@ -3,6 +3,7 @@ import 'dart:ffi' as ffi;
 import 'dart:typed_data';
 
 import 'package:crclib/catalog.dart';
+import 'package:crclib/crclib.dart';
 
 class SendData {
   SendData({
@@ -80,6 +81,7 @@ class SendData {
           // 将int值设置为Float32和Float64
           //datafloat.setFloat32(0, data.toDouble(), Endian.little); // 使用32位浮点数表示
           // double float32Value = byteData.getFloat32(0);
+          // int doubleValue = int.parse(data);
           double doubleValue = double.parse(data);
 
           byteData.setFloat32(offset, doubleValue, Endian.little);
@@ -95,15 +97,15 @@ class SendData {
           case 0x3d4:
           case 0x260:
           case 0x256:
-            byteData.setInt32(offset, item.data, Endian.little);
-            offset += 4;
+            byteData.setInt32(offset, int.parse(item.data), Endian.little);
+            offset += 1;
             break;
           case 0x257:
           case 0x253:
           case 0x251:
           case 0x5f1:
-            byteData.setInt32(offset, item.data);
-            offset += 4;
+            byteData.setInt32(offset, item.data,Endian.little);
+            offset += 1;
             break;
           case 0x3c:
           case 0x162:
@@ -112,7 +114,7 @@ class SendData {
           case 0x72:
           case 0x73:
           case 0x74:
-            byteData.setInt32(offset, item.data);
+            byteData.setInt32(offset, item.data,Endian.little);
             offset += 4;
             break;
           case 0x290:
@@ -128,9 +130,16 @@ class SendData {
         }
       }
     }
+
     Uint8List dataArray = byteData.buffer.asUint8List(0, offset);
-    String hexString = dataArray.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
-    final crcValue = Crc16X25().convert(dataArray);
+    String hexString =
+        dataArray.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
+    CrcValue crcValue = Crc16X25().convert(dataArray);
+    // int crcIntValue = int.parse(crcValue.toString());
+    int crcIntValue = crcValue.toBigInt().toInt();
+    var high8Bits = (crcIntValue >> 8) & 0xFF;
+    var low8Bits = crcIntValue & 0xFF;
+
     // 返回 Uint8List
     return byteData.buffer.asUint8List(0, offset);
   }
