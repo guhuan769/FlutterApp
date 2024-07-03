@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:ffi' as ffi;
 import 'dart:typed_data';
 
+import 'package:crclib/catalog.dart';
+
 class SendData {
   SendData({
     this.cRCHigh,
@@ -9,18 +11,19 @@ class SendData {
     required this.cmd,
     required this.sn,
     this.datas,
-  })  : assert(cRCHigh! >= 0 && cRCHigh <= 255, ' cRCHigh must wait 8 '),
-        assert(cRCLow! >= 0 && cRCLow <= 255, ' cRCLow must wait 8 '),
-        assert(1==1,'');
+  })  : assert(cRCHigh == null || cRCHigh >= 0 && cRCHigh <= 255,
+            ' cRCHigh must wait 8 '),
+        assert(cRCLow == null || cRCLow >= 0 && cRCLow <= 255,
+            ' cRCLow must wait 8 ');
 
   SendData.fromJson(dynamic json) {
-    cRCHigh = json['CRCHigh'];
-    cRCLow = json['CRCLow'];
-    cmd = json['Cmd'];
-    sn = json['SN'];
-    if (json['Datas'] != null) {
+    cRCHigh = json['cRCHigh'];
+    cRCLow = json['cRCLow'];
+    cmd = json['cmd'];
+    sn = json['sn'];
+    if (json['datas'] != null) {
       datas = [];
-      json['Datas'].forEach((v) {
+      json['datas'].forEach((v) {
         datas?.add(Datas.fromJson(v));
       });
     }
@@ -34,17 +37,18 @@ class SendData {
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{};
-    map['CRCHigh'] = cRCHigh;
-    map['CRCLow'] = cRCLow;
-    map['Cmd'] = cmd;
-    map['SN'] = sn;
+    map['cRCHigh'] = cRCHigh;
+    map['cRCLow'] = cRCLow;
+    map['cmd'] = cmd;
+    map['sn'] = sn;
     if (datas != null) {
       map['Datas'] = datas?.map((v) => v.toJson()).toList();
     }
     return map;
   }
+
   // TODO: 把所有的字节发出去
-  Uint8List? buildAllBytes(){
+  Uint8List? buildAllBytes() {
     return null;
   }
 
@@ -71,7 +75,15 @@ class SendData {
       // 添加数据
       if (item.datas != null) {
         for (var data in item.datas) {
-          byteData.setFloat32(offset, data, Endian.little);
+          // 创建一个ByteData对象，足够存储一个32位的值
+          //ByteData datafloat = ByteData(4);
+          // 将int值设置为Float32和Float64
+          //datafloat.setFloat32(0, data.toDouble(), Endian.little); // 使用32位浮点数表示
+          // double float32Value = byteData.getFloat32(0);
+          double doubleValue = double.parse(data);
+
+          byteData.setFloat32(offset, doubleValue, Endian.little);
+          double float32Value = byteData.getFloat32(offset, Endian.little);
           offset += 4;
         }
       } else if (item.data != null) {
@@ -83,13 +95,16 @@ class SendData {
           case 0x3d4:
           case 0x260:
           case 0x256:
-            byteData.setInt32(offset, item.Data, Endian.little);
+            byteData.setInt32(offset, item.data, Endian.little);
             offset += 4;
             break;
           case 0x257:
           case 0x253:
           case 0x251:
           case 0x5f1:
+            byteData.setInt32(offset, item.data);
+            offset += 4;
+            break;
           case 0x3c:
           case 0x162:
           case 0x70:
@@ -97,11 +112,11 @@ class SendData {
           case 0x72:
           case 0x73:
           case 0x74:
-            byteData.setUint8(offset, item.Data);
-            offset += 1;
+            byteData.setInt32(offset, item.data);
+            offset += 4;
             break;
           case 0x290:
-            var stringBytes = utf8.encode(item.Data.toString());
+            var stringBytes = utf8.encode(item.data.toString());
             for (var b in stringBytes) {
               byteData.setUint8(offset, b);
               offset += 1;
@@ -113,6 +128,9 @@ class SendData {
         }
       }
     }
+    Uint8List dataArray = byteData.buffer.asUint8List(0, offset);
+    String hexString = dataArray.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
+    final crcValue = Crc16X25().convert(dataArray);
     // 返回 Uint8List
     return byteData.buffer.asUint8List(0, offset);
   }
@@ -127,23 +145,23 @@ class Datas {
   });
 
   Datas.fromJson(dynamic json) {
-    address = json['Address'];
-    length = json['Length'];
-    data = json['Data'];
-    datas = json['Datas'];
+    address = json['address'];
+    length = json['length'];
+    data = json['data'];
+    datas = json['datas'];
   }
 
   int? address;
   int? length;
   dynamic data;
-  List<dynamic>? datas ;
+  List<dynamic>? datas;
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{};
-    map['Address'] = address;
-    map['Length'] = length;
-    map['Data'] = data;
-    map['Datas'] = datas;
+    map['address'] = address;
+    map['length'] = length;
+    map['data'] = data;
+    map['datas'] = datas;
     return map;
   }
 }
