@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:crclib/catalog.dart';
@@ -63,9 +65,29 @@ class _NavigationState extends State<Navigation> {
 
                   sendData.buildBytesAddCrc();
 
-                  // 获取完整的数据帧
-                  Uint8List sendAll = sendData.buildAllBytes()!;
+                  // sendData
+                  Uint8List sendAll = sendData.buildAllBytes();
+                  CommonToast.udpSend(sendAll);
 
+                  // var destinationAddress =
+                  //     InternetAddress("172.31.90.200"); // 替换为您的广播地址
+
+                  // RawDatagramSocket.bind(InternetAddress.anyIPv4, 8456)
+                  //     .then((RawDatagramSocket udpSocket) {
+                  //   udpSocket.broadcastEnabled = true;
+                  //   udpSocket.listen((e) {
+                  //     // CommonToast.showToast('msg');
+                  //
+                  //     Datagram? dg = udpSocket.receive();
+                  //     if (dg != null) {
+                  //       print("接收到数据：${utf8.decode(dg.data)}");
+                  //       // CommonToast.showToast("接收到数据：${utf8.decode(dg.data)}");
+                  //     }
+                  //   });
+
+                    // List<int> data = utf8.encode('TEST');
+                    // udpSocket.send(sendAll, destinationAddress, 9331);
+                  // });
                 },
                 icon: const Icon(Icons.send)),
             // ElevatedButton(onPressed: (){}, child: Text('data'))

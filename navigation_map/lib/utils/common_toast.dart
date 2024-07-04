@@ -1,5 +1,6 @@
 import 'dart:io';
-
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
@@ -99,7 +100,11 @@ class CommonToast {
 
 // 将int转换回bool?
   static bool? intToBool(int value) {
-    return value == 1 ? true : value == 0 ? false : null;
+    return value == 1
+        ? true
+        : value == 0
+            ? false
+            : null;
   }
 
   static Future<bool> deleteFile(String filePath) async {
@@ -112,10 +117,29 @@ class CommonToast {
       return false;
     }
   }
+
   static void deleteFolder(String path) async {
     final dir = Directory(path);
     dir.deleteSync(recursive: true);
   }
 
+  static void udpSend(Uint8List data) async {
+    // var destinationAddress = InternetAddress("192.168.31.7"); // 替换为您的广播地址
+    var destinationAddress = InternetAddress("172.31.90.200"); // 替换为您的广播地址
 
+    RawDatagramSocket.bind(InternetAddress.anyIPv4, 8456)
+        .then((RawDatagramSocket udpSocket) {
+      udpSocket.broadcastEnabled = true;
+      udpSocket.listen((e) {
+        Datagram? dg = udpSocket.receive();
+        if (dg != null) {
+          print("接收到数据：${utf8.decode(dg.data)}");
+          // showToast("接收到数据：${utf8.decode(dg.data)}");
+        }
+      });
+
+      // List<int> data = utf8.encode('TEST');
+      udpSocket.send(data, destinationAddress, 9331);
+    });
+  }
 }
