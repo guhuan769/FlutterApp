@@ -118,28 +118,32 @@ class CommonToast {
     }
   }
 
-  static void deleteFolder(String path) async {
+  static void deleteFolder(path) async {
     final dir = Directory(path);
     dir.deleteSync(recursive: true);
   }
 
-  static void udpSend(Uint8List data) async {
-    // var destinationAddress = InternetAddress("192.168.31.7"); // 替换为您的广播地址
-    var destinationAddress = InternetAddress("192.168.13.106"); // 替换为您的广播地址
+  // static Future<Uint8List> udpSend(Uint8List data) async {
+  //   // var destinationAddress = InternetAddress("192.168.31.7"); // 替换为您的广播地址
+  //   var destinationAddress = InternetAddress("172.31.90.200"); // 替换为您的广播地址
+  //   Uint8List returnData = Uint8List(0);
+  //   await RawDatagramSocket.bind(InternetAddress.anyIPv4, 8456)
+  //       .then((RawDatagramSocket udpSocket) {
+  //     udpSocket.broadcastEnabled = true;
+  //     udpSocket.listen((e) {
+  //       Datagram? dg = udpSocket.receive();
+  //       if (dg != null) {
+  //         returnData = Uint8List(dg.data.length);
+  //         returnData = dg.data;
+  //         print("接收到数据：${utf8.decode(dg.data)}");
+  //         // showToast("接收到数据：${utf8.decode(dg.data)}");
+  //       }
+  //     });
+  //
+  //     // List<int> data = utf8.encode('TEST');
+  //     udpSocket.send(data, destinationAddress, 9331);
+  //   });
+  //   return returnData;
+  // }
 
-    RawDatagramSocket.bind(InternetAddress.anyIPv4, 8456)
-        .then((RawDatagramSocket udpSocket) {
-      udpSocket.broadcastEnabled = true;
-      udpSocket.listen((e) {
-        Datagram? dg = udpSocket.receive();
-        if (dg != null) {
-          print("接收到数据：${utf8.decode(dg.data)}");
-          // showToast("接收到数据：${utf8.decode(dg.data)}");
-        }
-      });
-
-      // List<int> data = utf8.encode('TEST');
-      udpSocket.send(data, destinationAddress, 9331);
-    });
-  }
 }

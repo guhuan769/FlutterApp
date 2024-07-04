@@ -1,11 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
-
 import 'package:crclib/catalog.dart';
 import 'package:flutter/material.dart';
 import 'package:navigation_map/Utils/common_toast.dart';
-
+import 'package:navigation_map/utils/UdpHelper.dart';
 import 'model/send_data.dart';
 
 class Navigation extends StatefulWidget {
@@ -16,9 +15,57 @@ class Navigation extends StatefulWidget {
 }
 
 class _NavigationState extends State<Navigation> {
+
+  late UdpHelper _udpHelper;
+
   // 创建一个 TextEditingController 并设置默认值 relativeOperation
   final TextEditingController _relativeOperation =
       TextEditingController(text: "0,0,0");
+
+  void _startUdpListener(Uint8List sendAll) async {
+    var destinationAddress = InternetAddress("172.31.90.200"); // 替换为您的广播地址
+    // Uint8List returnData = Uint8List(0);
+    await RawDatagramSocket.bind(InternetAddress.anyIPv4, 8456)
+        .then((RawDatagramSocket udpSocket) async {
+      udpSocket.broadcastEnabled = true;
+      udpSocket.listen((e) {
+        Datagram? dg = udpSocket.receive();
+        if (dg != null) {
+          // returnData = Uint8List(dg.data.length);
+          // returnData = dg.data;
+          // setState(() {
+          _relativeOperation.text = "10,1,${dg.data}";
+          // });
+          print("接收到数据：${utf8.decode(dg.data)}");
+          // showToast("接收到数据：${utf8.decode(dg.data)}");
+        }
+      });
+
+      udpSocket.send(sendAll, destinationAddress, 9331);
+    });
+  }
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+
+    _udpHelper = UdpHelper(_onUdpDataReceived);
+    _udpHelper.startListening();
+  }
+
+  void _onUdpDataReceived(String data) {
+    setState(() {
+      // 处理接收到的数据
+      print('Received: $data');
+    });
+  }
+
+  void _sendUdpMessage(Uint8List data) {
+    //TODO: 该处IP 应该从本地数据库取
+    var destinationAddress = InternetAddress("172.31.90.200"); // 替换为您的广播地址
+    _udpHelper.sendMsgDataFrame(data, destinationAddress, 9331);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +85,8 @@ class _NavigationState extends State<Navigation> {
               ),
             ),
             IconButton(
-                onPressed: () {
+                onPressed: () async {
+
                   // 获取value
                   var relativeOperation = _relativeOperation.text;
                   if (!relativeOperation.isNotEmpty) {
@@ -67,27 +115,19 @@ class _NavigationState extends State<Navigation> {
 
                   // sendData
                   Uint8List sendAll = sendData.buildAllBytes();
-                  CommonToast.udpSend(sendAll);
+                  _sendUdpMessage(sendAll);
 
-                  // var destinationAddress =
-                  //     InternetAddress("172.31.90.200"); // 替换为您的广播地址
+                  // 当前UI 方法封装
+                  // _startUdpListener(sendAll);
 
-                  // RawDatagramSocket.bind(InternetAddress.anyIPv4, 8456)
-                  //     .then((RawDatagramSocket udpSocket) {
-                  //   udpSocket.broadcastEnabled = true;
-                  //   udpSocket.listen((e) {
-                  //     // CommonToast.showToast('msg');
-                  //
-                  //     Datagram? dg = udpSocket.receive();
-                  //     if (dg != null) {
-                  //       print("接收到数据：${utf8.decode(dg.data)}");
-                  //       // CommonToast.showToast("接收到数据：${utf8.decode(dg.data)}");
-                  //     }
-                  //   });
+                  // 工具类的监听数据
+                  // udpUtil.startListening('127.0.0.1', 8080);
 
-                    // List<int> data = utf8.encode('TEST');
-                    // udpSocket.send(sendAll, destinationAddress, 9331);
-                  // });
+
+                  // Uint8List result = await CommonToast.udpSend(sendAll);
+                  // Uint8List aa = await CommonToast.udpSend(sendAll);
+                  // print("gh 接收到数据：${utf8.decode(aa2)}");
+
                 },
                 icon: const Icon(Icons.send)),
             // ElevatedButton(onPressed: (){}, child: Text('data'))
