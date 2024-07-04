@@ -125,7 +125,7 @@ class CommonToast {
 
   static void udpSend(Uint8List data) async {
     // var destinationAddress = InternetAddress("192.168.31.7"); // 替换为您的广播地址
-    var destinationAddress = InternetAddress("172.31.90.200"); // 替换为您的广播地址
+    var destinationAddress = InternetAddress("192.168.13.106"); // 替换为您的广播地址
 
     RawDatagramSocket.bind(InternetAddress.anyIPv4, 8456)
         .then((RawDatagramSocket udpSocket) {
