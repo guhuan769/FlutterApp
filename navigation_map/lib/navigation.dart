@@ -55,10 +55,11 @@ class _NavigationState extends State<Navigation> {
   }
 
   void _onUdpDataReceived(String data) {
-    setState(() {
+    // setState(() {
       // 处理接收到的数据
       print('Received: $data');
-    });
+      _relativeOperation.text = "10,1,$data";
+    // });
   }
 
   void _sendUdpMessage(Uint8List data) {
@@ -86,7 +87,6 @@ class _NavigationState extends State<Navigation> {
             ),
             IconButton(
                 onPressed: () async {
-
                   // 获取value
                   var relativeOperation = _relativeOperation.text;
                   if (!relativeOperation.isNotEmpty) {
@@ -97,10 +97,10 @@ class _NavigationState extends State<Navigation> {
                   List<dynamic> relativeOperationList =
                       relativeOperation.split(','); // 使用短横线和竖线作为分隔符
 
-                  Datas data_0x5e0 = Datas(
+                  SendAddressData data_0x5e0 = SendAddressData(
                       address: 0x5e0, length: 12, datas: relativeOperationList);
-                  Datas data_0x5f1 = Datas(address: 0x5f1, length: 1, data: 1);
-                  List<Datas> dataList = [];
+                  SendAddressData data_0x5f1 = SendAddressData(address: 0x5f1, length: 1, data: 1);
+                  List<SendAddressData> dataList = [];
                   dataList.add(data_0x5e0);
                   dataList.add(data_0x5f1);
 
@@ -109,7 +109,7 @@ class _NavigationState extends State<Navigation> {
                       cRCLow: null,
                       cmd: 2,
                       sn: 10,
-                      datas: dataList);
+                      sendAddressData: dataList);
 
                   sendData.buildBytesAddCrc();
 
@@ -117,12 +117,17 @@ class _NavigationState extends State<Navigation> {
                   Uint8List sendAll = sendData.buildAllBytes();
                   _sendUdpMessage(sendAll);
 
+                  SendData sendParseData = SendData(
+                      cRCHigh: null,
+                      cRCLow: null,
+                      cmd: 0,
+                      sn: 0,
+                      sendAddressData: null);
+                  sendParseData.Parse(sendAll);
+                  sendParseData.Parse(sendAll);
+
                   // 当前UI 方法封装
                   // _startUdpListener(sendAll);
-
-                  // 工具类的监听数据
-                  // udpUtil.startListening('127.0.0.1', 8080);
-
 
                   // Uint8List result = await CommonToast.udpSend(sendAll);
                   // Uint8List aa = await CommonToast.udpSend(sendAll);

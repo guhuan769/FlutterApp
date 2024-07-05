@@ -1,4 +1,6 @@
 import 'dart:convert';
+// import 'dart:js_interop';
+
 // import 'dart:ffi' as ffi;
 import 'dart:typed_data';
 
@@ -11,7 +13,7 @@ class SendData {
     this.cRCLow,
     required this.cmd,
     required this.sn,
-    this.datas,
+    this.sendAddressData,
   })  : assert(cRCHigh == null || cRCHigh >= 0 && cRCHigh <= 255,
             ' cRCHigh must wait 8 '),
         assert(cRCLow == null || cRCLow >= 0 && cRCLow <= 255,
@@ -23,9 +25,9 @@ class SendData {
     cmd = json['cmd'];
     sn = json['sn'];
     if (json['datas'] != null) {
-      datas = [];
+      sendAddressData = [];
       json['datas'].forEach((v) {
-        datas?.add(Datas.fromJson(v));
+        sendAddressData?.add(SendAddressData.fromJson(v));
       });
     }
   }
@@ -34,7 +36,7 @@ class SendData {
   int? cRCLow;
   int cmd = 0;
   int sn = 0;
-  List<Datas>? datas = [];
+  List<SendAddressData>? sendAddressData = [];
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{};
@@ -42,8 +44,8 @@ class SendData {
     map['cRCLow'] = cRCLow;
     map['cmd'] = cmd;
     map['sn'] = sn;
-    if (datas != null) {
-      map['Datas'] = datas?.map((v) => v.toJson()).toList();
+    if (sendAddressData != null) {
+      map['sendAddressData'] = sendAddressData?.map((v) => v.toJson()).toList();
     }
     return map;
   }
@@ -66,7 +68,7 @@ class SendData {
     offset += 1;
 
     // 遍历 Datas
-    for (var item in datas ?? []) {
+    for (var item in sendAddressData ?? []) {
       // 添加 Address 和 Length
       byteData.setInt16(offset, item.address, Endian.little);
       offset += 2;
@@ -125,7 +127,7 @@ class SendData {
             }
             break;
           default:
-          // 处理默认情况
+            // 处理默认情况
             break;
         }
       }
@@ -134,7 +136,7 @@ class SendData {
     Uint8List dataArray = byteData.buffer.asUint8List(0, offset);
 
     String hexString =
-    dataArray.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
+        dataArray.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
 
     return dataArray;
   }
@@ -152,7 +154,7 @@ class SendData {
     offset += 1;
 
     // 遍历 Datas
-    for (var item in datas ?? []) {
+    for (var item in sendAddressData ?? []) {
       // 添加 Address 和 Length
       byteData.setInt16(offset, item.address, Endian.little);
       offset += 2;
@@ -230,17 +232,77 @@ class SendData {
     // 返回 Uint8List
     return dataArray;
   }
+
+  //解析
+  void Parse(Uint8List data) {
+    Uint8List uint8list = Uint8List.fromList(data);
+    ByteData byteData = ByteData.view(uint8list.buffer);
+    int byteDataLength = byteData.lengthInBytes;
+    int offset = 0;
+
+    cRCHigh = byteData.getUint8(offset);
+    offset += 1;
+    cRCLow = byteData.getUint8(offset);
+    offset += 1;
+    cmd = byteData.getUint8(offset);
+    offset += 1;
+    sn = byteData.getUint8(offset);
+    offset += 1;
+    sendAddressData = []; // 初始化
+    for (int i = 4; i < byteDataLength;) {
+      SendAddressData entity = SendAddressData();
+      entity.address = byteData.getUint16(i, Endian.little);
+      i += 2;
+      offset += 2;
+      entity.length = byteData.getUint16(i, Endian.little);
+      i += 2;
+      offset += 2;
+
+      switch (entity.address) {
+        case 0x244:
+        case 0x3d0:
+          entity.data = byteData.getInt32(i);
+          i += 1;
+          offset += 1;
+          break;
+        case 0x253:
+          entity.data = byteData.getUint8(i);
+          i += 1;
+          offset += 1;
+          break;
+        case 0x5f1:
+          entity.data = byteData.getUint8(i);
+          i += 1;
+          offset += 1;
+          break;
+        case 0x5e0:
+          entity.datas = [];
+          for (int j = 0; j < 3;j++) {
+            entity.datas?.add(byteData.getFloat32(offset));
+            offset += 4;
+            i += 4;
+
+          }
+          break;
+        default:
+          break;
+      }
+      // byteData.get
+      // i += entity.length!;
+      sendAddressData?.add(entity);
+    }
+  }
 }
 
-class Datas {
-  Datas({
+class SendAddressData {
+  SendAddressData({
     this.address,
     this.length,
     this.data,
     this.datas,
   });
 
-  Datas.fromJson(dynamic json) {
+  SendAddressData.fromJson(dynamic json) {
     address = json['address'];
     length = json['length'];
     data = json['data'];
