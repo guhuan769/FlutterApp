@@ -16,6 +16,44 @@ class CommonToast {
         msg: msg, gravity: ToastGravity.CENTER, backgroundColor: bgColor);
   }
 
+  ///
+  ///
+  ///
+  /// 前端使用
+  ///CustomDialog.show(
+  //   context: context,
+  //   title: "自定义对话框",
+  //   content: "这是一个自定义对话框示例。",
+  //   actions: [
+  //     TextButton(
+  //       onPressed: () {
+  //         Navigator.of(context).pop(); // 关闭对话框
+  //       },
+  //       child: Text("关闭"),
+  //     ),
+  //   ],
+  // );
+  ///
+  ///
+  static Future<void> showToastNew(
+    BuildContext context,
+    String title,
+    String content,
+    List<Widget>? actions)  {
+    return  showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: bgColor,
+          title: Text(title, style: textStyle),
+          content: Text(content, style: textStyle),
+          actions: actions ?? [],
+        );
+      },
+    );
+
+  }
+
   /// 阻止弹窗
   static Future<bool?> showHint(BuildContext context) {
     return showDialog<bool>(
@@ -123,27 +161,26 @@ class CommonToast {
     dir.deleteSync(recursive: true);
   }
 
-  // static Future<Uint8List> udpSend(Uint8List data) async {
-  //   // var destinationAddress = InternetAddress("192.168.31.7"); // 替换为您的广播地址
-  //   var destinationAddress = InternetAddress("172.31.90.200"); // 替换为您的广播地址
-  //   Uint8List returnData = Uint8List(0);
-  //   await RawDatagramSocket.bind(InternetAddress.anyIPv4, 8456)
-  //       .then((RawDatagramSocket udpSocket) {
-  //     udpSocket.broadcastEnabled = true;
-  //     udpSocket.listen((e) {
-  //       Datagram? dg = udpSocket.receive();
-  //       if (dg != null) {
-  //         returnData = Uint8List(dg.data.length);
-  //         returnData = dg.data;
-  //         print("接收到数据：${utf8.decode(dg.data)}");
-  //         // showToast("接收到数据：${utf8.decode(dg.data)}");
-  //       }
-  //     });
-  //
-  //     // List<int> data = utf8.encode('TEST');
-  //     udpSocket.send(data, destinationAddress, 9331);
-  //   });
-  //   return returnData;
-  // }
-
+// static Future<Uint8List> udpSend(Uint8List data) async {
+//   // var destinationAddress = InternetAddress("192.168.31.7"); // 替换为您的广播地址
+//   var destinationAddress = InternetAddress("172.31.90.200"); // 替换为您的广播地址
+//   Uint8List returnData = Uint8List(0);
+//   await RawDatagramSocket.bind(InternetAddress.anyIPv4, 8456)
+//       .then((RawDatagramSocket udpSocket) {
+//     udpSocket.broadcastEnabled = true;
+//     udpSocket.listen((e) {
+//       Datagram? dg = udpSocket.receive();
+//       if (dg != null) {
+//         returnData = Uint8List(dg.data.length);
+//         returnData = dg.data;
+//         print("接收到数据：${utf8.decode(dg.data)}");
+//         // showToast("接收到数据：${utf8.decode(dg.data)}");
+//       }
+//     });
+//
+//     // List<int> data = utf8.encode('TEST');
+//     udpSocket.send(data, destinationAddress, 9331);
+//   });
+//   return returnData;
+// }
 }

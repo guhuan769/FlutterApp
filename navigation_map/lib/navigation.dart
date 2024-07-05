@@ -15,12 +15,11 @@ class Navigation extends StatefulWidget {
 }
 
 class _NavigationState extends State<Navigation> {
-
   late UdpHelper _udpHelper;
 
   // 创建一个 TextEditingController 并设置默认值 relativeOperation
   final TextEditingController _relativeOperation =
-      TextEditingController(text: "0,0,0");
+  TextEditingController(text: "0,0,0");
 
   void _startUdpListener(Uint8List sendAll) async {
     var destinationAddress = InternetAddress("172.31.90.200"); // 替换为您的广播地址
@@ -50,16 +49,45 @@ class _NavigationState extends State<Navigation> {
     // TODO: implement initState
     super.initState();
 
-    _udpHelper = UdpHelper(_onUdpDataReceived);
+    _udpHelper = UdpHelper(_onUdpDataReceived, _onErrorMessageReceived);
     _udpHelper.startListening();
   }
 
   void _onUdpDataReceived(String data) {
     // setState(() {
-      // 处理接收到的数据
-      print('Received: $data');
-      _relativeOperation.text = "10,1,$data";
+    // 处理接收到的数据
+    print('Received: $data');
+    _relativeOperation.text = "10,1,$data";
     // });
+  }
+
+  void _onErrorMessageReceived(int code, String msg) {
+    CommonToast.showToastNew(
+      context,
+      "提示",
+      msg,
+      [
+        TextButton(
+          onPressed: () {
+            Navigator.of(context).pop(); // 关闭对话框
+          },
+          child: const Text("关闭"),
+        ),
+      ],);
+
+    // CommonToast.show(
+    //   context: context,
+    //   title: "自定义对话框",
+    //   content: "这是一个自定义对话框示例。",
+    //   actions: [
+    //     TextButton(
+    //       onPressed: () {
+    //         Navigator.of(context).pop(); // 关闭对话框
+    //       },
+    //       child: Text("关闭"),
+    //     ),
+    //   ],
+    // );
   }
 
   void _sendUdpMessage(Uint8List data) {
@@ -95,11 +123,12 @@ class _NavigationState extends State<Navigation> {
                   }
                   //临时测试
                   List<dynamic> relativeOperationList =
-                      relativeOperation.split(','); // 使用短横线和竖线作为分隔符
+                  relativeOperation.split(','); // 使用短横线和竖线作为分隔符
 
                   SendAddressData data_0x5e0 = SendAddressData(
                       address: 0x5e0, length: 12, datas: relativeOperationList);
-                  SendAddressData data_0x5f1 = SendAddressData(address: 0x5f1, length: 1, data: 1);
+                  SendAddressData data_0x5f1 =
+                  SendAddressData(address: 0x5f1, length: 1, data: 1);
                   List<SendAddressData> dataList = [];
                   dataList.add(data_0x5e0);
                   dataList.add(data_0x5f1);
@@ -132,7 +161,6 @@ class _NavigationState extends State<Navigation> {
                   // Uint8List result = await CommonToast.udpSend(sendAll);
                   // Uint8List aa = await CommonToast.udpSend(sendAll);
                   // print("gh 接收到数据：${utf8.decode(aa2)}");
-
                 },
                 icon: const Icon(Icons.send)),
             // ElevatedButton(onPressed: (){}, child: Text('data'))

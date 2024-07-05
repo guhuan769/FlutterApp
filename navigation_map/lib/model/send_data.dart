@@ -232,7 +232,6 @@ class SendData {
     // 返回 Uint8List
     return dataArray;
   }
-
   //解析
   void Parse(Uint8List data) {
     Uint8List uint8list = Uint8List.fromList(data);
