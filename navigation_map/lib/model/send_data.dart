@@ -78,12 +78,6 @@ class SendData {
       // 添加数据
       if (item.datas != null) {
         for (var data in item.datas) {
-          // 创建一个ByteData对象，足够存储一个32位的值
-          //ByteData datafloat = ByteData(4);
-          // 将int值设置为Float32和Float64
-          //datafloat.setFloat32(0, data.toDouble(), Endian.little); // 使用32位浮点数表示
-          // double float32Value = byteData.getFloat32(0);
-          // int doubleValue = int.parse(data);
           double doubleValue = double.parse(data);
 
           byteData.setFloat32(offset, doubleValue, Endian.little);
@@ -164,14 +158,7 @@ class SendData {
       // 添加数据
       if (item.datas != null) {
         for (var data in item.datas) {
-          // 创建一个ByteData对象，足够存储一个32位的值
-          //ByteData datafloat = ByteData(4);
-          // 将int值设置为Float32和Float64
-          //datafloat.setFloat32(0, data.toDouble(), Endian.little); // 使用32位浮点数表示
-          // double float32Value = byteData.getFloat32(0);
-          // int doubleValue = int.parse(data);
           double doubleValue = double.parse(data);
-
           byteData.setFloat32(offset, doubleValue, Endian.little);
           double float32Value = byteData.getFloat32(offset, Endian.little);
           offset += 4;

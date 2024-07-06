@@ -17,11 +17,7 @@ class UdpHelper {
 
   void startListening() async {
     _socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 8456);
-
-    // _socket!.handleError((e) => {
-    //   print('我爱你')
-    // });
-
+    
     _socket?.listen((RawSocketEvent event) {
       if (event == RawSocketEvent.read) {
         Datagram? datagram = _socket?.receive();

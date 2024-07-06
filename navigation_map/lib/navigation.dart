@@ -18,7 +18,12 @@ class _NavigationState extends State<Navigation> {
   late UdpHelper _udpHelper;
 
   // 创建一个 TextEditingController 并设置默认值 relativeOperation
+  // 相对运行
   final TextEditingController _relativeOperation =
+  TextEditingController(text: "0,0,0");
+
+  // 绝对运行
+  final TextEditingController _absolutelyRunning =
   TextEditingController(text: "0,0,0");
 
   void _startUdpListener(Uint8List sendAll) async {
@@ -74,20 +79,6 @@ class _NavigationState extends State<Navigation> {
           child: const Text("关闭"),
         ),
       ],);
-
-    // CommonToast.show(
-    //   context: context,
-    //   title: "自定义对话框",
-    //   content: "这是一个自定义对话框示例。",
-    //   actions: [
-    //     TextButton(
-    //       onPressed: () {
-    //         Navigator.of(context).pop(); // 关闭对话框
-    //       },
-    //       child: Text("关闭"),
-    //     ),
-    //   ],
-    // );
   }
 
   void _sendUdpMessage(Uint8List data) {
@@ -153,7 +144,20 @@ class _NavigationState extends State<Navigation> {
                       sn: 0,
                       sendAddressData: null);
                   sendParseData.Parse(sendAll);
-                  sendParseData.Parse(sendAll);
+                  // sendParseData.Parse(sendAll);
+
+                  CommonToast.showToastNew(
+                    context,
+                    "提示",
+                    '数据已发送',
+                    [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop(); // 关闭对话框
+                        },
+                        child: const Text("关闭"),
+                      ),
+                    ],);
 
                   // 当前UI 方法封装
                   // _startUdpListener(sendAll);
@@ -168,10 +172,11 @@ class _NavigationState extends State<Navigation> {
         ),
         Row(
           children: [
-            const Expanded(
+            Expanded(
               child: TextField(
+                controller: _absolutelyRunning,
                 autofocus: true,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: "绝对运行",
                   hintText: "请输入坐标",
                   prefixIcon: Icon(Icons.table_view),
@@ -180,7 +185,22 @@ class _NavigationState extends State<Navigation> {
             ),
             IconButton(
                 onPressed: () {
-                  CommonToast.showToast('绝对运行');
+
+                  CommonToast.showToastNew(
+                    context,
+                    "提示",
+                    '绝对坐标',
+                    [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop(); // 关闭对话框
+                        },
+                        child: const Text("关闭"),
+                      ),
+                    ],);
+
+
+
                 },
                 icon: const Icon(Icons.send)),
             // ElevatedButton(onPressed: (){}, child: Text('data'))
