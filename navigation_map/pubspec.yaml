@@ -39,6 +39,7 @@ dependencies:
   crclib: ^3.0.0
   fluttertoast: ^8.2.6
   sqflite: ^2.3.3+1
+  dart_ping: ^9.0.1
 
 dev_dependencies:
   flutter_test:

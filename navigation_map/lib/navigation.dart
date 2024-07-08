@@ -5,6 +5,7 @@ import 'package:crclib/catalog.dart';
 import 'package:flutter/material.dart';
 import 'package:navigation_map/Utils/common_toast.dart';
 import 'package:navigation_map/utils/UdpHelper.dart';
+import 'CustomUserControls/CustomCircle.dart';
 import 'model/send_data.dart';
 
 class Navigation extends StatefulWidget {
@@ -16,15 +17,16 @@ class Navigation extends StatefulWidget {
 
 class _NavigationState extends State<Navigation> {
   late UdpHelper _udpHelper;
+  bool isActive = false;
 
   // 创建一个 TextEditingController 并设置默认值 relativeOperation
   // 相对运行
   final TextEditingController _relativeOperation =
-  TextEditingController(text: "0,0,0");
+      TextEditingController(text: "0,0,0");
 
   // 绝对运行
   final TextEditingController _absolutelyRunning =
-  TextEditingController(text: "0,0,0");
+      TextEditingController(text: "0,0,0");
 
   void _startUdpListener(Uint8List sendAll) async {
     var destinationAddress = InternetAddress("172.31.90.200"); // 替换为您的广播地址
@@ -78,7 +80,8 @@ class _NavigationState extends State<Navigation> {
           },
           child: const Text("关闭"),
         ),
-      ],);
+      ],
+    );
   }
 
   void _sendUdpMessage(Uint8List data) {
@@ -91,6 +94,39 @@ class _NavigationState extends State<Navigation> {
   Widget build(BuildContext context) {
     return Column(
       children: [
+        Row(
+          children: [
+            Expanded(
+              child: CustomCircle(
+                diameter: 20.0,
+                color: isActive ? Colors.green : Colors.red,
+              ),
+            ),
+            IconButton(
+                onPressed: () {
+
+                  // pingIP('8.8.8.8'); // 替换为你想要 ping 的 IP 地址
+
+                  CommonToast.pingIP('192.168.31.7');
+
+                  CommonToast.showToastNew(
+                    context,
+                    "提示",
+                    '绝对坐标',
+                    [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop(); // 关闭对话框
+                        },
+                        child: const Text("关闭"),
+                      ),
+                    ],
+                  );
+                },
+                icon: const Icon(Icons.network_wifi)),
+            // ElevatedButton(onPressed: (){}, child: Text('data'))
+          ],
+        ),
         Row(
           children: [
             Expanded(
@@ -114,12 +150,12 @@ class _NavigationState extends State<Navigation> {
                   }
                   //临时测试
                   List<dynamic> relativeOperationList =
-                  relativeOperation.split(','); // 使用短横线和竖线作为分隔符
+                      relativeOperation.split(','); // 使用短横线和竖线作为分隔符
 
                   SendAddressData data_0x5e0 = SendAddressData(
                       address: 0x5e0, length: 12, datas: relativeOperationList);
                   SendAddressData data_0x5f1 =
-                  SendAddressData(address: 0x5f1, length: 1, data: 1);
+                      SendAddressData(address: 0x5f1, length: 1, data: 1);
                   List<SendAddressData> dataList = [];
                   dataList.add(data_0x5e0);
                   dataList.add(data_0x5f1);
@@ -157,7 +193,8 @@ class _NavigationState extends State<Navigation> {
                         },
                         child: const Text("关闭"),
                       ),
-                    ],);
+                    ],
+                  );
                 },
                 icon: const Icon(Icons.send)),
           ],
@@ -177,7 +214,6 @@ class _NavigationState extends State<Navigation> {
             ),
             IconButton(
                 onPressed: () {
-
                   CommonToast.showToastNew(
                     context,
                     "提示",
@@ -189,10 +225,8 @@ class _NavigationState extends State<Navigation> {
                         },
                         child: const Text("关闭"),
                       ),
-                    ],);
-
-
-
+                    ],
+                  );
                 },
                 icon: const Icon(Icons.send)),
             // ElevatedButton(onPressed: (){}, child: Text('data'))

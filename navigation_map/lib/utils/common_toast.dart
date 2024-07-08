@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:dart_ping/dart_ping.dart';
 
 Color? bgColor = Colors.pink;
 var textStyle = const TextStyle(
@@ -35,12 +36,9 @@ class CommonToast {
   // );
   ///
   ///
-  static Future<void> showToastNew(
-    BuildContext context,
-    String title,
-    String content,
-    List<Widget>? actions)  {
-    return  showDialog(
+  static Future<void> showToastNew(BuildContext context, String title,
+      String content, List<Widget>? actions) {
+    return showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -51,7 +49,6 @@ class CommonToast {
         );
       },
     );
-
   }
 
   /// 阻止弹窗
@@ -159,6 +156,24 @@ class CommonToast {
   static void deleteFolder(path) async {
     final dir = Directory(path);
     dir.deleteSync(recursive: true);
+  }
+
+  ///
+  /// ping IP
+  ///
+  static Future<bool> pingIP(String ipAddress) async {
+    final ping = Ping(ipAddress, count: 5);
+    bool state = false;
+    ping.stream.listen((event) {
+      if (event.response != null) {
+        print('Ping response time: ${event.response!.time!.inMilliseconds} ms');
+        state = true;
+      } else {
+        print('Ping failed: ${event.error}');
+        state = false;
+      }
+    });
+    return state;
   }
 
 // static Future<Uint8List> udpSend(Uint8List data) async {
