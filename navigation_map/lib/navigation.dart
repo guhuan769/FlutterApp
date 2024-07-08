@@ -83,7 +83,7 @@ class _NavigationState extends State<Navigation> {
 
   void _sendUdpMessage(Uint8List data) {
     //TODO: 该处IP 应该从本地数据库取
-    var destinationAddress = InternetAddress("172.31.90.200"); // 替换为您的广播地址
+    var destinationAddress = InternetAddress("192.168.31.7"); // 替换为您的广播地址
     _udpHelper.sendMsgDataFrame(data, destinationAddress, 9331);
   }
 
@@ -158,16 +158,8 @@ class _NavigationState extends State<Navigation> {
                         child: const Text("关闭"),
                       ),
                     ],);
-
-                  // 当前UI 方法封装
-                  // _startUdpListener(sendAll);
-
-                  // Uint8List result = await CommonToast.udpSend(sendAll);
-                  // Uint8List aa = await CommonToast.udpSend(sendAll);
-                  // print("gh 接收到数据：${utf8.decode(aa2)}");
                 },
                 icon: const Icon(Icons.send)),
-            // ElevatedButton(onPressed: (){}, child: Text('data'))
           ],
         ),
         Row(
