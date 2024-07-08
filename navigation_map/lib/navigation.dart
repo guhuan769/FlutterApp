@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:crclib/catalog.dart';
+import 'package:dart_ping/dart_ping.dart';
 import 'package:flutter/material.dart';
 import 'package:navigation_map/Utils/common_toast.dart';
 import 'package:navigation_map/utils/UdpHelper.dart';
@@ -104,24 +105,54 @@ class _NavigationState extends State<Navigation> {
             ),
             IconButton(
                 onPressed: () {
-
                   // pingIP('8.8.8.8'); // 替换为你想要 ping 的 IP 地址
 
-                  CommonToast.pingIP('192.168.31.7');
+                  // CommonToast.pingIP('192.168.31.7').then((status) {
+                  // });
+                  final ping = Ping('192.168.31.7', count: 1);
+                  ping.stream.listen((event) {
+                    PingResponse entity = event.response as PingResponse;
+                    // if (event.response != null) {
+                    if (entity.ip  != null ){
+                      print(
+                          'Ping response time: ${event.response!.time!.inMilliseconds} ms');
+                      setState(() {
+                        isActive = true;
+                      });
+                      CommonToast.showToastNew(
+                        context,
+                        "提示",
+                        '已连接',
+                        [
+                          TextButton(
+                            onPressed: () {
+                              Navigator.of(context).pop(); // 关闭对话框
+                            },
+                            child: const Text("关闭"),
+                          ),
+                        ],
+                      );
+                    } else if (entity.ip == null) {
+                      setState(() {
+                        isActive = false;
+                      });
 
-                  CommonToast.showToastNew(
-                    context,
-                    "提示",
-                    '绝对坐标',
-                    [
-                      TextButton(
-                        onPressed: () {
-                          Navigator.of(context).pop(); // 关闭对话框
-                        },
-                        child: const Text("关闭"),
-                      ),
-                    ],
-                  );
+                      CommonToast.showToastNew(
+                        context,
+                        "提示",
+                        '未连接',
+                        [
+                          TextButton(
+                            onPressed: () {
+                              Navigator.of(context).pop(); // 关闭对话框
+                            },
+                            child: const Text("关闭"),
+                          ),
+                        ],
+                      );
+
+                    }
+                  });
                 },
                 icon: const Icon(Icons.network_wifi)),
             // ElevatedButton(onPressed: (){}, child: Text('data'))

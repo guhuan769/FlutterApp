@@ -159,8 +159,9 @@ class CommonToast {
   }
 
   ///
-  /// ping IP
+  /// ping IP 需要使用回调
   ///
+
   static Future<bool> pingIP(String ipAddress) async {
     final ping = Ping(ipAddress, count: 5);
     bool state = false;
@@ -168,10 +169,11 @@ class CommonToast {
       if (event.response != null) {
         print('Ping response time: ${event.response!.time!.inMilliseconds} ms');
         state = true;
-      } else {
-        print('Ping failed: ${event.error}');
-        state = false;
       }
+      // else {
+      //   print('Ping failed: ${event.error}');
+      //   state = false;
+      // }
     });
     return state;
   }
