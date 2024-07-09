@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:navigation_map/home_page.dart';
 
+import 'GlobalStyles/app_theme.dart';
+
 class Application extends StatefulWidget {
   const Application({super.key});
 
@@ -14,17 +16,9 @@ class _NewApplicationState extends State<Application> {
   Widget build(BuildContext context) {
     return MaterialApp(
         title: '导航系统',
-        theme: ThemeData(
-          primaryColor: Colors.orangeAccent, // 设置按钮背景颜色
-          // primarySwatch: Colors.amber, // 设置主色，影响按钮等部件的颜色
-          // accentColor: Colors.green, // 设置强调色，通常用于按钮和其他交互元素
-          appBarTheme: const AppBarTheme(
-              backgroundColor: Colors.pink,
-              titleTextStyle: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-              )),
-        ),
+        theme:AppTheme.lightTheme ,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: ThemeMode.system, // 根据系统设置自动切换主题
         home:const HomePage()
     );
   }

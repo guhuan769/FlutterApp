@@ -23,7 +23,7 @@ class _NavigationState extends State<Navigation> {
   // 创建一个 TextEditingController 并设置默认值 relativeOperation
   // 相对运行
   final TextEditingController _relativeOperation =
-      TextEditingController(text: "0,0,0");
+      TextEditingController(text: "0.1,0,0");
 
   // 绝对运行
   final TextEditingController _absolutelyRunning =
@@ -79,7 +79,10 @@ class _NavigationState extends State<Navigation> {
           onPressed: () {
             Navigator.of(context).pop(); // 关闭对话框
           },
-          child: const Text("关闭"),
+          child: Text(
+            "关闭",
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
         ),
       ],
     );
@@ -91,17 +94,42 @@ class _NavigationState extends State<Navigation> {
     _udpHelper.sendMsgDataFrame(data, destinationAddress, 9331);
   }
 
+  final TextEditingController _controller = TextEditingController();
+  Color _indicatorColor = Colors.grey;
+
+  void _updateIndicatorColor(String text) {
+    setState(() {
+      if (text.isEmpty) {
+        _indicatorColor = Colors.grey;
+      } else if (text.length < 3) {
+        _indicatorColor = Colors.red;
+      } else {
+        _indicatorColor = Colors.green;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Row(
-          children: [
+    var screenWidth = MediaQuery.of(context).size.width;
+    var screenHeight = MediaQuery.of(context).size.height;
+
+    return Scaffold(
+      body: Column(
+        children: [
+          const SizedBox(height: 10),
+
+          Row(children: [
             Expanded(
-              child: CustomCircle(
-                diameter: 20.0,
-                color: isActive ? Colors.green : Colors.red,
-              ),
+              child: Row(children: [
+                const SizedBox(width: 10),
+                const Text('状态: '),
+                const SizedBox(width: 10),
+                CustomCircle(
+                  diameter: 15.0,
+                  color: isActive ? Colors.green : _indicatorColor,
+                ),
+              ]),
             ),
             IconButton(
                 onPressed: () {
@@ -113,162 +141,286 @@ class _NavigationState extends State<Navigation> {
                   ping.stream.listen((event) {
                     PingResponse entity = event.response as PingResponse;
                     // if (event.response != null) {
-                    if (entity.ip  != null ){
+                    if (entity.ip != null) {
                       print(
                           'Ping response time: ${event.response!.time!.inMilliseconds} ms');
                       setState(() {
                         isActive = true;
                       });
-                      CommonToast.showToastNew(
-                        context,
-                        "提示",
-                        '已连接',
-                        [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop(); // 关闭对话框
-                            },
-                            child: const Text("关闭"),
-                          ),
-                        ],
-                      );
+
+                      _onErrorMessageReceived(0, "已连接");
                     } else if (entity.ip == null) {
                       setState(() {
                         isActive = false;
                       });
 
+                      _onErrorMessageReceived(0, "未连接");
+                    }
+                  });
+                },
+                icon: const Icon(Icons.network_wifi)),
+          ]),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: _relativeOperation,
+                  autofocus: true,
+
+                  // 带下线的
+                  // decoration: const InputDecoration(
+                  //   labelText: "相对运行",
+                  //   hintText: "请输入坐标",
+                  //   prefixIcon: Icon(Icons.table_view),
+                  // ),
+
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.blueAccent.withOpacity(0.1),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(25.0),
+                      borderSide: BorderSide.none,
+                    ),
+                    hintText: '请输入坐标',
+                    hintStyle: Theme.of(context).textTheme.bodyMedium,
+                    labelText: '相对运行',
+                    // labelStyle: const TextStyle(color: Colors.blue),
+                    labelStyle: Theme.of(context).textTheme.bodyMedium,
+                    prefixIcon: Icon(Icons.table_view,
+                        color: Theme.of(context).colorScheme.secondary),
+                  ),
+                  style: const TextStyle(color: Colors.black),
+                  cursorColor: Colors.blue,
+                ),
+              ),
+              const SizedBox(width: 10),
+              ElevatedButton(
+                  onPressed: () {
+                    _onErrorMessageReceived(0,
+                        "注意\n相对运行(x(前进 (x为1的时候就是前进1米 -1就是当前位置倒退1米),-1 为x后退)),y(左移，右移)\n,z(角度，弧度1.57为旋转90° \n 3.17为旋转180°),");
+                  },
+                  child: Text('说明书',
+                      style: Theme.of(context).textTheme.bodyMedium)),
+              const SizedBox(width: 10),
+              IconButton(
+                  onPressed: () async {
+                    // 获取value
+                    var relativeOperation = _relativeOperation.text;
+                    if (!relativeOperation.isNotEmpty) {
+                      CommonToast.showToast('位置信息不能为空');
+                      return;
+                    }
+                    //临时测试
+                    List<dynamic> relativeOperationList =
+                        relativeOperation.split(','); // 使用短横线和竖线作为分隔符
+
+                    SendAddressData data_0x5e0 = SendAddressData(
+                        address: 0x5e0,
+                        length: 12,
+                        datas: relativeOperationList);
+                    SendAddressData data_0x5f1 =
+                        SendAddressData(address: 0x5f1, length: 1, data: 1);
+                    List<SendAddressData> dataList = [];
+                    dataList.add(data_0x5e0);
+                    dataList.add(data_0x5f1);
+
+                    SendData sendData = SendData(
+                        cRCHigh: null,
+                        cRCLow: null,
+                        cmd: 2,
+                        sn: 10,
+                        sendAddressData: dataList);
+
+                    sendData.buildBytesAddCrc();
+
+                    // sendData
+                    Uint8List sendAll = sendData.buildAllBytes();
+                    _sendUdpMessage(sendAll);
+
+                    SendData sendParseData = SendData(
+                        cRCHigh: null,
+                        cRCLow: null,
+                        cmd: 0,
+                        sn: 0,
+                        sendAddressData: null);
+                    sendParseData.Parse(sendAll);
+                    // sendParseData.Parse(sendAll);
+
+                    _onErrorMessageReceived(0, "数据已发送。");
+                  },
+                  icon: const Icon(Icons.send)),
+            ],
+          ),
+          Visibility(
+            visible: false,
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _absolutelyRunning,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      labelText: "绝对运行",
+                      hintText: "请输入坐标",
+                      prefixIcon: Icon(Icons.table_view),
+                    ),
+                  ),
+                ),
+                IconButton(
+                    onPressed: () {
                       CommonToast.showToastNew(
                         context,
                         "提示",
-                        '未连接',
+                        '绝对坐标',
                         [
                           TextButton(
                             onPressed: () {
                               Navigator.of(context).pop(); // 关闭对话框
                             },
-                            child: const Text("关闭"),
+                            child: Text(
+                              "关闭",
+                              style: Theme.of(context).textTheme.bodyLarge,
+                            ),
                           ),
                         ],
                       );
-
-                    }
-                  });
-                },
-                icon: const Icon(Icons.network_wifi)),
-            // ElevatedButton(onPressed: (){}, child: Text('data'))
-          ],
-        ),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _relativeOperation,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  labelText: "相对运行",
-                  hintText: "请输入坐标",
-                  prefixIcon: Icon(Icons.table_view),
-                ),
-              ),
+                    },
+                    icon: const Icon(Icons.send)),
+                // ElevatedButton(onPressed: (){}, child: Text('data'))
+              ],
             ),
-            IconButton(
-                onPressed: () async {
-                  // 获取value
-                  var relativeOperation = _relativeOperation.text;
-                  if (!relativeOperation.isNotEmpty) {
-                    CommonToast.showToast('位置信息不能为空');
-                    return;
-                  }
-                  //临时测试
-                  List<dynamic> relativeOperationList =
-                      relativeOperation.split(','); // 使用短横线和竖线作为分隔符
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              SizedBox(
+                width: screenWidth * 0.97, // 设置宽度为屏幕宽度的80%
+                child: Card(
+                  color: Colors.grey[100],
+                  child: Stack(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          children: [
+                            const SizedBox(height: 40), // 给标题留出空间
+                            Row(
+                              children: [
+                                const SizedBox(width: 10),
+                                ElevatedButton(
+                                    onPressed: () {
+                                      SendAddressData data_0x71 =
+                                          SendAddressData(
+                                              address: 0x71,
+                                              length: 1,
+                                              data: 1);
 
-                  SendAddressData data_0x5e0 = SendAddressData(
-                      address: 0x5e0, length: 12, datas: relativeOperationList);
-                  SendAddressData data_0x5f1 =
-                      SendAddressData(address: 0x5f1, length: 1, data: 1);
-                  List<SendAddressData> dataList = [];
-                  dataList.add(data_0x5e0);
-                  dataList.add(data_0x5f1);
+                                      SendAddressData data_0x73 =
+                                          SendAddressData(
+                                              address: 0x73,
+                                              length: 1,
+                                              data: 1);
+                                      List<SendAddressData> dataList = [];
+                                      dataList.add(data_0x71);
+                                      dataList.add(data_0x73);
 
-                  SendData sendData = SendData(
-                      cRCHigh: null,
-                      cRCLow: null,
-                      cmd: 2,
-                      sn: 10,
-                      sendAddressData: dataList);
+                                      SendData sendData = SendData(
+                                          cRCHigh: null,
+                                          cRCLow: null,
+                                          cmd: 2,
+                                          sn: 10,
+                                          sendAddressData: dataList);
 
-                  sendData.buildBytesAddCrc();
+                                      sendData.buildBytesAddCrc();
+                                      Uint8List sendAll =
+                                          sendData.buildAllBytes();
+                                      _sendUdpMessage(sendAll);
 
-                  // sendData
-                  Uint8List sendAll = sendData.buildAllBytes();
-                  _sendUdpMessage(sendAll);
+                                      // SendData sendParseData = SendData(
+                                      //     cRCHigh: null,
+                                      //     cRCLow: null,
+                                      //     cmd: 0,
+                                      //     sn: 0,
+                                      //     sendAddressData: null);
+                                      // sendParseData.Parse(sendAll);
+                                      // sendParseData.Parse(sendAll);
 
-                  SendData sendParseData = SendData(
-                      cRCHigh: null,
-                      cRCLow: null,
-                      cmd: 0,
-                      sn: 0,
-                      sendAddressData: null);
-                  sendParseData.Parse(sendAll);
-                  // sendParseData.Parse(sendAll);
+                                      _onErrorMessageReceived(0, "数据已发送。");
+                                    },
+                                    child: Text('降',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium)),
+                                const SizedBox(width: 10),
+                                ElevatedButton(
+                                    onPressed: () {
+                                      SendAddressData data_0x70 =
+                                          SendAddressData(
+                                              address: 0x70,
+                                              length: 1,
+                                              data: 1);
 
-                  CommonToast.showToastNew(
-                    context,
-                    "提示",
-                    '数据已发送',
-                    [
-                      TextButton(
-                        onPressed: () {
-                          Navigator.of(context).pop(); // 关闭对话框
-                        },
-                        child: const Text("关闭"),
+                                      SendAddressData data_0x72 =
+                                          SendAddressData(
+                                              address: 0x72,
+                                              length: 1,
+                                              data: 1);
+                                      List<SendAddressData> dataList = [];
+                                      dataList.add(data_0x70);
+                                      dataList.add(data_0x72);
+
+                                      SendData sendData = SendData(
+                                          cRCHigh: null,
+                                          cRCLow: null,
+                                          cmd: 2,
+                                          sn: 10,
+                                          sendAddressData: dataList);
+
+                                      sendData.buildBytesAddCrc();
+                                      Uint8List sendAll =
+                                          sendData.buildAllBytes();
+                                      _sendUdpMessage(sendAll);
+                                      _onErrorMessageReceived(0, "数据已发送。");
+                                    },
+                                    child: Text('升',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium)),
+                              ],
+                            )
+                          ],
+                        ),
+                      ),
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.grey[400],
+                            borderRadius: BorderRadius.circular(10.0), // 设置圆角半径
+                          ),
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text(
+                            '支撑电击运动控制',
+                            style: Theme.of(context).textTheme.bodyLarge,
+                          ),
+                        ),
                       ),
                     ],
-                  );
-                },
-                icon: const Icon(Icons.send)),
-          ],
-        ),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _absolutelyRunning,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  labelText: "绝对运行",
-                  hintText: "请输入坐标",
-                  prefixIcon: Icon(Icons.table_view),
+                  ),
                 ),
-              ),
-            ),
-            IconButton(
-                onPressed: () {
-                  CommonToast.showToastNew(
-                    context,
-                    "提示",
-                    '绝对坐标',
-                    [
-                      TextButton(
-                        onPressed: () {
-                          Navigator.of(context).pop(); // 关闭对话框
-                        },
-                        child: const Text("关闭"),
-                      ),
-                    ],
-                  );
-                },
-                icon: const Icon(Icons.send)),
-            // ElevatedButton(onPressed: (){}, child: Text('data'))
-          ],
-        ),
-        // Row(
-        //   children: [
-        //
-        //   ],
-        // ),
-      ],
+              )
+            ],
+          ),
+          // Row(
+          //   children: [
+          //
+          //   ],
+          // ),
+        ],
+      ),
     );
   }
 }

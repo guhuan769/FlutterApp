@@ -42,7 +42,6 @@ class CommonToast {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor: bgColor,
           title: Text(title, style: textStyle),
           content: Text(content, style: textStyle),
           actions: actions ?? [],
@@ -57,7 +56,6 @@ class CommonToast {
         context: context,
         builder: (BuildContext context) {
           return AlertDialog(
-            backgroundColor: bgColor,
             title: Text('提示', style: textStyle),
             content: Text('您确定要退出当前页面吗?', style: textStyle),
             actions: [
@@ -83,7 +81,6 @@ class CommonToast {
         context: context,
         builder: (BuildContext context) {
           return AlertDialog(
-            backgroundColor: bgColor,
             title: Text('提示', style: textStyle),
             content: Text('您确认删除吗?', style: textStyle),
             actions: [
@@ -108,7 +105,6 @@ class CommonToast {
         context: context,
         builder: (BuildContext context) {
           return AlertDialog(
-            backgroundColor: bgColor,
             title: Text('提示', style: textStyle),
             content: Text('您确认删除所有图片吗?', style: textStyle),
             actions: [
