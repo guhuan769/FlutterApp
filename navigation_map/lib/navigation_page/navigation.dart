@@ -322,6 +322,19 @@ class _NavigationState extends State<Navigation> {
                                               address: 0x73,
                                               length: 1,
                                               data: 1);
+
+                                      SendAddressData data_0x75 =
+                                      SendAddressData(
+                                          address: 0x75,
+                                          length: 1,
+                                          data: 1);
+
+                                      SendAddressData data_0x77 =
+                                      SendAddressData(
+                                          address: 0x77,
+                                          length: 1,
+                                          data: 1);
+
                                       List<SendAddressData> dataList = [];
                                       dataList.add(data_0x71);
                                       dataList.add(data_0x73);
@@ -367,6 +380,19 @@ class _NavigationState extends State<Navigation> {
                                               address: 0x72,
                                               length: 1,
                                               data: 1);
+
+                                      SendAddressData data_0x74 =
+                                      SendAddressData(
+                                          address: 0x74,
+                                          length: 1,
+                                          data: 1);
+
+                                      SendAddressData data_0x76 =
+                                      SendAddressData(
+                                          address: 0x76,
+                                          length: 1,
+                                          data: 1);
+
                                       List<SendAddressData> dataList = [];
                                       dataList.add(data_0x70);
                                       dataList.add(data_0x72);
