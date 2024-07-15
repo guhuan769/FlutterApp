@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'cell.dart';
-import 'app_theme.dart';
 
 class CellGroup extends StatelessWidget {
   final List<Cell?> children;
@@ -21,7 +20,7 @@ class CellGroup extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppTheme.of(context).colors.backgroundSecond,
+        color:  Theme.of(context).colorScheme.secondary,
         borderRadius: borderRadius ?? BorderRadius.circular(8),
       ),
       margin: const EdgeInsets.only(top: 10, left: 10, right: 10),

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:navigation_map/GlobalStyles/app_theme.dart';
 
-class Cell extends StatefulWidget {
+class Cell extends StatelessWidget {
   final Widget title;
   final Widget? value;
 
@@ -32,47 +31,42 @@ class Cell extends StatefulWidget {
       this.onClick});
 
   @override
-  State<Cell> createState() => _CellState();
-}
-
-class _CellState extends State<Cell> {
-  @override
   Widget build(BuildContext context) {
     return Listener(
       onPointerDown: (e) {
-        widget.onClick?.call();
+        onClick?.call();
       },
       child: Container(
-        margin: widget.margin ??
+        margin: margin ??
             const EdgeInsets.only(top: 10, left: 10, right: 10),
-        padding: widget.padding ??
+        padding: padding ??
             const EdgeInsets.symmetric(horizontal: 15, vertical: 16),
         decoration: BoxDecoration(
-          color: widget.backgroundColor ??
-              AppTheme.of(context).colors.backgroundSecond,
-          borderRadius: widget.borderRadius ?? BorderRadius.circular(8),
+          color: backgroundColor ??
+              Theme.of(context).colorScheme.secondary,
+          borderRadius: borderRadius ?? BorderRadius.circular(8),
         ),
         child: Column(
           children: [
             IntrinsicHeight(
               child: Row(
                 children: <Widget>[
-                  widget.icon ?? Container(),
-                  widget.icon != null ? const SizedBox(width: 8) : Container(),
-                  widget.title,
+                  icon ?? Container(),
+                  icon != null ? const SizedBox(width: 8) : Container(),
+                  title,
                   const Spacer(),
-                  widget.value ?? Container(),
-                  widget.rightIcon != null
+                  value ?? Container(),
+                  rightIcon != null
                       ? const SizedBox(width: 8)
                       : Container(),
-                  widget.rightIcon ?? Container(),
+                  rightIcon ?? Container(),
                 ],
               ),
             ),
-            widget.content != null
+            content != null
                 ? Padding(
                     padding: const EdgeInsets.only(top: 10),
-                    child: widget.content,
+                    child: content,
                   )
                 : Container(),
           ],

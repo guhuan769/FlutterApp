@@ -6,8 +6,8 @@ import 'package:dart_ping/dart_ping.dart';
 import 'package:flutter/material.dart';
 import 'package:navigation_map/Utils/common_toast.dart';
 import 'package:navigation_map/utils/UdpHelper.dart';
-import 'CustomUserControls/CustomCircle.dart';
-import 'model/send_data.dart';
+import '../CustomUserControls/CustomCircle.dart';
+import '../model/send_data.dart';
 
 class Navigation extends StatefulWidget {
   const Navigation({super.key});

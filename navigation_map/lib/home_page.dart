@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:navigation_map/navigation.dart';
-import 'package:navigation_map/setting_page.dart';
+import 'package:navigation_map/navigation_page/navigation.dart';
+import 'package:navigation_map/my_page/settting_page/setting_page.dart';
 
 // import 'package:scan_system/setting_page.dart';
 
 import 'Utils/common_toast.dart';
-import 'my_page.dart';
+import 'my_page/my_page.dart';
 // import 'my_page.dart';
 
 class HomePage extends StatefulWidget {
