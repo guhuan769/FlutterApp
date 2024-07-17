@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
 import 'dart:typed_data';
@@ -6,9 +7,9 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:dart_ping/dart_ping.dart';
 
 Color? bgColor = Colors.pink;
-var textStyle = const TextStyle(
-  color: Colors.white,
-);
+// var textStyle = const TextStyle(
+//   color: Colors.white,
+// );
 
 class CommonToast {
   /// 提示框
@@ -38,16 +39,55 @@ class CommonToast {
   ///
   static Future<void> showToastNew(BuildContext context, String title,
       String content, List<Widget>? actions) {
+    int _start = 5; // 倒计时初始值
+    Timer? _timer;
+    // Future.delayed(const Duration(seconds: 2), () {
+    //   Navigator.of(context).pop();
+    // });
+
+    void startTimer(StateSetter setState) {
+      const oneSec = Duration(seconds: 1);
+      _timer = Timer.periodic(oneSec, (Timer timer) {
+        if (_start == 0) {
+          timer.cancel();
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+          }
+        } else {
+          setState(() {
+            _start--;
+          });
+        }
+      });
+    }
+
+
     return showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(title, style: textStyle),
-          content: Text(content, style: textStyle),
-          actions: actions ?? [],
+        return StatefulBuilder(
+          builder: (context, setState) {
+            startTimer(setState);
+            return AlertDialog(
+              title: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(title, style: Theme.of(context).textTheme.bodyLarge,),
+                  Text('$_start秒关闭', style: Theme.of(context).textTheme.bodyLarge,),
+                ],
+              ),
+              content: Text(content, style: Theme.of(context).textTheme.bodyLarge,),
+              actions: actions ?? [],
+            );
+          },
         );
+
       },
-    );
+    ).then((_) {
+      if (_timer != null) {
+        _timer!.cancel();
+      }
+    });
   }
 
   /// 阻止弹窗
@@ -56,8 +96,8 @@ class CommonToast {
         context: context,
         builder: (BuildContext context) {
           return AlertDialog(
-            title: Text('提示', style: textStyle),
-            content: Text('您确定要退出当前页面吗?', style: textStyle),
+            title: Text('提示', style: Theme.of(context).textTheme.bodyLarge,),
+            content: Text('您确定要退出当前页面吗?', style: Theme.of(context).textTheme.bodyLarge,),
             actions: [
               ElevatedButton(
                 onPressed: () async {
@@ -81,8 +121,8 @@ class CommonToast {
         context: context,
         builder: (BuildContext context) {
           return AlertDialog(
-            title: Text('提示', style: textStyle),
-            content: Text('您确认删除吗?', style: textStyle),
+            title: Text('提示', style: Theme.of(context).textTheme.bodyLarge,),
+            content: Text('您确认删除吗?', style: Theme.of(context).textTheme.bodyLarge,),
             actions: [
               ElevatedButton(
                 onPressed: () async {
@@ -105,8 +145,8 @@ class CommonToast {
         context: context,
         builder: (BuildContext context) {
           return AlertDialog(
-            title: Text('提示', style: textStyle),
-            content: Text('您确认删除所有图片吗?', style: textStyle),
+            title: Text('提示', style: Theme.of(context).textTheme.bodyLarge,),
+            content: Text('您确认删除所有图片吗?', style: Theme.of(context).textTheme.bodyLarge,),
             actions: [
               ElevatedButton(
                 onPressed: () async {

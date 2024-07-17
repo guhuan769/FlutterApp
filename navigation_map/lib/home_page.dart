@@ -72,7 +72,7 @@ class _HomePageState extends State<HomePage> {
               ),
               child: Center(
                 child: Text(
-                  '侧滑栏头部',
+                  '基础设置',
                   style: TextStyle(
                     color: Theme.of(context).textTheme.titleLarge?.color,
                     fontSize: Theme.of(context).textTheme.titleLarge?.fontSize,
