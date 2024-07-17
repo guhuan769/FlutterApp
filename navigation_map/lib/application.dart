@@ -17,7 +17,7 @@ class _NewApplicationState extends State<Application> {
     return MaterialApp(
         title: '导航系统',
         theme:AppTheme.lightTheme ,
-        darkTheme: AppTheme.darkTheme,
+        // darkTheme: AppTheme.darkTheme,
         // themeMode: ThemeMode.system, // 根据系统设置自动切换主题
         home:const HomePage()
     );

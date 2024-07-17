@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 class AppTheme {
   static final ThemeData lightTheme = ThemeData(
+    primarySwatch: Colors.yellow,
 // 底部导航栏样式
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
       backgroundColor: Colors.white,
@@ -22,6 +23,10 @@ class AppTheme {
     ).copyWith(
       secondary: Colors.greenAccent,
     ),
+    drawerTheme: const DrawerThemeData(
+      backgroundColor: Colors.greenAccent,
+      elevation: 16,
+    ),
     iconTheme: const IconThemeData(
       size: 35.0,
       color: Colors.greenAccent,
@@ -38,8 +43,14 @@ class AppTheme {
       ),
     ),
     textTheme: const TextTheme(
-      bodyLarge: TextStyle(color: Colors.white),
-      bodyMedium: TextStyle(color: Colors.black),
+      // bodyLarge: TextStyle(color: Colors.white),
+      // bodyMedium: TextStyle(color: Colors.black),
+      displayLarge: TextStyle(color: Colors.white,fontSize: 72.0, fontWeight: FontWeight.bold),
+      titleLarge: TextStyle(color: Colors.white,fontSize: 36.0, fontStyle: FontStyle.italic),
+      bodyLarge: TextStyle(color: Colors.white,fontSize: 16.0),
+      bodyMedium: TextStyle(color: Colors.black,fontSize: 14.0),
+      bodySmall: TextStyle(fontSize: 12.0),
+
     ),
     dialogTheme: DialogTheme(
       backgroundColor: Colors.green,
@@ -62,7 +73,7 @@ class AppTheme {
 // accentColor: Colors.green, // 设置强调色，通常用于按钮和其他交互元素
     appBarTheme: const AppBarTheme(
       backgroundColor: Colors.greenAccent,
-      iconTheme: IconThemeData(color: Colors.red),
+      iconTheme: IconThemeData(color: Colors.white),
       actionsIconTheme: IconThemeData(color: Colors.amber),
       centerTitle: false,
       elevation: 15,

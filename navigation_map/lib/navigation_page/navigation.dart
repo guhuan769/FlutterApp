@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:navigation_map/Utils/common_toast.dart';
 import 'package:navigation_map/utils/UdpHelper.dart';
 import '../CustomUserControls/CustomCircle.dart';
+import '../CustomUserControls/CustomTextField.dart';
 import '../model/send_data.dart';
 
 class Navigation extends StatefulWidget {
@@ -26,6 +27,7 @@ class _NavigationState extends State<Navigation> {
   // 相对运行
   final TextEditingController _relativeOperation =
       TextEditingController(text: "0.1,0,0");
+  final FocusNode _focusNode = FocusNode();
 
   // 绝对运行
   final TextEditingController _absolutelyRunning =
@@ -59,8 +61,21 @@ class _NavigationState extends State<Navigation> {
     // TODO: implement initState
     super.initState();
 
+    // _focusNode.addListener(() {
+    //   if (_focusNode.hasFocus) {
+    //     _focusNode.unfocus();
+    //   }
+    // });
+
     _udpHelper = UdpHelper(_onUdpDataReceived, _onErrorMessageReceived);
     _udpHelper.startListening();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
   }
 
   void _onUdpDataReceived(String data) {
@@ -70,8 +85,6 @@ class _NavigationState extends State<Navigation> {
     _relativeOperation.text = "10,1,$data";
     // });
   }
-
-
 
   void _onErrorMessageReceived(int code, String msg) {
     CommonToast.showToastNew(
@@ -140,27 +153,30 @@ class _NavigationState extends State<Navigation> {
                 IconButton(
                     onPressed: () {
                       // pingIP('8.8.8.8'); // 替换为你想要 ping 的 IP 地址
-          
+
                       // CommonToast.pingIP('192.168.31.7').then((status) {
                       // });
                       final ping = Ping('192.168.31.7', count: 1);
                       ping.stream.listen((event) {
-                        PingResponse entity = event.response as PingResponse;
-                        // if (event.response != null) {
-                        if (entity.ip != null) {
-                          print(
-                              'Ping response time: ${event.response!.time!.inMilliseconds} ms');
-                          setState(() {
-                            isActive = true;
-                          });
-          
-                          _onErrorMessageReceived(0, "已连接");
-                        } else if (entity.ip == null) {
-                          setState(() {
-                            isActive = false;
-                          });
-          
-                          _onErrorMessageReceived(0, "未连接");
+                        try {
+                          PingResponse entity = event.response as PingResponse;
+                          // if (event.response != null) {
+                          if (entity.ip != null) {
+                            print(
+                                'Ping response time: ${event.response!.time!.inMilliseconds} ms');
+                            setState(() {
+                              isActive = true;
+                            });
+
+                            _onErrorMessageReceived(0, "已连接");
+                          } else if (entity.ip == null) {
+                            setState(() {
+                              isActive = false;
+                            });
+                            // _onErrorMessageReceived(0, "未连接");
+                          }
+                        } catch (e, stackTrace) {
+                          _onErrorMessageReceived(0, "请接入目标设备局域网.");
                         }
                       });
                     },
@@ -171,34 +187,12 @@ class _NavigationState extends State<Navigation> {
                 children: [
                   const SizedBox(width: 10),
                   Expanded(
-                    child: TextField(
+                    child: CustomTextField(
                       controller: _relativeOperation,
-                      autofocus: true,
-          
-                      // 带下线的
-                      // decoration: const InputDecoration(
-                      //   labelText: "相对运行",
-                      //   hintText: "请输入坐标",
-                      //   prefixIcon: Icon(Icons.table_view),
-                      // ),
-          
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: Colors.blueAccent.withOpacity(0.1),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(25.0),
-                          borderSide: BorderSide.none,
-                        ),
-                        hintText: '请输入坐标',
-                        hintStyle: Theme.of(context).textTheme.bodyMedium,
-                        labelText: '相对运行',
-                        // labelStyle: const TextStyle(color: Colors.blue),
-                        labelStyle: Theme.of(context).textTheme.bodyMedium,
-                        prefixIcon: Icon(Icons.table_view,
-                            color: Theme.of(context).colorScheme.secondary),
-                      ),
-                      style: const TextStyle(color: Colors.black),
-                      cursorColor: Colors.blue,
+                      labelText: '相对运行',
+                      hintText: '请输入坐标',
+                      prefixIcon: Icons.table_view,
+                      // onTap: _handleTap,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -221,7 +215,7 @@ class _NavigationState extends State<Navigation> {
                         //临时测试
                         List<dynamic> relativeOperationList =
                             relativeOperation.split(','); // 使用短横线和竖线作为分隔符
-          
+
                         SendAddressData data_0x5e0 = SendAddressData(
                             address: 0x5e0,
                             length: 12,
@@ -231,20 +225,20 @@ class _NavigationState extends State<Navigation> {
                         List<SendAddressData> dataList = [];
                         dataList.add(data_0x5e0);
                         dataList.add(data_0x5f1);
-          
+
                         SendData sendData = SendData(
                             cRCHigh: null,
                             cRCLow: null,
                             cmd: 2,
                             sn: 10,
                             sendAddressData: dataList);
-          
+
                         sendData.buildBytesAddCrc();
-          
+
                         // sendData
                         Uint8List sendAll = sendData.buildAllBytes();
                         _sendUdpMessage(sendAll);
-          
+
                         SendData sendParseData = SendData(
                             cRCHigh: null,
                             cRCLow: null,
@@ -253,7 +247,7 @@ class _NavigationState extends State<Navigation> {
                             sendAddressData: null);
                         sendParseData.Parse(sendAll);
                         // sendParseData.Parse(sendAll);
-          
+
                         _onErrorMessageReceived(0, "数据已发送。");
                       },
                       icon: const Icon(Icons.send)),
@@ -264,14 +258,12 @@ class _NavigationState extends State<Navigation> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: TextField(
-                        controller: _absolutelyRunning,
-                        autofocus: true,
-                        decoration: const InputDecoration(
-                          labelText: "绝对运行",
-                          hintText: "请输入坐标",
-                          prefixIcon: Icon(Icons.table_view),
-                        ),
+                      child: CustomTextField(
+                        controller: _relativeOperation,
+                        labelText: '绝对运行',
+                        hintText: '请输入坐标',
+                        prefixIcon: Icons.table_view,
+                        onTap: null,
                       ),
                     ),
                     IconButton(
@@ -322,41 +314,41 @@ class _NavigationState extends State<Navigation> {
                                                   address: 0x71,
                                                   length: 1,
                                                   data: 1);
-          
+
                                           SendAddressData data_0x73 =
                                               SendAddressData(
                                                   address: 0x73,
                                                   length: 1,
                                                   data: 1);
-          
+
                                           SendAddressData data_0x75 =
                                               SendAddressData(
                                                   address: 0x75,
                                                   length: 1,
                                                   data: 1);
-          
+
                                           SendAddressData data_0x77 =
                                               SendAddressData(
                                                   address: 0x77,
                                                   length: 1,
                                                   data: 1);
-          
+
                                           List<SendAddressData> dataList = [];
                                           dataList.add(data_0x71);
                                           dataList.add(data_0x73);
-          
+
                                           SendData sendData = SendData(
                                               cRCHigh: null,
                                               cRCLow: null,
                                               cmd: 2,
                                               sn: 10,
                                               sendAddressData: dataList);
-          
+
                                           sendData.buildBytesAddCrc();
                                           Uint8List sendAll =
                                               sendData.buildAllBytes();
                                           _sendUdpMessage(sendAll);
-          
+
                                           // SendData sendParseData = SendData(
                                           //     cRCHigh: null,
                                           //     cRCLow: null,
@@ -365,7 +357,7 @@ class _NavigationState extends State<Navigation> {
                                           //     sendAddressData: null);
                                           // sendParseData.Parse(sendAll);
                                           // sendParseData.Parse(sendAll);
-          
+
                                           _onErrorMessageReceived(0, "数据已发送。");
                                         },
                                         child: Text('降',
@@ -380,36 +372,36 @@ class _NavigationState extends State<Navigation> {
                                                   address: 0x70,
                                                   length: 1,
                                                   data: 1);
-          
+
                                           SendAddressData data_0x72 =
                                               SendAddressData(
                                                   address: 0x72,
                                                   length: 1,
                                                   data: 1);
-          
+
                                           SendAddressData data_0x74 =
                                               SendAddressData(
                                                   address: 0x74,
                                                   length: 1,
                                                   data: 1);
-          
+
                                           SendAddressData data_0x76 =
                                               SendAddressData(
                                                   address: 0x76,
                                                   length: 1,
                                                   data: 1);
-          
+
                                           List<SendAddressData> dataList = [];
                                           dataList.add(data_0x70);
                                           dataList.add(data_0x72);
-          
+
                                           SendData sendData = SendData(
                                               cRCHigh: null,
                                               cRCLow: null,
                                               cmd: 2,
                                               sn: 10,
                                               sendAddressData: dataList);
-          
+
                                           sendData.buildBytesAddCrc();
                                           Uint8List sendAll =
                                               sendData.buildAllBytes();
@@ -431,7 +423,8 @@ class _NavigationState extends State<Navigation> {
                             child: Container(
                               decoration: BoxDecoration(
                                 color: Colors.grey[400],
-                                borderRadius: BorderRadius.circular(10.0), // 设置圆角半径
+                                borderRadius:
+                                    BorderRadius.circular(10.0), // 设置圆角半径
                               ),
                               padding: const EdgeInsets.all(8.0),
                               child: Text(
@@ -491,7 +484,8 @@ class _NavigationState extends State<Navigation> {
                             child: Container(
                               decoration: BoxDecoration(
                                 color: Colors.grey[400],
-                                borderRadius: BorderRadius.circular(10.0), // 设置圆角半径
+                                borderRadius:
+                                    BorderRadius.circular(10.0), // 设置圆角半径
                               ),
                               padding: const EdgeInsets.all(8.0),
                               child: Text(
@@ -551,7 +545,8 @@ class _NavigationState extends State<Navigation> {
                             child: Container(
                               decoration: BoxDecoration(
                                 color: Colors.grey[400],
-                                borderRadius: BorderRadius.circular(10.0), // 设置圆角半径
+                                borderRadius:
+                                    BorderRadius.circular(10.0), // 设置圆角半径
                               ),
                               padding: const EdgeInsets.all(8.0),
                               child: Text(
@@ -566,129 +561,6 @@ class _NavigationState extends State<Navigation> {
                   )
                 ],
               ),
-              Row(
-                children: [
-                  SizedBox(
-                    width: screenWidth * 0.97, // 设置宽度为屏幕宽度的80%
-                    child: Card(
-                      color: Colors.grey[100],
-                      child: Stack(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              children: [
-                                const SizedBox(height: 40), // 给标题留出空间
-                                Row(
-                                  children: [
-                                    const SizedBox(width: 10),
-                                    ElevatedButton(
-                                        onPressed: () {
-                                          _onErrorMessageReceived(0, "数据已发送。");
-                                        },
-                                        child: Text('目的地',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodyMedium)),
-                                    const SizedBox(width: 10),
-                                    ElevatedButton(
-                                        onPressed: () {
-                                          _onErrorMessageReceived(0, "数据已发送。");
-                                        },
-                                        child: Text('回到原点',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodyMedium)),
-                                  ],
-                                )
-                              ],
-                            ),
-                          ),
-                          Positioned(
-                            top: 0,
-                            left: 0,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.grey[400],
-                                borderRadius: BorderRadius.circular(10.0), // 设置圆角半径
-                              ),
-                              padding: const EdgeInsets.all(8.0),
-                              child: Text(
-                                '节点控制-未实现功能',
-                                style: Theme.of(context).textTheme.bodyLarge,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                ],
-              ),
-              Row(
-                children: [
-                  SizedBox(
-                    width: screenWidth * 0.97, // 设置宽度为屏幕宽度的80%
-                    child: Card(
-                      color: Colors.grey[100],
-                      child: Stack(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              children: [
-                                const SizedBox(height: 40), // 给标题留出空间
-                                Row(
-                                  children: [
-                                    const SizedBox(width: 10),
-                                    ElevatedButton(
-                                        onPressed: () {
-                                          _onErrorMessageReceived(0, "数据已发送。");
-                                        },
-                                        child: Text('目的地',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodyMedium)),
-                                    const SizedBox(width: 10),
-                                    ElevatedButton(
-                                        onPressed: () {
-                                          _onErrorMessageReceived(0, "数据已发送。");
-                                        },
-                                        child: Text('回到原点',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodyMedium)),
-                                  ],
-                                )
-                              ],
-                            ),
-                          ),
-                          Positioned(
-                            top: 0,
-                            left: 0,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.grey[400],
-                                borderRadius: BorderRadius.circular(10.0), // 设置圆角半径
-                              ),
-                              padding: const EdgeInsets.all(8.0),
-                              child: Text(
-                                '节点控制-未实现功能',
-                                style: Theme.of(context).textTheme.bodyLarge,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                ],
-              ),
-              // Row(
-              //   children: [
-              //
-              //   ],
-              // ),
             ],
           ),
         ),

@@ -6,6 +6,7 @@ import 'package:navigation_map/my_page/settting_page/setting_page.dart';
 
 import 'Utils/common_toast.dart';
 import 'my_page/my_page.dart';
+import 'navigation_page/navigation_tabbar.dart';
 // import 'my_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -28,7 +29,8 @@ class _HomePageState extends State<HomePage> {
   ];
 
   final List<Widget> _pages = [
-    const Navigation(),
+    const NavigationTabbar(),
+    // const Navigation(),
     const MyPage(),
   ];
 
@@ -38,22 +40,99 @@ class _HomePageState extends State<HomePage> {
     return _pages[index];
   }
 
+  void msgShow(String msg) {
+    CommonToast.showToastNew(
+      context,
+      "提示",
+      msg,
+      [
+        TextButton(
+          onPressed: () {
+            Navigator.of(context).pop(); // 关闭对话框
+          },
+          child: Text(
+            "关闭",
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // backgroundColor: Colors.red,
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: <Widget>[
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: Theme.of(context).drawerTheme.backgroundColor,
+              ),
+              child: Center(
+                child: Text(
+                  '侧滑栏头部',
+                  style: TextStyle(
+                    color: Theme.of(context).textTheme.titleLarge?.color,
+                    fontSize: Theme.of(context).textTheme.titleLarge?.fontSize,
+                  ),
+                ),
+              ),
+            ),
+            ListTile(
+              leading: Icon(Icons.home,
+                  color: Theme.of(context).textTheme.bodyLarge?.color),
+              title: Text(
+                '主页',
+                style: TextStyle(
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                  fontSize: Theme.of(context).textTheme.bodyLarge?.fontSize,
+                ),
+              ),
+              onTap: () {
+                // 处理点击事件
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.settings,
+                  color: Theme.of(context).textTheme.bodyLarge?.color),
+              title: Text(
+                '设置',
+                style: TextStyle(
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                  fontSize: Theme.of(context).textTheme.bodyLarge?.fontSize,
+                ),
+              ),
+              onTap: () {
+                // 处理点击事件
+                // Navigator.pop(context);
+                Navigator.of(context).push(MaterialPageRoute(
+                        settings: const RouteSettings(
+                            arguments: {"id": 10, "name": "_我爱你"}),
+                        builder: (context) =>
+                            const SettingPage()) //const PhotoPage()
+                    );
+              },
+            ),
+          ],
+        ),
+      ),
       appBar: AppBar(
+        // leading:const Icon(Icons.menu) ,
         elevation: 0, //边线
         actions: [
           if (_items[_selectIndex].label == "我的")
             IconButton(
                 onPressed: () {
-                  Navigator.of(context).push(MaterialPageRoute(
-                          settings: const RouteSettings(
-                              arguments: {"id": 10, "name": "_我爱你"}),
-                          builder: (context) =>
-                              const SettingPage()) //const PhotoPage()
-                      );
+                  msgShow('该功能迁移到侧边栏“设置”');
+                  // Navigator.of(context).push(MaterialPageRoute(
+                  //         settings: const RouteSettings(
+                  //             arguments: {"id": 10, "name": "_我爱你"}),
+                  //         builder: (context) =>
+                  //             const SettingPage()) //const PhotoPage()
+                  //     );
                 },
                 color: Colors.white,
                 icon: const Icon(Icons.settings)),
@@ -61,7 +140,6 @@ class _HomePageState extends State<HomePage> {
         title: Text('${_items[_selectIndex].label}'),
       ),
       body: _buildPage(_selectIndex),
-
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         items: _items,
