@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+import 'CustomContainerTheme.dart';
+
 class AppTheme {
   static final ThemeData lightTheme = ThemeData(
     primarySwatch: Colors.yellow,
-// 底部导航栏样式
+    // 底部导航栏样式
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
       backgroundColor: Colors.white,
       // 设置背景颜色
@@ -15,7 +17,11 @@ class AppTheme {
       // 设置选中项标签样式
       unselectedLabelStyle: TextStyle(fontSize: 12), // 设置未选中项标签样式
     ),
-
+    // customContainerTheme: CustomContainerTheme(
+    //   color: Colors.grey[100],
+    //   border: Border.all(color: Colors.blue, width: 2.0),
+    //   borderRadius: BorderRadius.circular(10.0),
+    // ),
     scaffoldBackgroundColor: Colors.white,
     //全局背景色
     colorScheme: ColorScheme.fromSwatch(
@@ -45,12 +51,13 @@ class AppTheme {
     textTheme: const TextTheme(
       // bodyLarge: TextStyle(color: Colors.white),
       // bodyMedium: TextStyle(color: Colors.black),
-      displayLarge: TextStyle(color: Colors.white,fontSize: 72.0, fontWeight: FontWeight.bold),
-      titleLarge: TextStyle(color: Colors.white,fontSize: 36.0, fontStyle: FontStyle.italic),
-      bodyLarge: TextStyle(color: Colors.white,fontSize: 16.0),
-      bodyMedium: TextStyle(color: Colors.black,fontSize: 14.0),
+      displayLarge: TextStyle(
+          color: Colors.white, fontSize: 72.0, fontWeight: FontWeight.bold),
+      titleLarge: TextStyle(
+          color: Colors.white, fontSize: 36.0, fontStyle: FontStyle.italic),
+      bodyLarge: TextStyle(color: Colors.white, fontSize: 16.0),
+      bodyMedium: TextStyle(color: Colors.black, fontSize: 14.0),
       bodySmall: TextStyle(fontSize: 12.0),
-
     ),
     dialogTheme: DialogTheme(
       backgroundColor: Colors.green,
