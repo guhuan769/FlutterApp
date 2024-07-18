@@ -20,6 +20,11 @@ class Navigation extends StatefulWidget {
   State<Navigation> createState() => _NavigationState();
 }
 
+// Text(
+// '这是一个示例文本',
+// textAlign: TextAlign.right,
+// )
+
 class _NavigationState extends State<Navigation> {
   late UdpHelper _udpHelper;
   bool isActive = false;
@@ -220,7 +225,11 @@ class _NavigationState extends State<Navigation> {
                       children: [
                         Row(
                           children: [
-                            const Text("前进后退:"),
+                            const SizedBox(
+                                width: 70,
+                                child: Align(
+                                    alignment: Alignment.centerRight,
+                                    child: Text("前进后退:"))),
                             DecimalCounterWidget(
                                 onValueChanged: _handleGoValueChanged)
                           ],
@@ -228,7 +237,11 @@ class _NavigationState extends State<Navigation> {
                         const SizedBox(height: 10),
                         Row(
                           children: [
-                            const Text("左右移动:"),
+                            const SizedBox(
+                                width: 70,
+                                child: Align(
+                                    alignment: Alignment.centerRight,
+                                    child: Text("左右移动:"))),
                             DecimalCounterWidget(
                               onValueChanged: _handleMoveValueChanged,
                             )
@@ -237,7 +250,11 @@ class _NavigationState extends State<Navigation> {
                         const SizedBox(height: 10),
                         Row(
                           children: [
-                            const Text("角       度:"),
+                            const SizedBox(
+                                width: 70,
+                                child: Align(
+                                    alignment: Alignment.centerRight,
+                                    child: Text("角度:"))),
                             DecimalCounterWidget(
                               onValueChanged: _handleThemeValueChanged,
                             )
@@ -265,7 +282,8 @@ class _NavigationState extends State<Navigation> {
                                   //   return;
                                   // }
 
-                                  String relativeOperation = "$_goValue,$_moveValue,$_themeValue";
+                                  String relativeOperation =
+                                      "$_goValue,$_moveValue,$_themeValue";
                                   //临时测试
                                   List<dynamic> relativeOperationList =
                                       relativeOperation
@@ -348,62 +366,6 @@ class _NavigationState extends State<Navigation> {
               ),
               const SizedBox(height: 10),
               // const SizedBox(height: 10),
-              Visibility(
-                visible: false,
-                child: Row(
-                  children: [
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: CustomTextField(
-                        controller: _relativeOperation,
-                        labelText: '相对运行',
-                        hintText: '请输入坐标',
-                        prefixIcon: Icons.table_view,
-                        // onTap: _handleTap,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                  ],
-                ),
-              ),
-              Visibility(
-                visible: false,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: CustomTextField(
-                        controller: _relativeOperation,
-                        labelText: '绝对运行',
-                        hintText: '请输入坐标',
-                        prefixIcon: Icons.table_view,
-                        onTap: null,
-                      ),
-                    ),
-                    IconButton(
-                        onPressed: () {
-                          CommonToast.showToastNew(
-                            context,
-                            "提示",
-                            '绝对坐标',
-                            [
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.of(context).pop(); // 关闭对话框
-                                },
-                                child: Text(
-                                  "关闭",
-                                  style: Theme.of(context).textTheme.bodyLarge,
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                        icon: const Icon(Icons.send)),
-                    // ElevatedButton(onPressed: (){}, child: Text('data'))
-                  ],
-                ),
-              ),
-
               const SizedBox(height: 10),
               Row(
                 children: [

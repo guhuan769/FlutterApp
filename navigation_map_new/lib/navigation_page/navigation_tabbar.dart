@@ -41,27 +41,5 @@ class _NavigationTabbarState extends State<NavigationTabbar> {
         ],
       ),
     );
-    //   DefaultTabController(
-    //   length: 3,
-    //   child: Scaffold(
-    //     appBar: AppBar(
-    //       title: Text('TabBar Example'),
-    //       bottom: TabBar(
-    //         tabs: [
-    //           Tab(icon: Icon(Icons.home), text: "Home"),
-    //           Tab(icon: Icon(Icons.search), text: "Search"),
-    //           Tab(icon: Icon(Icons.person), text: "Profile"),
-    //         ],
-    //       ),
-    //     ),
-    //     body: TabBarView(
-    //       children: [
-    //         Center(child: Text('Home Content')),
-    //         Center(child: Text('Search Content')),
-    //         Center(child: Text('Profile Content')),
-    //       ],
-    //     ),
-    //   ),
-    // );
   }
 }
