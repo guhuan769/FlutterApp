@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -26,8 +27,12 @@ class Navigation extends StatefulWidget {
 // )
 
 class _NavigationState extends State<Navigation> {
+
+  late String writeLog = "无";
+
   late UdpHelper _udpHelper;
   bool isActive = false;
+  Timer? _timer;
 
   final ScrollController _scrollController = ScrollController();
 
@@ -68,7 +73,7 @@ class _NavigationState extends State<Navigation> {
   void initState() {
     // TODO: implement initState
     super.initState();
-
+    _startTimer();
     // _focusNode.addListener(() {
     //   if (_focusNode.hasFocus) {
     //     _focusNode.unfocus();
@@ -79,8 +84,18 @@ class _NavigationState extends State<Navigation> {
     _udpHelper.startListening();
   }
 
+  void _startTimer() {
+    _timer = Timer.periodic(const Duration(seconds: 2), (timer) {
+      setState(() {
+        // _controller.clear();
+        writeLog = "无";
+      });
+    });
+  }
+
   @override
   void dispose() {
+    _timer?.cancel();
     _controller.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -321,9 +336,18 @@ class _NavigationState extends State<Navigation> {
                                   sendParseData.Parse(sendAll);
                                   // sendParseData.Parse(sendAll);
 
-                                  _onErrorMessageReceived(0, "数据已发送。");
+                                  // _onErrorMessageReceived(0, "数据已发送。");
+                                  setState(() {
+                                    writeLog = "数据已发送";
+                                  });
                                 },
                                 icon: const Icon(Icons.send)),
+
+                          ],
+                        ),
+                         Row(
+                          children: [
+                            Text(writeLog)
                           ],
                         )
                       ],
