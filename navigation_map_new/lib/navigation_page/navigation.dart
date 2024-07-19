@@ -2,15 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:crclib/catalog.dart';
 import 'package:dart_ping/dart_ping.dart';
 import 'package:flutter/material.dart';
 import 'package:navigation_map/Utils/common_toast.dart';
 import 'package:navigation_map/utils/UdpHelper.dart';
-import '../CustomUserControls/CounterWidget.dart';
 import '../CustomUserControls/CustomCard.dart';
 import '../CustomUserControls/CustomCircle.dart';
-import '../CustomUserControls/CustomTextField.dart';
 import '../CustomUserControls/DecimalCounterWidget.dart';
 import '../model/send_data.dart';
 

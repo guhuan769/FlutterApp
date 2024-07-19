@@ -39,7 +39,7 @@ class CommonToast {
   ///
   static Future<void> showToastNew(BuildContext context, String title,
       String content, List<Widget>? actions) {
-    int _start = 5; // 倒计时初始值
+    int _start = 10; // 倒计时初始值
     Timer? _timer;
     // Future.delayed(const Duration(seconds: 2), () {
     //   Navigator.of(context).pop();
