@@ -554,6 +554,9 @@ class _NavigationState extends State<Navigation> {
                                         List<SendAddressData> dataList = [];
                                         dataList.add(data_0x71);
                                         dataList.add(data_0x73);
+                                        // 控制4支撑电机
+                                        dataList.add(data_0x75);
+                                        dataList.add(data_0x77);
 
                                         SendData sendData = SendData(
                                             cRCHigh: null,
@@ -612,6 +615,10 @@ class _NavigationState extends State<Navigation> {
                                         List<SendAddressData> dataList = [];
                                         dataList.add(data_0x70);
                                         dataList.add(data_0x72);
+
+                                        // 控制4支撑电机
+                                        dataList.add(data_0x74);
+                                        dataList.add(data_0x76);
 
                                         SendData sendData = SendData(
                                             cRCHigh: null,

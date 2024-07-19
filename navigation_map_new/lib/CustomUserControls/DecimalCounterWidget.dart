@@ -8,7 +8,7 @@ import 'package:navigation_map/global_styles/CustomContainerTheme.dart';
 class DecimalCounterWidget extends StatefulWidget {
   final ValueChanged<String> onValueChanged;
 
-  DecimalCounterWidget({super.key, required this.onValueChanged});
+  const DecimalCounterWidget({super.key, required this.onValueChanged});
 
   @override
   _DecimalCounterWidgetState createState() => _DecimalCounterWidgetState();
