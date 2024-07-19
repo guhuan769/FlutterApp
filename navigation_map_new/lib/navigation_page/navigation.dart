@@ -25,7 +25,7 @@ class Navigation extends StatefulWidget {
 // )
 
 class _NavigationState extends State<Navigation> {
-  late String writeLog = "无";
+  late String writeLog = "无日志";
 
   late UdpHelper _udpHelper;
   bool isActive = false;
@@ -40,17 +40,14 @@ class _NavigationState extends State<Navigation> {
 
   final FocusNode _focusNode = FocusNode();
 
-
   final TextEditingController _startController =
-  TextEditingController(text: "0");
-  final TextEditingController _endController =
-  TextEditingController(text: "0");
+      TextEditingController(text: "0");
+  final TextEditingController _endController = TextEditingController(text: "0");
 
   final TextEditingController _backStartController =
-  TextEditingController(text: "0");
+      TextEditingController(text: "0");
   final TextEditingController _backEndController =
-  TextEditingController(text: "0");
-
+      TextEditingController(text: "0");
 
   // 绝对运行
   final TextEditingController _absolutelyRunning =
@@ -77,6 +74,59 @@ class _NavigationState extends State<Navigation> {
 
       udpSocket.send(sendAll, destinationAddress, 9331);
     });
+  }
+
+  //
+  //
+  Timer? _timerPostion;
+  int count = 0;
+
+  // 定时器
+  void _startTimerPositon() {
+    _timerPostion = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      String relativeOperation = "$_goValue,$_moveValue,$_themeValue";
+      //临时测试
+      List<dynamic> relativeOperationList =
+          relativeOperation.split(','); // 使用短横线和竖线作为分隔符
+
+      SendAddressData data_0x5e0 = SendAddressData(
+          address: 0x5e0, length: 12, datas: relativeOperationList);
+      SendAddressData data_0x5f1 =
+          SendAddressData(address: 0x5f1, length: 1, data: 1);
+      List<SendAddressData> dataList = [];
+      dataList.add(data_0x5e0);
+      dataList.add(data_0x5f1);
+
+      SendData sendData = SendData(
+          cRCHigh: null,
+          cRCLow: null,
+          cmd: 2,
+          sn: 10,
+          sendAddressData: dataList);
+
+      sendData.buildBytesAddCrc();
+
+      // sendData
+      Uint8List sendAll = sendData.buildAllBytes();
+      _sendUdpMessage(sendAll);
+
+      SendData sendParseData = SendData(
+          cRCHigh: null, cRCLow: null, cmd: 0, sn: 0, sendAddressData: null);
+      sendParseData.Parse(sendAll);
+
+      setState(() {
+        count++;
+        writeLog = "数据已发送 +$count";
+      });
+      print('任务执行中...');
+    });
+  }
+
+  void _stopTimerPositon() {
+    setState(() {
+      count = 0;
+    });
+    _timerPostion?.cancel();
   }
 
   @override
@@ -262,6 +312,18 @@ class _NavigationState extends State<Navigation> {
                           children: [
                             const SizedBox(
                                 width: 70,
+                                child: Text(
+                                  '发送状态:',
+                                  textAlign: TextAlign.right,
+                                )),
+                            const SizedBox(width: 10),
+                            Text(writeLog)
+                          ],
+                        ),
+                        Row(
+                          children: [
+                            const SizedBox(
+                                width: 70,
                                 child: Align(
                                     alignment: Alignment.centerRight,
                                     child: Text("前进后退:"))),
@@ -300,61 +362,71 @@ class _NavigationState extends State<Navigation> {
                             ElevatedButton(
                                 onPressed: () {
                                   _onErrorMessageReceived(0,
-                                      "注意\n (坐标X,坐标Y,角度Theta -3.14~3.14) \n相对运行(x(前进 (x为1的时候就是前进1米 -1就是当前位置倒退1米),-1 为x后退)),y(左移，右移)\n,z(角度，弧度1.57为旋转90° \n 3.17为旋转180°),");
+                                      "注意\n (坐标X,坐标Y,角度Theta -3.14~3.14) \n相对运行(x(前进 (x为1的时候就是前进1米 -1就是当前位置倒退1米),-1 为x后退)),y(左移，右移)\n,z(角度，弧度1.57为旋转90° \n 3.17为旋转180°),\n 发送按钮支持【持续点击、单击】");
                                 },
                                 child: Text('说明书',
                                     style: Theme.of(context)
                                         .textTheme
                                         .bodyMedium)),
                             const SizedBox(width: 10),
-                            IconButton(
-                                onPressed: () async {
-                                  String relativeOperation =
-                                      "$_goValue,$_moveValue,$_themeValue";
-                                  //临时测试
-                                  List<dynamic> relativeOperationList =
-                                      relativeOperation
-                                          .split(','); // 使用短横线和竖线作为分隔符
+                            GestureDetector(
+                              onLongPressStart: (details) {
+                                print('onLongPressStart');
+                                _startTimerPositon();
+                              },
+                              onLongPressEnd: (details) {
+                                print('onLongPressEnd');
+                                _stopTimerPositon();
+                              },
+                              child: IconButton(
+                                  onPressed: () async {
+                                    String relativeOperation =
+                                        "$_goValue,$_moveValue,$_themeValue";
+                                    //临时测试
+                                    List<dynamic> relativeOperationList =
+                                        relativeOperation
+                                            .split(','); // 使用短横线和竖线作为分隔符
 
-                                  SendAddressData data_0x5e0 = SendAddressData(
-                                      address: 0x5e0,
-                                      length: 12,
-                                      datas: relativeOperationList);
-                                  SendAddressData data_0x5f1 = SendAddressData(
-                                      address: 0x5f1, length: 1, data: 1);
-                                  List<SendAddressData> dataList = [];
-                                  dataList.add(data_0x5e0);
-                                  dataList.add(data_0x5f1);
+                                    SendAddressData data_0x5e0 =
+                                        SendAddressData(
+                                            address: 0x5e0,
+                                            length: 12,
+                                            datas: relativeOperationList);
+                                    SendAddressData data_0x5f1 =
+                                        SendAddressData(
+                                            address: 0x5f1, length: 1, data: 1);
+                                    List<SendAddressData> dataList = [];
+                                    dataList.add(data_0x5e0);
+                                    dataList.add(data_0x5f1);
 
-                                  SendData sendData = SendData(
-                                      cRCHigh: null,
-                                      cRCLow: null,
-                                      cmd: 2,
-                                      sn: 10,
-                                      sendAddressData: dataList);
+                                    SendData sendData = SendData(
+                                        cRCHigh: null,
+                                        cRCLow: null,
+                                        cmd: 2,
+                                        sn: 10,
+                                        sendAddressData: dataList);
 
-                                  sendData.buildBytesAddCrc();
+                                    sendData.buildBytesAddCrc();
 
-                                  // sendData
-                                  Uint8List sendAll = sendData.buildAllBytes();
-                                  _sendUdpMessage(sendAll);
+                                    // sendData
+                                    Uint8List sendAll =
+                                        sendData.buildAllBytes();
+                                    _sendUdpMessage(sendAll);
 
-                                  SendData sendParseData = SendData(
-                                      cRCHigh: null,
-                                      cRCLow: null,
-                                      cmd: 0,
-                                      sn: 0,
-                                      sendAddressData: null);
-                                  sendParseData.Parse(sendAll);
-                                  setState(() {
-                                    writeLog = "数据已发送";
-                                  });
-                                },
-                                icon: const Icon(Icons.send)),
+                                    SendData sendParseData = SendData(
+                                        cRCHigh: null,
+                                        cRCLow: null,
+                                        cmd: 0,
+                                        sn: 0,
+                                        sendAddressData: null);
+                                    sendParseData.Parse(sendAll);
+                                    setState(() {
+                                      writeLog = "数据已发送";
+                                    });
+                                  },
+                                  icon: const Icon(Icons.send)),
+                            ),
                           ],
-                        ),
-                        Row(
-                          children: [Text(writeLog)],
                         )
                       ],
                     ),
@@ -584,129 +656,140 @@ class _NavigationState extends State<Navigation> {
                                 children: [
                                   const Text('开始节点'),
                                   const SizedBox(width: 10),
-                                  CustomNormalTextField(controller: _startController,),
+                                  CustomNormalTextField(
+                                    controller: _startController,
+                                  ),
                                   const SizedBox(width: 10),
                                   Text('结束节点',
                                       style: Theme.of(context)
                                           .textTheme
                                           .bodyMedium),
                                   const SizedBox(width: 10),
-                                  CustomNormalTextField(controller: _endController,),
+                                  CustomNormalTextField(
+                                    controller: _endController,
+                                  ),
                                 ],
                               ),
                               // const SizedBox(width: 10),
-                             Row(
-                               children: [
-                                 ElevatedButton(
-                                     onPressed: () {
-                                      // CommonToast.showToast(_startController.text);
-                                       SendAddressData data_0x3d0 =
-                                       SendAddressData(
-                                           address: 0x3d0,
-                                           length: 4,
-                                           data: int.parse(_startController.text));
+                              Row(
+                                children: [
+                                  ElevatedButton(
+                                      onPressed: () {
+                                        // CommonToast.showToast(_startController.text);
+                                        SendAddressData data_0x3d0 =
+                                            SendAddressData(
+                                                address: 0x3d0,
+                                                length: 4,
+                                                data: int.parse(
+                                                    _startController.text));
 
-                                       SendAddressData data_0x3d4 =
-                                       SendAddressData(
-                                           address: 0x3d4,
-                                           length: 4,
-                                           data: int.parse(_endController.text));
+                                        SendAddressData data_0x3d4 =
+                                            SendAddressData(
+                                                address: 0x3d4,
+                                                length: 4,
+                                                data: int.parse(
+                                                    _endController.text));
 
-                                       SendAddressData data_0x250 =
-                                       SendAddressData(
-                                           address: 0x250,
-                                           length: 1,
-                                           data: 1);
+                                        SendAddressData data_0x250 =
+                                            SendAddressData(
+                                                address: 0x250,
+                                                length: 1,
+                                                data: 1);
 
-                                       List<SendAddressData> dataList = [];
-                                       dataList.add(data_0x3d0);
-                                       dataList.add(data_0x3d4);
-                                       dataList.add(data_0x250);
+                                        List<SendAddressData> dataList = [];
+                                        dataList.add(data_0x3d0);
+                                        dataList.add(data_0x3d4);
+                                        dataList.add(data_0x250);
 
-                                       SendData sendData = SendData(
-                                           cRCHigh: null,
-                                           cRCLow: null,
-                                           cmd: 2,
-                                           sn: 10,
-                                           sendAddressData: dataList);
+                                        SendData sendData = SendData(
+                                            cRCHigh: null,
+                                            cRCLow: null,
+                                            cmd: 2,
+                                            sn: 10,
+                                            sendAddressData: dataList);
 
-                                       sendData.buildBytesAddCrc();
-                                       Uint8List sendAll =
-                                       sendData.buildAllBytes();
-                                       _sendUdpMessage(sendAll);
-                                       _onErrorMessageReceived(0, "数据已发送。");
-                                     },
-                                     child: Text('目的地',
-                                         style: Theme.of(context)
-                                             .textTheme
-                                             .bodyMedium)),
-                                 const SizedBox(width: 10),
-                               ],
-                             )
+                                        sendData.buildBytesAddCrc();
+                                        Uint8List sendAll =
+                                            sendData.buildAllBytes();
+                                        _sendUdpMessage(sendAll);
+                                        _onErrorMessageReceived(0, "数据已发送。");
+                                      },
+                                      child: Text('目的地',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodyMedium)),
+                                  const SizedBox(width: 10),
+                                ],
+                              )
                             ],
                           ),
                           const SizedBox(height: 10),
-                          Row(children: [
-                            const Text('开始节点'),
-                            const SizedBox(width: 10),
-                            CustomNormalTextField(controller: _backStartController,),
-                            const SizedBox(width: 10),
-                            Text('结束节点',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium),
-                            const SizedBox(width: 10),
-                            CustomNormalTextField(controller: _backEndController,),
-                            const SizedBox(width: 10),
-                          ],),
-                           Row(
-                             children: [
-                               ElevatedButton(
-                                   onPressed: () {
-                                     SendAddressData data_0x3d0 =
-                                     SendAddressData(
-                                         address: 0x3d0,
-                                         length: 4,
-                                         data: int.parse(_backStartController.text));
+                          Row(
+                            children: [
+                              const Text('开始节点'),
+                              const SizedBox(width: 10),
+                              CustomNormalTextField(
+                                controller: _backStartController,
+                              ),
+                              const SizedBox(width: 10),
+                              Text('结束节点',
+                                  style:
+                                      Theme.of(context).textTheme.bodyMedium),
+                              const SizedBox(width: 10),
+                              CustomNormalTextField(
+                                controller: _backEndController,
+                              ),
+                              const SizedBox(width: 10),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              ElevatedButton(
+                                  onPressed: () {
+                                    SendAddressData data_0x3d0 =
+                                        SendAddressData(
+                                            address: 0x3d0,
+                                            length: 4,
+                                            data: int.parse(
+                                                _backStartController.text));
 
-                                     SendAddressData data_0x3d4 =
-                                     SendAddressData(
-                                         address: 0x3d4,
-                                         length: 4,
-                                         data: int.parse(_backEndController.text));
+                                    SendAddressData data_0x3d4 =
+                                        SendAddressData(
+                                            address: 0x3d4,
+                                            length: 4,
+                                            data: int.parse(
+                                                _backEndController.text));
 
-                                     SendAddressData data_0x250 =
-                                     SendAddressData(
-                                         address: 0x250,
-                                         length: 1,
-                                         data: 1);
+                                    SendAddressData data_0x250 =
+                                        SendAddressData(
+                                            address: 0x250, length: 1, data: 1);
 
-                                     List<SendAddressData> dataList = [];
-                                     dataList.add(data_0x3d0);
-                                     dataList.add(data_0x3d4);
-                                     dataList.add(data_0x250);
+                                    List<SendAddressData> dataList = [];
+                                    dataList.add(data_0x3d0);
+                                    dataList.add(data_0x3d4);
+                                    dataList.add(data_0x250);
 
-                                     SendData sendData = SendData(
-                                         cRCHigh: null,
-                                         cRCLow: null,
-                                         cmd: 2,
-                                         sn: 10,
-                                         sendAddressData: dataList);
+                                    SendData sendData = SendData(
+                                        cRCHigh: null,
+                                        cRCLow: null,
+                                        cmd: 2,
+                                        sn: 10,
+                                        sendAddressData: dataList);
 
-                                     sendData.buildBytesAddCrc();
-                                     Uint8List sendAll =
-                                     sendData.buildAllBytes();
-                                     _sendUdpMessage(sendAll);
+                                    sendData.buildBytesAddCrc();
+                                    Uint8List sendAll =
+                                        sendData.buildAllBytes();
+                                    _sendUdpMessage(sendAll);
 
-                                     _onErrorMessageReceived(0, "数据已发送。");
-                                   },
-                                   child: Text('回到原点',
-                                       style: Theme.of(context)
-                                           .textTheme
-                                           .bodyMedium)),
-                             ],
-                           ),
-                           const SizedBox(width: 10)
+                                    _onErrorMessageReceived(0, "数据已发送。");
+                                  },
+                                  child: Text('回到原点',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium)),
+                            ],
+                          ),
+                          const SizedBox(width: 10)
                         ],
                       ))
                 ],

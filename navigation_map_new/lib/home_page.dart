@@ -147,7 +147,7 @@ class _HomePageState extends State<HomePage> {
                 icon: const Icon(Icons.settings)),
 
         ],
-        title: Text('${_items[_selectIndex].label}'),
+        // title: Text('${_items[_selectIndex].label}'),
       ),
       body: _buildPage(_selectIndex),
       bottomNavigationBar: BottomNavigationBar(
