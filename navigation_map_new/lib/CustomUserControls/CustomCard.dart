@@ -29,8 +29,8 @@ class CustomCard extends StatelessWidget {
                   ),
                 ),
                 Positioned(
-                  top: 0,
-                  left: 0,
+                  top: 5,
+                  left: 5,
                   child: Container(
                     decoration: BoxDecoration(
                       color: theme.titleColor,

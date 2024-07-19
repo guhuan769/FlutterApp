@@ -93,7 +93,7 @@ class SendData {
           case 0x3d4:
           case 0x260:
           case 0x256:
-            byteData.setInt32(offset, int.parse(item.data), Endian.little);
+            byteData.setInt32(offset, item.data, Endian.little);
             offset += 1;
             break;
           case 0x257:
@@ -172,7 +172,7 @@ class SendData {
           case 0x3d4:
           case 0x260:
           case 0x256:
-            byteData.setInt32(offset, int.parse(item.data), Endian.little);
+            byteData.setInt32(offset, item.data, Endian.little);
             offset += 1;
             break;
           case 0x257:

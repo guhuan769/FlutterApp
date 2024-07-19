@@ -8,6 +8,7 @@ import 'package:navigation_map/Utils/common_toast.dart';
 import 'package:navigation_map/utils/UdpHelper.dart';
 import '../CustomUserControls/CustomCard.dart';
 import '../CustomUserControls/CustomCircle.dart';
+import '../CustomUserControls/CustomNormalTextField.dart';
 import '../CustomUserControls/DecimalCounterWidget.dart';
 import '../model/send_data.dart';
 
@@ -24,7 +25,6 @@ class Navigation extends StatefulWidget {
 // )
 
 class _NavigationState extends State<Navigation> {
-
   late String writeLog = "无";
 
   late UdpHelper _udpHelper;
@@ -37,7 +37,20 @@ class _NavigationState extends State<Navigation> {
   // 相对运行
   final TextEditingController _relativeOperation =
       TextEditingController(text: "0.1,0,0");
+
   final FocusNode _focusNode = FocusNode();
+
+
+  final TextEditingController _startController =
+  TextEditingController(text: "0");
+  final TextEditingController _endController =
+  TextEditingController(text: "0");
+
+  final TextEditingController _backStartController =
+  TextEditingController(text: "0");
+  final TextEditingController _backEndController =
+  TextEditingController(text: "0");
+
 
   // 绝对运行
   final TextEditingController _absolutelyRunning =
@@ -183,52 +196,62 @@ class _NavigationState extends State<Navigation> {
           child: Column(
             children: [
               const SizedBox(height: 10),
-              Row(children: [
-                Expanded(
-                  child: Row(children: [
-                    const SizedBox(width: 10),
-                    const Text('状态: '),
-                    const SizedBox(width: 10),
-                    CustomCircle(
-                      diameter: 15.0,
-                      color: isActive ? Colors.green : _indicatorColor,
-                    ),
-                  ]),
+              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                CustomCard(
+                  screenWidth: MediaQuery.of(context).size.width,
+                  title: '状态',
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Row(children: [
+                          // const SizedBox(width: 10),
+                          // const Text('状态: '),
+                          // const SizedBox(width: 10),
+                          CustomCircle(
+                            diameter: 15.0,
+                            color: isActive ? Colors.green : _indicatorColor,
+                          ),
+                        ]),
+                      ),
+                      IconButton(
+                          onPressed: () {
+                            // pingIP('8.8.8.8'); // 替换为你想要 ping 的 IP 地址
+
+                            // CommonToast.pingIP('192.168.31.7').then((status) {
+                            // });
+                            final ping = Ping('192.168.31.7', count: 1);
+                            ping.stream.listen((event) {
+                              try {
+                                PingResponse entity =
+                                    event.response as PingResponse;
+                                // if (event.response != null) {
+                                if (entity.ip != null) {
+                                  print(
+                                      'Ping response time: ${event.response!.time!.inMilliseconds} ms');
+                                  setState(() {
+                                    isActive = true;
+                                  });
+
+                                  _onErrorMessageReceived(0, "已连接");
+                                } else if (entity.ip == null) {
+                                  setState(() {
+                                    isActive = false;
+                                  });
+                                  // _onErrorMessageReceived(0, "未连接");
+                                }
+                              } catch (e, stackTrace) {
+                                _onErrorMessageReceived(0, "请接入目标设备局域网.");
+                              }
+                            });
+                          },
+                          icon: const Icon(Icons.network_wifi)),
+                    ],
+                  ),
                 ),
-                IconButton(
-                    onPressed: () {
-                      // pingIP('8.8.8.8'); // 替换为你想要 ping 的 IP 地址
-
-                      // CommonToast.pingIP('192.168.31.7').then((status) {
-                      // });
-                      final ping = Ping('192.168.31.7', count: 1);
-                      ping.stream.listen((event) {
-                        try {
-                          PingResponse entity = event.response as PingResponse;
-                          // if (event.response != null) {
-                          if (entity.ip != null) {
-                            print(
-                                'Ping response time: ${event.response!.time!.inMilliseconds} ms');
-                            setState(() {
-                              isActive = true;
-                            });
-
-                            _onErrorMessageReceived(0, "已连接");
-                          } else if (entity.ip == null) {
-                            setState(() {
-                              isActive = false;
-                            });
-                            // _onErrorMessageReceived(0, "未连接");
-                          }
-                        } catch (e, stackTrace) {
-                          _onErrorMessageReceived(0, "请接入目标设备局域网.");
-                        }
-                      });
-                    },
-                    icon: const Icon(Icons.network_wifi)),
               ]),
               const SizedBox(height: 10),
               Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   CustomCard(
                     screenWidth: MediaQuery.of(context).size.width,
@@ -286,14 +309,6 @@ class _NavigationState extends State<Navigation> {
                             const SizedBox(width: 10),
                             IconButton(
                                 onPressed: () async {
-                                  // 获取value
-                                  // var relativeOperation =
-                                  //     _relativeOperation.text;
-                                  // if (!rel$iveOperatin.isNotEmpty) {
-                                  //   CommonToast.showToast('位置信息不能为空');
-                                  //   return;
-                                  // }
-
                                   String relativeOperation =
                                       "$_goValue,$_moveValue,$_themeValue";
                                   //临时测试
@@ -331,28 +346,24 @@ class _NavigationState extends State<Navigation> {
                                       sn: 0,
                                       sendAddressData: null);
                                   sendParseData.Parse(sendAll);
-                                  // sendParseData.Parse(sendAll);
-
-                                  // _onErrorMessageReceived(0, "数据已发送。");
                                   setState(() {
                                     writeLog = "数据已发送";
                                   });
                                 },
                                 icon: const Icon(Icons.send)),
-
                           ],
                         ),
-                         Row(
-                          children: [
-                            Text(writeLog)
-                          ],
+                        Row(
+                          children: [Text(writeLog)],
                         )
                       ],
                     ),
                   ),
                 ],
               ),
+              const SizedBox(height: 10),
               Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   CustomCard(
                       screenWidth: MediaQuery.of(context).size.width,
@@ -364,6 +375,25 @@ class _NavigationState extends State<Navigation> {
                               const SizedBox(width: 10),
                               ElevatedButton(
                                   onPressed: () {
+                                    SendAddressData data_0x3c = SendAddressData(
+                                        address: 0x3c, length: 1, data: 1);
+                                    List<SendAddressData> dataList = [];
+                                    dataList.add(data_0x3c);
+
+                                    SendData sendData = SendData(
+                                        cRCHigh: null,
+                                        cRCLow: null,
+                                        cmd: 2,
+                                        sn: 10,
+                                        sendAddressData: dataList);
+
+                                    sendData.buildBytesAddCrc();
+
+                                    // sendData
+                                    Uint8List sendAll =
+                                        sendData.buildAllBytes();
+                                    _sendUdpMessage(sendAll);
+
                                     _onErrorMessageReceived(0, "数据已发送。");
                                   },
                                   child: Text('设置手动模式',
@@ -373,6 +403,26 @@ class _NavigationState extends State<Navigation> {
                               const SizedBox(width: 10),
                               ElevatedButton(
                                   onPressed: () {
+                                    SendAddressData data_0x162 =
+                                        SendAddressData(
+                                            address: 0x162, length: 1, data: 1);
+                                    List<SendAddressData> dataList = [];
+                                    dataList.add(data_0x162);
+
+                                    SendData sendData = SendData(
+                                        cRCHigh: null,
+                                        cRCLow: null,
+                                        cmd: 2,
+                                        sn: 10,
+                                        sendAddressData: dataList);
+
+                                    sendData.buildBytesAddCrc();
+
+                                    // sendData
+                                    Uint8List sendAll =
+                                        sendData.buildAllBytes();
+                                    _sendUdpMessage(sendAll);
+
                                     _onErrorMessageReceived(0, "数据已发送。");
                                   },
                                   child: Text('关闭激光防撞',
@@ -387,8 +437,8 @@ class _NavigationState extends State<Navigation> {
               ),
               const SizedBox(height: 10),
               // const SizedBox(height: 10),
-              const SizedBox(height: 10),
               Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   CustomCard(
                     screenWidth: MediaQuery.of(context).size.width,
@@ -519,36 +569,144 @@ class _NavigationState extends State<Navigation> {
                 ],
               ),
               const SizedBox(height: 10),
-
               Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   CustomCard(
                       screenWidth: MediaQuery.of(context).size.width,
                       title: '节点运行',
                       child: Column(
                         children: [
-                          Row(
+                          const SizedBox(height: 10),
+                          Column(
                             children: [
-                              const SizedBox(width: 10),
-                              ElevatedButton(
-                                  onPressed: () {
-                                    _onErrorMessageReceived(0, "数据已发送。");
-                                  },
-                                  child: Text('目的地',
+                              Row(
+                                children: [
+                                  const Text('开始节点'),
+                                  const SizedBox(width: 10),
+                                  CustomNormalTextField(controller: _startController,),
+                                  const SizedBox(width: 10),
+                                  Text('结束节点',
                                       style: Theme.of(context)
                                           .textTheme
-                                          .bodyMedium)),
-                              const SizedBox(width: 10),
-                              ElevatedButton(
-                                  onPressed: () {
-                                    _onErrorMessageReceived(0, "数据已发送。");
-                                  },
-                                  child: Text('回到原点',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium)),
+                                          .bodyMedium),
+                                  const SizedBox(width: 10),
+                                  CustomNormalTextField(controller: _endController,),
+                                ],
+                              ),
+                              // const SizedBox(width: 10),
+                             Row(
+                               children: [
+                                 ElevatedButton(
+                                     onPressed: () {
+                                      // CommonToast.showToast(_startController.text);
+                                       SendAddressData data_0x3d0 =
+                                       SendAddressData(
+                                           address: 0x3d0,
+                                           length: 4,
+                                           data: int.parse(_startController.text));
+
+                                       SendAddressData data_0x3d4 =
+                                       SendAddressData(
+                                           address: 0x3d4,
+                                           length: 4,
+                                           data: int.parse(_endController.text));
+
+                                       SendAddressData data_0x250 =
+                                       SendAddressData(
+                                           address: 0x250,
+                                           length: 1,
+                                           data: 1);
+
+                                       List<SendAddressData> dataList = [];
+                                       dataList.add(data_0x3d0);
+                                       dataList.add(data_0x3d4);
+                                       dataList.add(data_0x250);
+
+                                       SendData sendData = SendData(
+                                           cRCHigh: null,
+                                           cRCLow: null,
+                                           cmd: 2,
+                                           sn: 10,
+                                           sendAddressData: dataList);
+
+                                       sendData.buildBytesAddCrc();
+                                       Uint8List sendAll =
+                                       sendData.buildAllBytes();
+                                       _sendUdpMessage(sendAll);
+                                       _onErrorMessageReceived(0, "数据已发送。");
+                                     },
+                                     child: Text('目的地',
+                                         style: Theme.of(context)
+                                             .textTheme
+                                             .bodyMedium)),
+                                 const SizedBox(width: 10),
+                               ],
+                             )
                             ],
-                          )
+                          ),
+                          const SizedBox(height: 10),
+                          Row(children: [
+                            const Text('开始节点'),
+                            const SizedBox(width: 10),
+                            CustomNormalTextField(controller: _backStartController,),
+                            const SizedBox(width: 10),
+                            Text('结束节点',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium),
+                            const SizedBox(width: 10),
+                            CustomNormalTextField(controller: _backEndController,),
+                            const SizedBox(width: 10),
+                          ],),
+                           Row(
+                             children: [
+                               ElevatedButton(
+                                   onPressed: () {
+                                     SendAddressData data_0x3d0 =
+                                     SendAddressData(
+                                         address: 0x3d0,
+                                         length: 4,
+                                         data: int.parse(_backStartController.text));
+
+                                     SendAddressData data_0x3d4 =
+                                     SendAddressData(
+                                         address: 0x3d4,
+                                         length: 4,
+                                         data: int.parse(_backEndController.text));
+
+                                     SendAddressData data_0x250 =
+                                     SendAddressData(
+                                         address: 0x250,
+                                         length: 1,
+                                         data: 1);
+
+                                     List<SendAddressData> dataList = [];
+                                     dataList.add(data_0x3d0);
+                                     dataList.add(data_0x3d4);
+                                     dataList.add(data_0x250);
+
+                                     SendData sendData = SendData(
+                                         cRCHigh: null,
+                                         cRCLow: null,
+                                         cmd: 2,
+                                         sn: 10,
+                                         sendAddressData: dataList);
+
+                                     sendData.buildBytesAddCrc();
+                                     Uint8List sendAll =
+                                     sendData.buildAllBytes();
+                                     _sendUdpMessage(sendAll);
+
+                                     _onErrorMessageReceived(0, "数据已发送。");
+                                   },
+                                   child: Text('回到原点',
+                                       style: Theme.of(context)
+                                           .textTheme
+                                           .bodyMedium)),
+                             ],
+                           ),
+                           const SizedBox(width: 10)
                         ],
                       ))
                 ],

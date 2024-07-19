@@ -19,7 +19,7 @@ extension CustomThemeData on ThemeData {
   CustomContainerTheme get customContainerTheme => CustomContainerTheme(
     textStyleSelect: Colors.greenAccent,
     textStyleUnselect: Colors.green,
-    titleColor: Colors.grey,
+    titleColor: Colors.greenAccent,
     textStyle: const TextStyle(color: Colors.white),
     color: Colors.grey,
     decimalBorder: Colors.greenAccent,

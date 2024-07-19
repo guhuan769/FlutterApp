@@ -56,7 +56,7 @@ class AppTheme {
       titleLarge: TextStyle(
           color: Colors.white, fontSize: 36.0, fontStyle: FontStyle.italic),
       bodyLarge: TextStyle(color: Colors.white, fontSize: 16.0),
-      bodyMedium: TextStyle(color: Colors.black, fontSize: 14.0),
+      bodyMedium: TextStyle(color: Colors.black, fontSize: 14.0,fontWeight: FontWeight.bold),
       bodySmall: TextStyle(fontSize: 12.0),
     ),
     dialogTheme: DialogTheme(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:navigation_map/navigation_page/navigation.dart';
 import 'package:navigation_map/my_page/settting_page/setting_page.dart';
 
@@ -124,6 +125,14 @@ class _HomePageState extends State<HomePage> {
         elevation: 0, //边线
         actions: [
           if (_items[_selectIndex].label == "我的")
+            IconButton(onPressed: (){
+              msgShow('换肤功能暂未开发');
+            }, icon: const FaIcon(
+              FontAwesomeIcons.shirt,
+              color:Colors.white,
+              size: 25,
+            )),
+          if (_items[_selectIndex].label == "我的")
             IconButton(
                 onPressed: () {
                   msgShow('该功能迁移到侧边栏“设置”');
@@ -136,6 +145,7 @@ class _HomePageState extends State<HomePage> {
                 },
                 color: Colors.white,
                 icon: const Icon(Icons.settings)),
+
         ],
         title: Text('${_items[_selectIndex].label}'),
       ),

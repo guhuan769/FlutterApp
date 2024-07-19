@@ -37,13 +37,11 @@ class CommonToast {
   // );
   ///
   ///
+
   static Future<void> showToastNew(BuildContext context, String title,
       String content, List<Widget>? actions) {
     int _start = 10; // 倒计时初始值
     Timer? _timer;
-    // Future.delayed(const Duration(seconds: 2), () {
-    //   Navigator.of(context).pop();
-    // });
 
     void startTimer(StateSetter setState) {
       const oneSec = Duration(seconds: 1);
@@ -61,27 +59,36 @@ class CommonToast {
       });
     }
 
-
     return showDialog(
       context: context,
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setState) {
-            startTimer(setState);
+            if (_timer == null) {
+              startTimer(setState);
+            }
             return AlertDialog(
               title: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(title, style: Theme.of(context).textTheme.bodyLarge,),
-                  Text('$_start秒关闭', style: Theme.of(context).textTheme.bodyLarge,),
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                  Text(
+                    '$_start秒关闭',
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
                 ],
               ),
-              content: Text(content, style: Theme.of(context).textTheme.bodyLarge,),
+              content: Text(
+                content,
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
               actions: actions ?? [],
             );
           },
         );
-
       },
     ).then((_) {
       if (_timer != null) {
@@ -90,14 +97,23 @@ class CommonToast {
     });
   }
 
+
+
+
   /// 阻止弹窗
   static Future<bool?> showHint(BuildContext context) {
     return showDialog<bool>(
         context: context,
         builder: (BuildContext context) {
           return AlertDialog(
-            title: Text('提示', style: Theme.of(context).textTheme.bodyLarge,),
-            content: Text('您确定要退出当前页面吗?', style: Theme.of(context).textTheme.bodyLarge,),
+            title: Text(
+              '提示',
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            content: Text(
+              '您确定要退出当前页面吗?',
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
             actions: [
               ElevatedButton(
                 onPressed: () async {
@@ -121,8 +137,14 @@ class CommonToast {
         context: context,
         builder: (BuildContext context) {
           return AlertDialog(
-            title: Text('提示', style: Theme.of(context).textTheme.bodyLarge,),
-            content: Text('您确认删除吗?', style: Theme.of(context).textTheme.bodyLarge,),
+            title: Text(
+              '提示',
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            content: Text(
+              '您确认删除吗?',
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
             actions: [
               ElevatedButton(
                 onPressed: () async {
@@ -145,8 +167,14 @@ class CommonToast {
         context: context,
         builder: (BuildContext context) {
           return AlertDialog(
-            title: Text('提示', style: Theme.of(context).textTheme.bodyLarge,),
-            content: Text('您确认删除所有图片吗?', style: Theme.of(context).textTheme.bodyLarge,),
+            title: Text(
+              '提示',
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            content: Text(
+              '您确认删除所有图片吗?',
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
             actions: [
               ElevatedButton(
                 onPressed: () async {
