@@ -78,8 +78,11 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             ListTile(
-              leading: Icon(Icons.home,
-                  color: Theme.of(context).textTheme.bodyLarge?.color),
+              leading: FaIcon(
+                FontAwesomeIcons.house,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
+                size: 30,
+              ),
               title: Text(
                 '主页',
                 style: TextStyle(
@@ -93,10 +96,10 @@ class _HomePageState extends State<HomePage> {
               },
             ),
             ListTile(
-              leading: const FaIcon(
+              leading:  FaIcon(
                 FontAwesomeIcons.building,
-                color: Colors.white,
-                size: 30,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
+                size: 40,
               ),
               // Icon(Icons.settings,
               //     color: Theme.of(context).textTheme.bodyLarge?.color),
