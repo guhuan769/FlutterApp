@@ -31,12 +31,12 @@ class _CounterWidgetState extends State<CounterWidget> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: <Widget>[
         IconButton(
-          icon: Icon(Icons.remove),
+          icon: const Icon(Icons.remove),
           onPressed: _decrementCounter,
         ),
-        Text('$_counter', style: TextStyle(fontSize: 20.0)),
+        Text('$_counter', style: const TextStyle(fontSize: 20.0)),
         IconButton(
-          icon: Icon(Icons.add),
+          icon: const Icon(Icons.add),
           onPressed: _incrementCounter,
         ),
       ],

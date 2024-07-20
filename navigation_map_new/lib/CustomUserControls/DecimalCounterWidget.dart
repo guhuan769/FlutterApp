@@ -17,6 +17,8 @@ class DecimalCounterWidget extends StatefulWidget {
 class _DecimalCounterWidgetState extends State<DecimalCounterWidget> {
   final TextEditingController _controller = TextEditingController();
 
+  Color _borderColor = Colors.greenAccent; // Default border color
+
   @override
   void initState() {
     super.initState();
@@ -32,6 +34,13 @@ class _DecimalCounterWidgetState extends State<DecimalCounterWidget> {
   }
 
   void _onTextChanged() {
+    setState(() {
+      if (_controller.text.isEmpty) {
+        _borderColor = Colors.red; // Change border color to red if empty
+      } else {
+        _borderColor = Colors.greenAccent; // Reset to default color if not empty
+      }
+    });
     widget.onValueChanged(_controller.text);
   }
 
@@ -76,10 +85,10 @@ class _DecimalCounterWidgetState extends State<DecimalCounterWidget> {
             decoration: InputDecoration(
               border: const OutlineInputBorder(),
               enabledBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: theme.textStyleSelect), // 未选中时的边框颜色
+                borderSide: BorderSide(color: _controller.text.isEmpty ? Colors.red : theme.textStyleSelect,), // Use dynamic border color
               ),
               focusedBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: theme.textStyleUnselect), // 选中时的边框颜色
+                borderSide: BorderSide(color: _controller.text.isEmpty ? Colors.red : theme.textStyleUnselect,), // Use dynamic border color
               ),
             ),
             textAlign: TextAlign.center,
