@@ -6,6 +6,7 @@ import 'package:navigation_map/my_page/settting_page/setting_page.dart';
 // import 'package:scan_system/setting_page.dart';
 
 import 'Utils/common_toast.dart';
+import 'company/CompanyProfile.dart';
 import 'my_page/my_page.dart';
 import 'navigation_page/navigation_tabbar.dart';
 // import 'my_page.dart';
@@ -97,6 +98,32 @@ class _HomePageState extends State<HomePage> {
               },
             ),
             ListTile(
+              leading: const FaIcon(
+                FontAwesomeIcons.building,
+                color: Colors.white,
+                size: 30,
+              ),
+              // Icon(Icons.settings,
+              //     color: Theme.of(context).textTheme.bodyLarge?.color),
+              title: Text(
+                '公司介绍',
+                style: TextStyle(
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                  fontSize: Theme.of(context).textTheme.bodyLarge?.fontSize,
+                ),
+              ),
+              onTap: () {
+                // 处理点击事件
+                // Navigator.pop(context);
+                Navigator.of(context).push(MaterialPageRoute(
+                    settings: const RouteSettings(
+                        arguments: {"id": 10, "name": "_我爱你"}),
+                    builder: (context) =>
+                    const Companyprofile()) //const PhotoPage()
+                );
+              },
+            ),
+            ListTile(
               leading: Icon(Icons.settings,
                   color: Theme.of(context).textTheme.bodyLarge?.color),
               title: Text(
@@ -125,13 +152,15 @@ class _HomePageState extends State<HomePage> {
         elevation: 0, //边线
         actions: [
           if (_items[_selectIndex].label == "我的")
-            IconButton(onPressed: (){
-              msgShow('换肤功能暂未开发');
-            }, icon: const FaIcon(
-              FontAwesomeIcons.shirt,
-              color:Colors.white,
-              size: 25,
-            )),
+            IconButton(
+                onPressed: () {
+                  msgShow('换肤功能暂未开发');
+                },
+                icon: const FaIcon(
+                  FontAwesomeIcons.shirt,
+                  color: Colors.white,
+                  size: 25,
+                )),
           if (_items[_selectIndex].label == "我的")
             IconButton(
                 onPressed: () {
@@ -145,7 +174,6 @@ class _HomePageState extends State<HomePage> {
                 },
                 color: Colors.white,
                 icon: const Icon(Icons.settings)),
-
         ],
         // title: Text('${_items[_selectIndex].label}'),
       ),
