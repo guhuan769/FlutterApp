@@ -1,15 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:navigation_map/navigation_page/navigation.dart';
 import 'package:navigation_map/my_page/settting_page/setting_page.dart';
-
-// import 'package:scan_system/setting_page.dart';
-
 import 'Utils/common_toast.dart';
 import 'company/CompanyProfile.dart';
 import 'my_page/my_page.dart';
 import 'navigation_page/navigation_tabbar.dart';
-// import 'my_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
