@@ -69,7 +69,7 @@ class _HomePageState extends State<HomePage> {
               ),
               child: Center(
                 child: Text(
-                  '导航系统',
+                  '智能车体控制系统',
                   style: TextStyle(
                     color: Theme.of(context).textTheme.titleLarge?.color,
                     fontSize: Theme.of(context).textTheme.titleLarge?.fontSize,
@@ -156,7 +156,7 @@ class _HomePageState extends State<HomePage> {
                 },
                 icon: const FaIcon(
                   FontAwesomeIcons.shirt,
-                  color: Colors.white,
+                  // color: Theme,
                   size: 25,
                 )),
           if (_items[_selectIndex].label == "我的")
@@ -170,7 +170,7 @@ class _HomePageState extends State<HomePage> {
                   //             const SettingPage()) //const PhotoPage()
                   //     );
                 },
-                color: Colors.white,
+                // color: Colors.white,
                 icon: const Icon(Icons.settings)),
         ],
         // title: Text('${_items[_selectIndex].label}'),

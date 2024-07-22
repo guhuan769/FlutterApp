@@ -12,11 +12,11 @@ import '../CustomUserControls/CustomNormalTextField.dart';
 import '../CustomUserControls/DecimalCounterWidget.dart';
 import '../model/send_data.dart';
 
-class Navigation extends StatefulWidget {
-  const Navigation({super.key});
+class NavigationNew extends StatefulWidget {
+  const NavigationNew({super.key});
 
   @override
-  State<Navigation> createState() => _NavigationState();
+  State<NavigationNew> createState() => _NavigationNewState();
 }
 
 // Text(
@@ -24,7 +24,7 @@ class Navigation extends StatefulWidget {
 // textAlign: TextAlign.right,
 // )
 
-class _NavigationState extends State<Navigation> {
+class _NavigationNewState extends State<NavigationNew> {
   late String writeLog = "无日志";
 
   late UdpHelper _udpHelper;
@@ -36,22 +36,22 @@ class _NavigationState extends State<Navigation> {
   // 创建一个 TextEditingController 并设置默认值 relativeOperation
   // 相对运行
   final TextEditingController _relativeOperation =
-      TextEditingController(text: "0.1,0,0");
+  TextEditingController(text: "0.1,0,0");
 
   final FocusNode _focusNode = FocusNode();
 
   final TextEditingController _startController =
-      TextEditingController(text: "0");
+  TextEditingController(text: "0");
   final TextEditingController _endController = TextEditingController(text: "0");
 
   final TextEditingController _backStartController =
-      TextEditingController(text: "0");
+  TextEditingController(text: "0");
   final TextEditingController _backEndController =
-      TextEditingController(text: "0");
+  TextEditingController(text: "0");
 
   // 绝对运行
   final TextEditingController _absolutelyRunning =
-      TextEditingController(text: "0,0,0");
+  TextEditingController(text: "0,0,0");
 
   void _startUdpListener(Uint8List sendAll) async {
     var destinationAddress = InternetAddress("172.31.90.200"); // 替换为您的广播地址
@@ -87,12 +87,12 @@ class _NavigationState extends State<Navigation> {
       String relativeOperation = "$_goValue,$_moveValue,$_themeValue";
       //临时测试
       List<dynamic> relativeOperationList =
-          relativeOperation.split(','); // 使用短横线和竖线作为分隔符
+      relativeOperation.split(','); // 使用短横线和竖线作为分隔符
 
       SendAddressData data_0x5e0 = SendAddressData(
           address: 0x5e0, length: 12, datas: relativeOperationList);
       SendAddressData data_0x5f1 =
-          SendAddressData(address: 0x5f1, length: 1, data: 1);
+      SendAddressData(address: 0x5f1, length: 1, data: 1);
       List<SendAddressData> dataList = [];
       dataList.add(data_0x5e0);
       dataList.add(data_0x5f1);
@@ -274,7 +274,7 @@ class _NavigationState extends State<Navigation> {
                             ping.stream.listen((event) {
                               try {
                                 PingResponse entity =
-                                    event.response as PingResponse;
+                                event.response as PingResponse;
                                 // if (event.response != null) {
                                 if (entity.ip != null) {
                                   print(
@@ -385,17 +385,17 @@ class _NavigationState extends State<Navigation> {
                                         "$_goValue,$_moveValue,$_themeValue";
                                     //临时测试
                                     List<dynamic> relativeOperationList =
-                                        relativeOperation
-                                            .split(','); // 使用短横线和竖线作为分隔符
+                                    relativeOperation
+                                        .split(','); // 使用短横线和竖线作为分隔符
 
                                     SendAddressData data_0x5e0 =
-                                        SendAddressData(
-                                            address: 0x5e0,
-                                            length: 12,
-                                            datas: relativeOperationList);
+                                    SendAddressData(
+                                        address: 0x5e0,
+                                        length: 12,
+                                        datas: relativeOperationList);
                                     SendAddressData data_0x5f1 =
-                                        SendAddressData(
-                                            address: 0x5f1, length: 1, data: 1);
+                                    SendAddressData(
+                                        address: 0x5f1, length: 1, data: 1);
                                     List<SendAddressData> dataList = [];
                                     dataList.add(data_0x5e0);
                                     dataList.add(data_0x5f1);
@@ -411,7 +411,7 @@ class _NavigationState extends State<Navigation> {
 
                                     // sendData
                                     Uint8List sendAll =
-                                        sendData.buildAllBytes();
+                                    sendData.buildAllBytes();
                                     _sendUdpMessage(sendAll);
 
                                     SendData sendParseData = SendData(
@@ -464,7 +464,7 @@ class _NavigationState extends State<Navigation> {
 
                                     // sendData
                                     Uint8List sendAll =
-                                        sendData.buildAllBytes();
+                                    sendData.buildAllBytes();
                                     _sendUdpMessage(sendAll);
 
                                     _onErrorMessageReceived(0, "数据已发送。");
@@ -477,8 +477,8 @@ class _NavigationState extends State<Navigation> {
                               ElevatedButton(
                                   onPressed: () {
                                     SendAddressData data_0x162 =
-                                        SendAddressData(
-                                            address: 0x162, length: 1, data: 1);
+                                    SendAddressData(
+                                        address: 0x162, length: 1, data: 1);
                                     List<SendAddressData> dataList = [];
                                     dataList.add(data_0x162);
 
@@ -493,7 +493,7 @@ class _NavigationState extends State<Navigation> {
 
                                     // sendData
                                     Uint8List sendAll =
-                                        sendData.buildAllBytes();
+                                    sendData.buildAllBytes();
                                     _sendUdpMessage(sendAll);
 
                                     _onErrorMessageReceived(0, "数据已发送。");
@@ -529,28 +529,28 @@ class _NavigationState extends State<Navigation> {
                                   ElevatedButton(
                                       onPressed: () {
                                         SendAddressData data_0x71 =
-                                            SendAddressData(
-                                                address: 0x71,
-                                                length: 1,
-                                                data: 1);
+                                        SendAddressData(
+                                            address: 0x71,
+                                            length: 1,
+                                            data: 1);
 
                                         SendAddressData data_0x73 =
-                                            SendAddressData(
-                                                address: 0x73,
-                                                length: 1,
-                                                data: 1);
+                                        SendAddressData(
+                                            address: 0x73,
+                                            length: 1,
+                                            data: 1);
 
                                         SendAddressData data_0x75 =
-                                            SendAddressData(
-                                                address: 0x75,
-                                                length: 1,
-                                                data: 1);
+                                        SendAddressData(
+                                            address: 0x75,
+                                            length: 1,
+                                            data: 1);
 
                                         SendAddressData data_0x77 =
-                                            SendAddressData(
-                                                address: 0x77,
-                                                length: 1,
-                                                data: 1);
+                                        SendAddressData(
+                                            address: 0x77,
+                                            length: 1,
+                                            data: 1);
 
                                         List<SendAddressData> dataList = [];
                                         dataList.add(data_0x71);
@@ -568,7 +568,7 @@ class _NavigationState extends State<Navigation> {
 
                                         sendData.buildBytesAddCrc();
                                         Uint8List sendAll =
-                                            sendData.buildAllBytes();
+                                        sendData.buildAllBytes();
                                         _sendUdpMessage(sendAll);
 
                                         // SendData sendParseData = SendData(
@@ -590,28 +590,28 @@ class _NavigationState extends State<Navigation> {
                                   ElevatedButton(
                                       onPressed: () {
                                         SendAddressData data_0x70 =
-                                            SendAddressData(
-                                                address: 0x70,
-                                                length: 1,
-                                                data: 1);
+                                        SendAddressData(
+                                            address: 0x70,
+                                            length: 1,
+                                            data: 1);
 
                                         SendAddressData data_0x72 =
-                                            SendAddressData(
-                                                address: 0x72,
-                                                length: 1,
-                                                data: 1);
+                                        SendAddressData(
+                                            address: 0x72,
+                                            length: 1,
+                                            data: 1);
 
                                         SendAddressData data_0x74 =
-                                            SendAddressData(
-                                                address: 0x74,
-                                                length: 1,
-                                                data: 1);
+                                        SendAddressData(
+                                            address: 0x74,
+                                            length: 1,
+                                            data: 1);
 
                                         SendAddressData data_0x76 =
-                                            SendAddressData(
-                                                address: 0x76,
-                                                length: 1,
-                                                data: 1);
+                                        SendAddressData(
+                                            address: 0x76,
+                                            length: 1,
+                                            data: 1);
 
                                         List<SendAddressData> dataList = [];
                                         dataList.add(data_0x70);
@@ -630,7 +630,7 @@ class _NavigationState extends State<Navigation> {
 
                                         sendData.buildBytesAddCrc();
                                         Uint8List sendAll =
-                                            sendData.buildAllBytes();
+                                        sendData.buildAllBytes();
                                         _sendUdpMessage(sendAll);
                                         _onErrorMessageReceived(0, "数据已发送。");
                                       },
@@ -685,24 +685,24 @@ class _NavigationState extends State<Navigation> {
                                       onPressed: () {
                                         // CommonToast.showToast(_startController.text);
                                         SendAddressData data_0x3d0 =
-                                            SendAddressData(
-                                                address: 0x3d0,
-                                                length: 4,
-                                                data: int.parse(
-                                                    _startController.text));
+                                        SendAddressData(
+                                            address: 0x3d0,
+                                            length: 4,
+                                            data: int.parse(
+                                                _startController.text));
 
                                         SendAddressData data_0x3d4 =
-                                            SendAddressData(
-                                                address: 0x3d4,
-                                                length: 4,
-                                                data: int.parse(
-                                                    _endController.text));
+                                        SendAddressData(
+                                            address: 0x3d4,
+                                            length: 4,
+                                            data: int.parse(
+                                                _endController.text));
 
                                         SendAddressData data_0x250 =
-                                            SendAddressData(
-                                                address: 0x250,
-                                                length: 1,
-                                                data: 1);
+                                        SendAddressData(
+                                            address: 0x250,
+                                            length: 1,
+                                            data: 1);
 
                                         List<SendAddressData> dataList = [];
                                         dataList.add(data_0x3d0);
@@ -718,7 +718,7 @@ class _NavigationState extends State<Navigation> {
 
                                         sendData.buildBytesAddCrc();
                                         Uint8List sendAll =
-                                            sendData.buildAllBytes();
+                                        sendData.buildAllBytes();
                                         _sendUdpMessage(sendAll);
                                         _onErrorMessageReceived(0, "数据已发送。");
                                       },
@@ -742,7 +742,7 @@ class _NavigationState extends State<Navigation> {
                               const SizedBox(width: 10),
                               Text('结束节点',
                                   style:
-                                      Theme.of(context).textTheme.bodyMedium),
+                                  Theme.of(context).textTheme.bodyMedium),
                               const SizedBox(width: 10),
                               CustomNormalTextField(
                                 controller: _backEndController,
@@ -755,22 +755,22 @@ class _NavigationState extends State<Navigation> {
                               ElevatedButton(
                                   onPressed: () {
                                     SendAddressData data_0x3d0 =
-                                        SendAddressData(
-                                            address: 0x3d0,
-                                            length: 4,
-                                            data: int.parse(
-                                                _backStartController.text));
+                                    SendAddressData(
+                                        address: 0x3d0,
+                                        length: 4,
+                                        data: int.parse(
+                                            _backStartController.text));
 
                                     SendAddressData data_0x3d4 =
-                                        SendAddressData(
-                                            address: 0x3d4,
-                                            length: 4,
-                                            data: int.parse(
-                                                _backEndController.text));
+                                    SendAddressData(
+                                        address: 0x3d4,
+                                        length: 4,
+                                        data: int.parse(
+                                            _backEndController.text));
 
                                     SendAddressData data_0x250 =
-                                        SendAddressData(
-                                            address: 0x250, length: 1, data: 1);
+                                    SendAddressData(
+                                        address: 0x250, length: 1, data: 1);
 
                                     List<SendAddressData> dataList = [];
                                     dataList.add(data_0x3d0);
@@ -786,7 +786,7 @@ class _NavigationState extends State<Navigation> {
 
                                     sendData.buildBytesAddCrc();
                                     Uint8List sendAll =
-                                        sendData.buildAllBytes();
+                                    sendData.buildAllBytes();
                                     _sendUdpMessage(sendAll);
 
                                     _onErrorMessageReceived(0, "数据已发送。");

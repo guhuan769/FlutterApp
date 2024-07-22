@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'navigation.dart';
+import 'navigation_new.dart';
 
 class NavigationTabbar extends StatefulWidget {
   const NavigationTabbar({super.key});
@@ -32,7 +33,7 @@ class _NavigationTabbarState extends State<NavigationTabbar> {
           const Expanded(
             child: TabBarView(
               children: [
-                Center(child: Navigation()),
+                Center(child: NavigationNew()),
                 Center(child: Text('待开发...')),
                 // Center(child: Icon(Icons.directions_bike)),
               ],

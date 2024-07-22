@@ -5,11 +5,13 @@ import 'CustomContainerTheme.dart';
 class AppTheme {
   static final ThemeData lightTheme = ThemeData(
     primarySwatch: Colors.yellow,
+    // scaffoldBackgroundColor: Colors.grey[200],
+    scaffoldBackgroundColor: Colors.grey[200],
     // 底部导航栏样式
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
       backgroundColor: Colors.white,
       // 设置背景颜色
-      selectedItemColor: Colors.greenAccent,
+      selectedItemColor: Colors.red,
       // 设置选中项颜色
       unselectedItemColor: Colors.grey,
       // 设置未选中项颜色
@@ -22,12 +24,11 @@ class AppTheme {
     //   border: Border.all(color: Colors.blue, width: 2.0),
     //   borderRadius: BorderRadius.circular(10.0),
     // ),
-    scaffoldBackgroundColor: Colors.white,
     //全局背景色
     colorScheme: ColorScheme.fromSwatch(
-      primarySwatch: Colors.green,
+      primarySwatch: Colors.red,
     ).copyWith(
-      secondary: Colors.greenAccent,
+      secondary: Colors.red,
     ),
     drawerTheme: const DrawerThemeData(
       backgroundColor: Colors.greenAccent,
@@ -79,12 +80,12 @@ class AppTheme {
 // primarySwatch: Colors.amber, // 设置主色，影响按钮等部件的颜色
 // accentColor: Colors.green, // 设置强调色，通常用于按钮和其他交互元素
     appBarTheme: const AppBarTheme(
-      backgroundColor: Colors.greenAccent,
-      iconTheme: IconThemeData(color: Colors.white),
-      actionsIconTheme: IconThemeData(color: Colors.amber),
+      backgroundColor: Colors.transparent,
+      iconTheme: IconThemeData(color: Colors.black),
+      actionsIconTheme: IconThemeData(color: Colors.black38),
       centerTitle: false,
       elevation: 15,
-      titleTextStyle: TextStyle(color: Colors.white, fontSize: 20),
+      titleTextStyle: TextStyle(color: Colors.black, fontSize: 20),
     ),
   );
 
