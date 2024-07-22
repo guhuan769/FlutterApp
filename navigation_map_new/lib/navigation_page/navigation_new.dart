@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+// import 'dart:ffi';
 import 'dart:io';
+// import 'dart:nativewrappers/_internal/vm/lib/ffi_native_type_patch.dart';
 import 'dart:typed_data';
 import 'package:dart_ping/dart_ping.dart';
 import 'package:flutter/material.dart';
@@ -10,6 +12,7 @@ import '../CustomUserControls/CustomCard.dart';
 import '../CustomUserControls/CustomCircle.dart';
 import '../CustomUserControls/CustomNormalTextField.dart';
 import '../CustomUserControls/DecimalCounterWidget.dart';
+import '../custom_controls/counter_widget.dart';
 import '../model/send_data.dart';
 
 class NavigationNew extends StatefulWidget {
@@ -209,23 +212,24 @@ class _NavigationNewState extends State<NavigationNew> {
     });
   }
 
-  String _goValue = '0.0';
-  String _moveValue = '0.0';
-  String _themeValue = '0.0';
+  double _goValue = 0.0;
+  double _moveValue = 0.0;
+  double _themeValue = 0.0;
 
-  void _handleGoValueChanged(String newValue) {
+  void _handleGoValueChanged(double newValue) {
     setState(() {
       _goValue = newValue;
     });
+    print(newValue);
   }
 
-  void _handleMoveValueChanged(String newValue) {
+  void _handleMoveValueChanged(double newValue) {
     setState(() {
       _moveValue = newValue;
     });
   }
 
-  void _handleThemeValueChanged(String newValue) {
+  void _handleThemeValueChanged(double newValue) {
     setState(() {
       _themeValue = newValue;
     });
@@ -251,6 +255,7 @@ class _NavigationNewState extends State<NavigationNew> {
                 CustomCard(
                   screenWidth: MediaQuery.of(context).size.width,
                   title: '状态',
+                  icon: Icons.settings,
                   child: Row(
                     children: [
                       Expanded(
@@ -321,6 +326,7 @@ class _NavigationNewState extends State<NavigationNew> {
                             Text(writeLog)
                           ],
                         ),
+                        const SizedBox(height: 20),
                         Row(
                           children: [
                             const SizedBox(
@@ -328,11 +334,20 @@ class _NavigationNewState extends State<NavigationNew> {
                                 child: Align(
                                     alignment: Alignment.centerRight,
                                     child: Text("前进后退:"))),
-                            DecimalCounterWidget(
-                                onValueChanged: _handleGoValueChanged)
+                            const SizedBox(width: 10,),
+                            // DecimalCounterWidget(
+                            //     onValueChanged: _handleGoValueChanged)
+                            CounterWidget(
+                              initialValue: 0.0,
+                              step: 0.5,
+                              backgroundColor: Colors.grey[300],
+                              iconColor: Colors.black,
+                              textStyle: const TextStyle(fontSize: 24.0, color: Colors.black),
+                              onChanged: _handleGoValueChanged,
+                            ),
                           ],
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 20),
                         Row(
                           children: [
                             const SizedBox(
@@ -340,12 +355,18 @@ class _NavigationNewState extends State<NavigationNew> {
                                 child: Align(
                                     alignment: Alignment.centerRight,
                                     child: Text("左右移动:"))),
-                            DecimalCounterWidget(
-                              onValueChanged: _handleMoveValueChanged,
-                            )
+                            const SizedBox(width: 10,),
+                            CounterWidget(
+                              initialValue: 0.0,
+                              step: 0.5,
+                              backgroundColor: Colors.grey[300],
+                              iconColor: Colors.black,
+                              textStyle: const TextStyle(fontSize: 24.0, color: Colors.black),
+                              onChanged: _handleMoveValueChanged,
+                            ),
                           ],
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 20),
                         Row(
                           children: [
                             const SizedBox(
@@ -353,9 +374,15 @@ class _NavigationNewState extends State<NavigationNew> {
                                 child: Align(
                                     alignment: Alignment.centerRight,
                                     child: Text("角度:"))),
-                            DecimalCounterWidget(
-                              onValueChanged: _handleThemeValueChanged,
-                            )
+                            const SizedBox(width: 10,),
+                            CounterWidget(
+                              initialValue: 0.0,
+                              step: 0.5,
+                              backgroundColor: Colors.grey[300],
+                              iconColor: Colors.black,
+                              textStyle: const TextStyle(fontSize: 24.0, color: Colors.black),
+                              onChanged: _handleThemeValueChanged,
+                            ),
                           ],
                         ),
                         Row(
