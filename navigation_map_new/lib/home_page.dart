@@ -59,6 +59,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // backgroundColor: Colors.transparent, // 使 Scaffold 背景透明
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
@@ -146,8 +147,24 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
       appBar: AppBar(
-        // leading:const Icon(Icons.menu) ,
+        backgroundColor: Colors.white, // 使 AppBar 背景透明        // leading:const Icon(Icons.menu) ,
         elevation: 0, //边线
+        toolbarHeight: 40, // 设置 AppBar 的高度
+        flexibleSpace: const SafeArea(
+          child: Stack(
+            children: <Widget>[
+              Align(
+                alignment: Alignment.center,
+                child: Image(
+                  height: 20,
+                  image: AssetImage('assets/images/logo.png'),
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ],
+          ),
+        ),
+        centerTitle: true, // 确保标题在中心
         actions: [
           if (_items[_selectIndex].label == "我的")
             IconButton(
@@ -171,8 +188,14 @@ class _HomePageState extends State<HomePage> {
                   //     );
                 },
                 // color: Colors.white,
-                icon: const Icon(Icons.settings)),
+                icon: const FaIcon(
+                  FontAwesomeIcons.gear,
+                  // color: Theme,
+                  size: 25,
+                )),
         ],
+        //背景图
+
         // title: Text('${_items[_selectIndex].label}'),
       ),
       body: _buildPage(_selectIndex),

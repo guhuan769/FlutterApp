@@ -68,22 +68,23 @@ class CommonToast {
               startTimer(setState);
             }
             return AlertDialog(
+              backgroundColor: Theme.of(context).dialogTheme.backgroundColor,
               title: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     title,
-                    style: Theme.of(context).textTheme.bodyLarge,
+                    style: Theme.of(context).dialogTheme.titleTextStyle,
                   ),
                   Text(
-                    '$_start秒关闭',
-                    style: Theme.of(context).textTheme.bodyLarge,
+                    '$_start秒 关闭',
+                    style: Theme.of(context).dialogTheme.titleTextStyle,
                   ),
                 ],
               ),
               content: Text(
                 content,
-                style: Theme.of(context).textTheme.bodyLarge,
+                style: Theme.of(context).dialogTheme.contentTextStyle,
               ),
               actions: actions ?? [],
             );

@@ -28,7 +28,7 @@ class CustomCard extends StatelessWidget {
         SizedBox(
           width: screenWidth * 0.97, // 设置宽度为屏幕宽度的97%
           child: Card(
-            color: color ?? Colors.grey[100], // 使用传入的颜色或默认颜色
+            color: color ?? Colors.white, // 使用传入的颜色或默认颜色
             child: Stack(
               children: [
                 if (image != null)
@@ -62,10 +62,11 @@ class CustomCard extends StatelessWidget {
                       children: [
                         if (icon != null)
                           Icon(
+                            size: 20,
                             icon,
                             color: theme.textStyle.color,
                           ),
-                        const SizedBox(width: 0),
+                        const SizedBox(width: 7),
                         Text(
                           title,
                           style: theme.textStyle,

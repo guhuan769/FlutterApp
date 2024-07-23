@@ -72,7 +72,7 @@ class _DecimalCounterWidgetState extends State<DecimalCounterWidget> {
         ),
         Container(
           width: 100,
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             // border: Border.all(color:theme.decimalBorder, width: 2.0),
           ),
           child: TextField(

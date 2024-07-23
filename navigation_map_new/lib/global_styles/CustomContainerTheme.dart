@@ -19,8 +19,8 @@ extension CustomThemeData on ThemeData {
   CustomContainerTheme get customContainerTheme => CustomContainerTheme(
     textStyleSelect: Colors.greenAccent,
     textStyleUnselect: Colors.green,
-    titleColor: Colors.greenAccent,
-    textStyle: const TextStyle(color: Colors.white),
+    titleColor: Colors.white,
+    textStyle: const TextStyle(color: Colors.black),
     color: Colors.grey,
     decimalBorder: Colors.greenAccent,
     border: Border.all(color: Colors.blue, width: 2.0),

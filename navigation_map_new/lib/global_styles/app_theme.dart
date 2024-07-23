@@ -26,9 +26,9 @@ class AppTheme {
     // ),
     //全局背景色
     colorScheme: ColorScheme.fromSwatch(
-      primarySwatch: Colors.red,
+      primarySwatch: Colors.grey,
     ).copyWith(
-      secondary: Colors.red,
+      secondary: Colors.grey,
     ),
     drawerTheme: const DrawerThemeData(
       backgroundColor: Colors.greenAccent,
@@ -57,13 +57,14 @@ class AppTheme {
       titleLarge: TextStyle(
           color: Colors.white, fontSize: 36.0, fontStyle: FontStyle.italic),
       bodyLarge: TextStyle(color: Colors.white, fontSize: 16.0),
-      bodyMedium: TextStyle(color: Colors.black, fontSize: 14.0,fontWeight: FontWeight.bold),
+      bodyMedium: TextStyle(
+          color: Colors.grey, fontSize: 14.0, fontWeight: FontWeight.bold),
       bodySmall: TextStyle(fontSize: 12.0),
     ),
     dialogTheme: DialogTheme(
-      backgroundColor: Colors.green,
+      backgroundColor: Colors.white,
       titleTextStyle: const TextStyle(color: Colors.black, fontSize: 20),
-      contentTextStyle: const TextStyle(color: Colors.black87, fontSize: 16),
+      contentTextStyle: const TextStyle(color: Colors.grey, fontSize: 16),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(15),
       ),

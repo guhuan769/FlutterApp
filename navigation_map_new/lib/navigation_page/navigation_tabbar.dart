@@ -22,10 +22,10 @@ class _NavigationTabbarState extends State<NavigationTabbar> {
               tabs: [
                 // Tab(icon: Icon(Icons.car_rental), text: '123'),
                 Tab(
-                  icon: Icon(Icons.car_rental),
+                  icon: Icon(Icons.speaker),
                   text: '运动控制',
                 ),
-                Tab(icon: Icon(Icons.refresh), text: '最新消息'),
+                Tab(icon: Icon(Icons.message), text: '最新消息'),
                 // Tab(icon: Icon(Icons.directions_bike)),
               ],
             ),
