@@ -31,7 +31,7 @@ class AppTheme {
       secondary: Colors.grey,
     ),
     drawerTheme: const DrawerThemeData(
-      backgroundColor: Colors.greenAccent,
+      backgroundColor: Color(0xFFEEEEEE),
       elevation: 16,
     ),
     iconTheme: const IconThemeData(
@@ -56,7 +56,7 @@ class AppTheme {
           color: Colors.white, fontSize: 72.0, fontWeight: FontWeight.bold),
       titleLarge: TextStyle(
           color: Colors.white, fontSize: 36.0, fontStyle: FontStyle.italic),
-      bodyLarge: TextStyle(color: Colors.white, fontSize: 16.0),
+      bodyLarge: TextStyle(color: Colors.grey, fontSize: 16.0),
       bodyMedium: TextStyle(
           color: Colors.grey, fontSize: 14.0, fontWeight: FontWeight.bold),
       bodySmall: TextStyle(fontSize: 12.0),

@@ -62,42 +62,22 @@ class _HomePageState extends State<HomePage> {
       // backgroundColor: Colors.transparent, // 使 Scaffold 背景透明
       drawer: Drawer(
         child: ListView(
-          padding: EdgeInsets.zero,
+          // padding: EdgeInsets.zero,
           children: <Widget>[
             DrawerHeader(
+              padding: EdgeInsets.zero, // 移除内边距
               decoration: BoxDecoration(
                 color: Theme.of(context).drawerTheme.backgroundColor,
-              ),
-              child: Center(
-                child: Text(
-                  '智能车体控制系统',
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.titleLarge?.color,
-                    fontSize: Theme.of(context).textTheme.titleLarge?.fontSize,
-                  ),
+                image: DecorationImage(
+                  image: AssetImage('assets/images/car_logo.png'),
+                  fit: BoxFit.cover,
                 ),
               ),
+              child: Container(), // 保持空容器
             ),
+
             ListTile(
               leading: FaIcon(
-                FontAwesomeIcons.house,
-                color: Theme.of(context).textTheme.bodyLarge?.color,
-                size: 30,
-              ),
-              title: Text(
-                '主页',
-                style: TextStyle(
-                  color: Theme.of(context).textTheme.bodyLarge?.color,
-                  fontSize: Theme.of(context).textTheme.bodyLarge?.fontSize,
-                ),
-              ),
-              onTap: () {
-                // 处理点击事件
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading:  FaIcon(
                 FontAwesomeIcons.building,
                 color: Theme.of(context).textTheme.bodyLarge?.color,
                 size: 40,
@@ -115,11 +95,11 @@ class _HomePageState extends State<HomePage> {
                 // 处理点击事件
                 // Navigator.pop(context);
                 Navigator.of(context).push(MaterialPageRoute(
-                    settings: const RouteSettings(
-                        arguments: {"id": 10, "name": "_我爱你"}),
-                    builder: (context) =>
-                    const Companyprofile()) //const PhotoPage()
-                );
+                        settings: const RouteSettings(
+                            arguments: {"id": 10, "name": "_我爱你"}),
+                        builder: (context) =>
+                            const Companyprofile()) //const PhotoPage()
+                    );
               },
             ),
             ListTile(
@@ -147,9 +127,12 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
       appBar: AppBar(
-        backgroundColor: Colors.white, // 使 AppBar 背景透明        // leading:const Icon(Icons.menu) ,
-        elevation: 0, //边线
-        toolbarHeight: 40, // 设置 AppBar 的高度
+        backgroundColor: Colors.white,
+        // 使 AppBar 背景透明        // leading:const Icon(Icons.menu) ,
+        elevation: 0,
+        //边线
+        toolbarHeight: 40,
+        // 设置 AppBar 的高度
         flexibleSpace: const SafeArea(
           child: Stack(
             children: <Widget>[
@@ -164,7 +147,8 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
         ),
-        centerTitle: true, // 确保标题在中心
+        centerTitle: true,
+        // 确保标题在中心
         actions: [
           if (_items[_selectIndex].label == "我的")
             IconButton(
