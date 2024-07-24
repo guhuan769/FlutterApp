@@ -1,8 +1,9 @@
+<!--图片尺寸   72x72  48x48 96x96  144*144  192*192  该尺寸为 app logo所有的-->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="navigation_map_new"
+        android:label="智能车体控制系统"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/app_logo">
         <activity
             android:name=".MainActivity"
             android:exported="true"

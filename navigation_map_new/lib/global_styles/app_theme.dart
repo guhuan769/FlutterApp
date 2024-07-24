@@ -40,9 +40,9 @@ class AppTheme {
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.greenAccent,
-        foregroundColor: Colors.green,
-        shadowColor: Colors.orange,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.grey,
+        shadowColor: Colors.grey,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.all(Radius.circular(10)),
         ),
