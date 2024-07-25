@@ -730,7 +730,7 @@ class _NavigationNewState extends State<NavigationNew> {
                 ],
               ),
               Row(
-
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   CustomCard(
                       screenWidth: MediaQuery.of(context).size.width,
@@ -766,7 +766,7 @@ class _NavigationNewState extends State<NavigationNew> {
                               ),
                               CustomButton(
                                 text: '目的地',
-                                icon: FontAwesomeIcons.upload,
+                                icon: Icons.location_on,
                                 height: 50,
                                 width: 160,
                                 onPressed: () {
@@ -804,8 +804,11 @@ class _NavigationNewState extends State<NavigationNew> {
                               )
                             ],
                           ),
-
-
+                          Container(
+                            height: 200,
+                            width: 1,
+                            color: Colors.grey,
+                          ),
                           Column(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
@@ -834,29 +837,23 @@ class _NavigationNewState extends State<NavigationNew> {
                               ),
                               CustomButton(
                                 text: '回到原点',
-                                icon: FontAwesomeIcons.upload,
+                                icon: Icons.location_on,
                                 height: 50,
                                 width: 160,
                                 onPressed: () {
-                                  SendAddressData data_0x3d0 =
-                                  SendAddressData(
+                                  SendAddressData data_0x3d0 = SendAddressData(
                                       address: 0x3d0,
                                       length: 4,
-                                      data: int.parse(
-                                          _backStartController.text));
+                                      data:
+                                          int.parse(_backStartController.text));
 
-                                  SendAddressData data_0x3d4 =
-                                  SendAddressData(
+                                  SendAddressData data_0x3d4 = SendAddressData(
                                       address: 0x3d4,
                                       length: 4,
-                                      data: int.parse(
-                                          _backEndController.text));
+                                      data: int.parse(_backEndController.text));
 
-                                  SendAddressData data_0x250 =
-                                  SendAddressData(
-                                      address: 0x250,
-                                      length: 1,
-                                      data: 1);
+                                  SendAddressData data_0x250 = SendAddressData(
+                                      address: 0x250, length: 1, data: 1);
 
                                   List<SendAddressData> dataList = [];
                                   dataList.add(data_0x3d0);
@@ -871,11 +868,11 @@ class _NavigationNewState extends State<NavigationNew> {
                                       sendAddressData: dataList);
 
                                   sendData.buildBytesAddCrc();
-                                  Uint8List sendAll =
-                                  sendData.buildAllBytes();
+                                  Uint8List sendAll = sendData.buildAllBytes();
                                   _sendUdpMessage(sendAll);
 
-                                  _onErrorMessageReceived(0, "数据已发送。  ${_backStartController.text}  ${_backEndController.text} ");
+                                  _onErrorMessageReceived(0,
+                                      "数据已发送。  ${_backStartController.text}  ${_backEndController.text} ");
                                 },
                               ),
                             ],
