@@ -234,20 +234,20 @@ class _NavigationNewState extends State<NavigationNew> {
   double _moveValue = 0.0;
   double _themeValue = 0.0;
 
-  void _handleGoValueChanged(double newValue) {
+  void _handleGoValueChanged(newValue) {
     setState(() {
       _goValue = newValue;
     });
     print(newValue);
   }
 
-  void _handleMoveValueChanged(double newValue) {
+  void _handleMoveValueChanged(newValue) {
     setState(() {
       _moveValue = newValue;
     });
   }
 
-  void _handleThemeValueChanged(double newValue) {
+  void _handleThemeValueChanged(newValue) {
     setState(() {
       _themeValue = newValue;
     });
@@ -347,7 +347,7 @@ class _NavigationNewState extends State<NavigationNew> {
                             CounterWidget(
                               title: '前进后退',
                               initialValue: 0.0,
-                              step: 0.5,
+                              step: 0.01,
                               backgroundColor: Colors.grey[200],
                               iconColor: Colors.black,
                               textStyle: const TextStyle(
@@ -390,7 +390,7 @@ class _NavigationNewState extends State<NavigationNew> {
                             CounterWidget(
                               title: '左右移动',
                               initialValue: 0.0,
-                              step: 0.5,
+                              step: 0.01,
                               backgroundColor: Colors.grey[200],
                               iconColor: Colors.black,
                               textStyle: const TextStyle(
@@ -433,7 +433,7 @@ class _NavigationNewState extends State<NavigationNew> {
                             CounterWidget(
                               title: '车辆角度',
                               initialValue: 0.0,
-                              step: 0.5,
+                              step: 0.01,
                               backgroundColor: Colors.grey[200],
                               iconColor: Colors.black,
                               textStyle: const TextStyle(
@@ -609,7 +609,6 @@ class _NavigationNewState extends State<NavigationNew> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                                  const SizedBox(width: 10),
                                   CustomButton(
                                     text: '降',
                                     icon: Icons.download,
@@ -730,156 +729,157 @@ class _NavigationNewState extends State<NavigationNew> {
                   ),
                 ],
               ),
-
               Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+
                 children: [
                   CustomCard(
                       screenWidth: MediaQuery.of(context).size.width,
                       title: '节点运行',
-                      child: Column(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const SizedBox(height: 10),
                           Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
-                              Row(
-                                children: [
-                                  const Text('开始节点'),
-                                  const SizedBox(width: 10),
-                                  CustomNormalTextField(
-                                    controller: _startController,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Text('结束节点',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium),
-                                  const SizedBox(width: 10),
-                                  CustomNormalTextField(
-                                    controller: _endController,
-                                  ),
-                                ],
+                              CounterWidget(
+                                title: '开始节点',
+                                initialValue: 0,
+                                step: 1,
+                                backgroundColor: Colors.grey[200],
+                                iconColor: Colors.black,
+                                textStyle: const TextStyle(
+                                    fontSize: 15.0, color: Colors.black),
+                                // onChanged: _handleGoValueChanged,
+                                controller: _startController,
                               ),
-                              // const SizedBox(width: 10),
-                              Row(
-                                children: [
-                                  ElevatedButton(
-                                      onPressed: () {
-                                        // CommonToast.showToast(_startController.text);
-                                        SendAddressData data_0x3d0 =
-                                            SendAddressData(
-                                                address: 0x3d0,
-                                                length: 4,
-                                                data: int.parse(
-                                                    _startController.text));
+                              const SizedBox(height: 10),
+                              CounterWidget(
+                                title: '结束节点',
+                                initialValue: 0,
+                                step: 1,
+                                backgroundColor: Colors.grey[200],
+                                iconColor: Colors.black,
+                                textStyle: const TextStyle(
+                                    fontSize: 15.0, color: Colors.black),
+                                // onChanged: _handleGoValueChanged,
+                                controller: _endController,
+                              ),
+                              CustomButton(
+                                text: '目的地',
+                                icon: FontAwesomeIcons.upload,
+                                height: 50,
+                                width: 160,
+                                onPressed: () {
+                                  // CommonToast.showToast(_startController.text);
+                                  SendAddressData data_0x3d0 = SendAddressData(
+                                      address: 0x3d0,
+                                      length: 4,
+                                      data: int.parse(_startController.text));
 
-                                        SendAddressData data_0x3d4 =
-                                            SendAddressData(
-                                                address: 0x3d4,
-                                                length: 4,
-                                                data: int.parse(
-                                                    _endController.text));
+                                  SendAddressData data_0x3d4 = SendAddressData(
+                                      address: 0x3d4,
+                                      length: 4,
+                                      data: int.parse(_endController.text));
 
-                                        SendAddressData data_0x250 =
-                                            SendAddressData(
-                                                address: 0x250,
-                                                length: 1,
-                                                data: 1);
+                                  SendAddressData data_0x250 = SendAddressData(
+                                      address: 0x250, length: 1, data: 1);
 
-                                        List<SendAddressData> dataList = [];
-                                        dataList.add(data_0x3d0);
-                                        dataList.add(data_0x3d4);
-                                        dataList.add(data_0x250);
+                                  List<SendAddressData> dataList = [];
+                                  dataList.add(data_0x3d0);
+                                  dataList.add(data_0x3d4);
+                                  dataList.add(data_0x250);
 
-                                        SendData sendData = SendData(
-                                            cRCHigh: null,
-                                            cRCLow: null,
-                                            cmd: 2,
-                                            sn: 10,
-                                            sendAddressData: dataList);
+                                  SendData sendData = SendData(
+                                      cRCHigh: null,
+                                      cRCLow: null,
+                                      cmd: 2,
+                                      sn: 10,
+                                      sendAddressData: dataList);
 
-                                        sendData.buildBytesAddCrc();
-                                        Uint8List sendAll =
-                                            sendData.buildAllBytes();
-                                        _sendUdpMessage(sendAll);
-                                        _onErrorMessageReceived(0, "数据已发送。");
-                                      },
-                                      child: Text('目的地',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodyMedium)),
-                                  const SizedBox(width: 10),
-                                ],
+                                  sendData.buildBytesAddCrc();
+                                  Uint8List sendAll = sendData.buildAllBytes();
+                                  _sendUdpMessage(sendAll);
+                                  _onErrorMessageReceived(0, "数据已发送。");
+                                },
                               )
                             ],
                           ),
-                          const SizedBox(height: 10),
-                          Row(
+
+
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
-                              const Text('开始节点'),
-                              const SizedBox(width: 10),
-                              CustomNormalTextField(
+                              CounterWidget(
+                                title: '开始节点',
+                                initialValue: 0,
+                                step: 1,
+                                backgroundColor: Colors.grey[200],
+                                iconColor: Colors.black,
+                                textStyle: const TextStyle(
+                                    fontSize: 15.0, color: Colors.black),
+                                // onChanged: _handleGoValueChanged,
                                 controller: _backStartController,
                               ),
-                              const SizedBox(width: 10),
-                              Text('结束节点',
-                                  style:
-                                      Theme.of(context).textTheme.bodyMedium),
-                              const SizedBox(width: 10),
-                              CustomNormalTextField(
+                              const SizedBox(height: 10),
+                              CounterWidget(
+                                title: '结束节点',
+                                initialValue: 0,
+                                step: 1,
+                                backgroundColor: Colors.grey[200],
+                                iconColor: Colors.black,
+                                textStyle: const TextStyle(
+                                    fontSize: 15.0, color: Colors.black),
+                                // onChanged: _handleGoValueChanged,
                                 controller: _backEndController,
                               ),
-                              const SizedBox(width: 10),
+                              CustomButton(
+                                text: '回到原点',
+                                icon: FontAwesomeIcons.upload,
+                                height: 50,
+                                width: 160,
+                                onPressed: () {
+                                  SendAddressData data_0x3d0 =
+                                  SendAddressData(
+                                      address: 0x3d0,
+                                      length: 4,
+                                      data: int.parse(
+                                          _backStartController.text));
+
+                                  SendAddressData data_0x3d4 =
+                                  SendAddressData(
+                                      address: 0x3d4,
+                                      length: 4,
+                                      data: int.parse(
+                                          _backEndController.text));
+
+                                  SendAddressData data_0x250 =
+                                  SendAddressData(
+                                      address: 0x250,
+                                      length: 1,
+                                      data: 1);
+
+                                  List<SendAddressData> dataList = [];
+                                  dataList.add(data_0x3d0);
+                                  dataList.add(data_0x3d4);
+                                  dataList.add(data_0x250);
+
+                                  SendData sendData = SendData(
+                                      cRCHigh: null,
+                                      cRCLow: null,
+                                      cmd: 2,
+                                      sn: 10,
+                                      sendAddressData: dataList);
+
+                                  sendData.buildBytesAddCrc();
+                                  Uint8List sendAll =
+                                  sendData.buildAllBytes();
+                                  _sendUdpMessage(sendAll);
+
+                                  _onErrorMessageReceived(0, "数据已发送。  ${_backStartController.text}  ${_backEndController.text} ");
+                                },
+                              ),
                             ],
-                          ),
-                          Row(
-                            children: [
-                              ElevatedButton(
-                                  onPressed: () {
-                                    SendAddressData data_0x3d0 =
-                                        SendAddressData(
-                                            address: 0x3d0,
-                                            length: 4,
-                                            data: int.parse(
-                                                _backStartController.text));
-
-                                    SendAddressData data_0x3d4 =
-                                        SendAddressData(
-                                            address: 0x3d4,
-                                            length: 4,
-                                            data: int.parse(
-                                                _backEndController.text));
-
-                                    SendAddressData data_0x250 =
-                                        SendAddressData(
-                                            address: 0x250, length: 1, data: 1);
-
-                                    List<SendAddressData> dataList = [];
-                                    dataList.add(data_0x3d0);
-                                    dataList.add(data_0x3d4);
-                                    dataList.add(data_0x250);
-
-                                    SendData sendData = SendData(
-                                        cRCHigh: null,
-                                        cRCLow: null,
-                                        cmd: 2,
-                                        sn: 10,
-                                        sendAddressData: dataList);
-
-                                    sendData.buildBytesAddCrc();
-                                    Uint8List sendAll =
-                                        sendData.buildAllBytes();
-                                    _sendUdpMessage(sendAll);
-
-                                    _onErrorMessageReceived(0, "数据已发送。");
-                                  },
-                                  child: Text('回到原点',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium)),
-                            ],
-                          ),
-                          const SizedBox(width: 10)
+                          )
                         ],
                       ))
                 ],

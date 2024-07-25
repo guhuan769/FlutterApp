@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 
 class CounterWidget extends StatefulWidget {
-  final double initialValue;
-  final double step;
+  final num initialValue;
+  final num step;
   final Color? backgroundColor;
   final Color? iconColor;
   final TextStyle? textStyle;
-  final ValueChanged<double>? onChanged;
-  final String? title; // Add a title parameter
-  final TextStyle? titleStyle; // Add a title style parameter
+  final ValueChanged<num>? onChanged;
+  final String? title;
+  final TextStyle? titleStyle;
+  final TextEditingController? controller; // Add controller parameter
 
   const CounterWidget({
     super.key,
@@ -18,8 +20,9 @@ class CounterWidget extends StatefulWidget {
     this.iconColor,
     this.textStyle,
     this.onChanged,
-    this.title, // Initialize the title parameter
-    this.titleStyle, // Initialize the title style parameter
+    this.title,
+    this.titleStyle,
+    this.controller, // Initialize the controller parameter
   });
 
   @override
@@ -27,20 +30,30 @@ class CounterWidget extends StatefulWidget {
 }
 
 class _CounterWidgetState extends State<CounterWidget> {
-  late double _counter;
-  final TextEditingController _controller = TextEditingController();
+  late num _counter;
+  late TextEditingController _controller;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     _counter = widget.initialValue;
-    _controller.text = _counter.toString();
+    _controller = widget.controller ?? TextEditingController();
+    _controller.text = _formatValue(_counter);
+  }
+
+  String _formatValue(num value) {
+    if (value is int) {
+      return value.toString();
+    } else {
+      return value.toStringAsFixed(2);
+    }
   }
 
   void _incrementCounter() {
     setState(() {
       _counter += widget.step;
-      _controller.text = _counter.toString();
+      _controller.text = _formatValue(_counter);
       widget.onChanged?.call(_counter);
     });
   }
@@ -48,7 +61,24 @@ class _CounterWidgetState extends State<CounterWidget> {
   void _decrementCounter() {
     setState(() {
       _counter -= widget.step;
-      _controller.text = _counter.toString();
+      _controller.text = _formatValue(_counter);
+      widget.onChanged?.call(_counter);
+    });
+  }
+
+  void _startTimer(Function action) {
+    _timer = Timer.periodic(Duration(milliseconds: 100), (timer) {
+      action();
+    });
+  }
+
+  void _stopTimer() {
+    _timer?.cancel();
+  }
+
+  void _onTextChanged(String value) {
+    setState(() {
+      _counter = num.tryParse(value) ?? _counter;
       widget.onChanged?.call(_counter);
     });
   }
@@ -63,9 +93,6 @@ class _CounterWidgetState extends State<CounterWidget> {
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.5),
-            // spreadRadius: 2,
-            // blurRadius: 5,
-            // offset: const Offset(0, 0),
           ),
         ],
       ),
@@ -73,7 +100,7 @@ class _CounterWidgetState extends State<CounterWidget> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // if (widget.title != null) // Check if title is provided
+          // if (widget.title != null)
           //   Text(
           //     widget.title!,
           //     style: widget.titleStyle ?? const TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold),
@@ -83,13 +110,16 @@ class _CounterWidgetState extends State<CounterWidget> {
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              IconButton(
-                icon: Icon(Icons.remove,
-                    size: 20, color: widget.iconColor ?? Colors.black),
-                onPressed: _decrementCounter,
+              GestureDetector(
+                onLongPressStart: (_) => _startTimer(_decrementCounter),
+                onLongPressEnd: (_) => _stopTimer(),
+                child: IconButton(
+                  icon: Icon(Icons.remove, size: 20, color: widget.iconColor ?? Colors.black),
+                  onPressed: _decrementCounter,
+                ),
               ),
               SizedBox(
-                width: 80, // Set a fixed width for the text box
+                width: 80,
                 height: 45,
                 child: TextFormField(
                   controller: _controller,
@@ -97,27 +127,30 @@ class _CounterWidgetState extends State<CounterWidget> {
                   style: widget.textStyle ?? const TextStyle(fontSize: 15.0),
                   decoration: InputDecoration(
                     border: InputBorder.none,
-                    // hintText:'123',
                     labelText: widget.title,
-                    // labelStyle: TextStyle(
-                    //   color: Colors.green,
-                    //   fontSize: 20,
-                    //   fontStyle: FontStyle.italic, // 设置斜体
-                    //   decoration: TextDecoration.underline, // 设置下划线
-                    // ),
                   ),
-                  readOnly: true, // Make the TextFormField read-only
+                  keyboardType: TextInputType.number,
+                  onChanged: _onTextChanged,
                 ),
               ),
-              IconButton(
-                icon: Icon(Icons.add,
-                    size: 20, color: widget.iconColor ?? Colors.black),
-                onPressed: _incrementCounter,
+              GestureDetector(
+                onLongPressStart: (_) => _startTimer(_incrementCounter),
+                onLongPressEnd: (_) => _stopTimer(),
+                child: IconButton(
+                  icon: Icon(Icons.add, size: 20, color: widget.iconColor ?? Colors.black),
+                  onPressed: _incrementCounter,
+                ),
               ),
             ],
           ),
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 }
