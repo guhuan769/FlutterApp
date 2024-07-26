@@ -40,20 +40,20 @@ class CommonToast {
 
   static Future<void> showToastNew(BuildContext context, String title,
       String content, List<Widget>? actions) {
-    int _start = 10; // 倒计时初始值
-    Timer? _timer;
+    int start = 30; // 倒计时初始值
+    Timer? timer;
 
     void startTimer(StateSetter setState) {
       const oneSec = Duration(seconds: 1);
-      _timer = Timer.periodic(oneSec, (Timer timer) {
-        if (_start == 0) {
+      timer = Timer.periodic(oneSec, (Timer timer) {
+        if (start == 0) {
           timer.cancel();
           if (Navigator.of(context).canPop()) {
             Navigator.of(context).pop();
           }
         } else {
           setState(() {
-            _start--;
+            start--;
           });
         }
       });
@@ -64,7 +64,7 @@ class CommonToast {
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setState) {
-            if (_timer == null) {
+            if (timer == null) {
               startTimer(setState);
             }
             return AlertDialog(
@@ -77,7 +77,7 @@ class CommonToast {
                     style: Theme.of(context).dialogTheme.titleTextStyle,
                   ),
                   Text(
-                    '$_start秒 关闭',
+                    '$start秒 关闭',
                     style: Theme.of(context).dialogTheme.titleTextStyle,
                   ),
                 ],
@@ -92,14 +92,11 @@ class CommonToast {
         );
       },
     ).then((_) {
-      if (_timer != null) {
-        _timer!.cancel();
+      if (timer != null) {
+        timer!.cancel();
       }
     });
   }
-
-
-
 
   /// 阻止弹窗
   static Future<bool?> showHint(BuildContext context) {

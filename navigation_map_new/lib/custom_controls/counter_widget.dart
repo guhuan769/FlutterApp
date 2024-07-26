@@ -128,7 +128,7 @@ class _CounterWidgetState extends State<CounterWidget> {
                   onLongPressEnd: (_) => _stopTimer(),
                   child: IconButton(
                     icon: Icon(Icons.remove,
-                        size: 20, color: widget.iconColor ?? Colors.black),
+                        size: 40, color: widget.iconColor ?? Colors.black),
                     onPressed: _decrementCounter,
                   ),
                 ),
@@ -152,7 +152,7 @@ class _CounterWidgetState extends State<CounterWidget> {
                   onLongPressEnd: (_) => _stopTimer(),
                   child: IconButton(
                     icon: Icon(Icons.add,
-                        size: 20, color: widget.iconColor ?? Colors.black),
+                        size: 40, color: widget.iconColor ?? Colors.black),
                     onPressed: _incrementCounter,
                   ),
                 ),
