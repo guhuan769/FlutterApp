@@ -68,7 +68,7 @@ class _HomePageState extends State<HomePage> {
               padding: EdgeInsets.zero, // 移除内边距
               decoration: BoxDecoration(
                 color: Theme.of(context).drawerTheme.backgroundColor,
-                image: DecorationImage(
+                image: const DecorationImage(
                   image: AssetImage('assets/images/car_logo.png'),
                   fit: BoxFit.cover,
                 ),
@@ -164,12 +164,6 @@ class _HomePageState extends State<HomePage> {
             IconButton(
                 onPressed: () {
                   msgShow('该功能迁移到侧边栏“设置”');
-                  // Navigator.of(context).push(MaterialPageRoute(
-                  //         settings: const RouteSettings(
-                  //             arguments: {"id": 10, "name": "_我爱你"}),
-                  //         builder: (context) =>
-                  //             const SettingPage()) //const PhotoPage()
-                  //     );
                 },
                 // color: Colors.white,
                 icon: const FaIcon(
