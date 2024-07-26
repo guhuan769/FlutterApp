@@ -10,7 +10,9 @@ class CounterWidget extends StatefulWidget {
   final ValueChanged<num>? onChanged;
   final String? title;
   final TextStyle? titleStyle;
-  final TextEditingController? controller; // Add controller parameter
+  final TextEditingController? controller;
+  final double? width;
+  final double? height;
 
   const CounterWidget({
     super.key,
@@ -22,7 +24,9 @@ class CounterWidget extends StatefulWidget {
     this.onChanged,
     this.title,
     this.titleStyle,
-    this.controller, // Initialize the controller parameter
+    this.controller,
+    this.width,
+    this.height,
   });
 
   @override
@@ -86,6 +90,8 @@ class _CounterWidgetState extends State<CounterWidget> {
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: widget.width,
+      height: widget.height,
       padding: const EdgeInsets.symmetric(horizontal: 0.0),
       decoration: BoxDecoration(
         color: widget.backgroundColor ?? Colors.white,
@@ -96,54 +102,64 @@ class _CounterWidgetState extends State<CounterWidget> {
           ),
         ],
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // if (widget.title != null)
-          //   Text(
-          //     widget.title!,
-          //     style: widget.titleStyle ?? const TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold),
-          //   ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              GestureDetector(
-                onLongPressStart: (_) => _startTimer(_decrementCounter),
-                onLongPressEnd: (_) => _stopTimer(),
-                child: IconButton(
-                  icon: Icon(Icons.remove, size: 20, color: widget.iconColor ?? Colors.black),
-                  onPressed: _decrementCounter,
-                ),
+      child: FittedBox(
+        fit: BoxFit.contain,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            SizedBox(
+              height: 10,
+            ),
+            if (widget.title != null)
+              Text(
+                widget.title!,
+                style: widget.titleStyle ??
+                    const TextStyle(
+                        fontSize: 18.0, fontWeight: FontWeight.bold),
               ),
-              SizedBox(
-                width: 80,
-                height: 45,
-                child: TextFormField(
-                  controller: _controller,
-                  textAlign: TextAlign.center,
-                  style: widget.textStyle ?? const TextStyle(fontSize: 15.0),
-                  decoration: InputDecoration(
-                    border: InputBorder.none,
-                    labelText: widget.title,
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                GestureDetector(
+                  onLongPressStart: (_) => _startTimer(_decrementCounter),
+                  onLongPressEnd: (_) => _stopTimer(),
+                  child: IconButton(
+                    icon: Icon(Icons.remove,
+                        size: 20, color: widget.iconColor ?? Colors.black),
+                    onPressed: _decrementCounter,
                   ),
-                  keyboardType: TextInputType.number,
-                  onChanged: _onTextChanged,
                 ),
-              ),
-              GestureDetector(
-                onLongPressStart: (_) => _startTimer(_incrementCounter),
-                onLongPressEnd: (_) => _stopTimer(),
-                child: IconButton(
-                  icon: Icon(Icons.add, size: 20, color: widget.iconColor ?? Colors.black),
-                  onPressed: _incrementCounter,
+                SizedBox(
+                  width: 80,
+                  height: 45,
+                  child: TextFormField(
+                    controller: _controller,
+                    textAlign: TextAlign.center,
+                    style: widget.textStyle ?? const TextStyle(fontSize: 15.0),
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      // labelText: widget.title,
+                    ),
+                    keyboardType: TextInputType.number,
+                    onChanged: _onTextChanged,
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ],
+                GestureDetector(
+                  onLongPressStart: (_) => _startTimer(_incrementCounter),
+                  onLongPressEnd: (_) => _stopTimer(),
+                  child: IconButton(
+                    icon: Icon(Icons.add,
+                        size: 20, color: widget.iconColor ?? Colors.black),
+                    onPressed: _incrementCounter,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

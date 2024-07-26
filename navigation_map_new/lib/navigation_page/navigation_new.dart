@@ -345,13 +345,15 @@ class _NavigationNewState extends State<NavigationNew> {
                         Row(
                           children: [
                             CounterWidget(
+                              height: 50,
+                              width: 150,
                               title: '前进后退',
                               initialValue: 0.0,
                               step: 0.01,
                               backgroundColor: Colors.grey[200],
                               iconColor: Colors.black,
                               textStyle: const TextStyle(
-                                  fontSize: 15.0, color: Colors.black),
+                                  fontSize: 25.0, color: Colors.black),
                               onChanged: _handleGoValueChanged,
                             ),
                             const SizedBox(
@@ -388,13 +390,15 @@ class _NavigationNewState extends State<NavigationNew> {
                         Row(
                           children: [
                             CounterWidget(
+                              height: 50,
+                              width: 150,
                               title: '左右移动',
                               initialValue: 0.0,
                               step: 0.01,
                               backgroundColor: Colors.grey[200],
                               iconColor: Colors.black,
                               textStyle: const TextStyle(
-                                  fontSize: 15.0, color: Colors.black),
+                                  fontSize: 25.0, color: Colors.black),
                               onChanged: _handleMoveValueChanged,
                             ),
                             const SizedBox(
@@ -431,13 +435,15 @@ class _NavigationNewState extends State<NavigationNew> {
                         Row(
                           children: [
                             CounterWidget(
+                              height: 50,
+                              width: 150,
                               title: '车辆角度',
                               initialValue: 0.0,
                               step: 0.01,
                               backgroundColor: Colors.grey[200],
                               iconColor: Colors.black,
                               textStyle: const TextStyle(
-                                  fontSize: 15.0, color: Colors.black),
+                                  fontSize: 25.0, color: Colors.black),
                               onChanged: _handleThemeValueChanged,
                             ),
                             const SizedBox(
@@ -739,28 +745,31 @@ class _NavigationNewState extends State<NavigationNew> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Column(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
                               CounterWidget(
+                                height: 50,
+                                width: 120,
                                 title: '开始节点',
                                 initialValue: 0,
                                 step: 1,
                                 backgroundColor: Colors.grey[200],
                                 iconColor: Colors.black,
                                 textStyle: const TextStyle(
-                                    fontSize: 15.0, color: Colors.black),
+                                    fontSize: 25.0, color: Colors.black),
                                 // onChanged: _handleGoValueChanged,
                                 controller: _startController,
                               ),
                               const SizedBox(height: 10),
                               CounterWidget(
+                                height: 50,
+                                width: 120,
                                 title: '结束节点',
                                 initialValue: 0,
                                 step: 1,
                                 backgroundColor: Colors.grey[200],
                                 iconColor: Colors.black,
                                 textStyle: const TextStyle(
-                                    fontSize: 15.0, color: Colors.black),
+                                    fontSize: 25.0, color: Colors.black),
                                 // onChanged: _handleGoValueChanged,
                                 controller: _endController,
                               ),
@@ -768,7 +777,7 @@ class _NavigationNewState extends State<NavigationNew> {
                                 text: '目的地',
                                 icon: Icons.location_on,
                                 height: 50,
-                                width: 160,
+                                width: 120,
                                 onPressed: () {
                                   // CommonToast.showToast(_startController.text);
                                   SendAddressData data_0x3d0 = SendAddressData(
@@ -801,7 +810,7 @@ class _NavigationNewState extends State<NavigationNew> {
                                   _sendUdpMessage(sendAll);
                                   _onErrorMessageReceived(0, "数据已发送。");
                                 },
-                              )
+                              ),
                             ],
                           ),
                           Container(
@@ -810,36 +819,40 @@ class _NavigationNewState extends State<NavigationNew> {
                             color: Colors.grey,
                           ),
                           Column(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
                               CounterWidget(
+                                height: 50,
+                                width: 120,
                                 title: '开始节点',
                                 initialValue: 0,
                                 step: 1,
                                 backgroundColor: Colors.grey[200],
                                 iconColor: Colors.black,
                                 textStyle: const TextStyle(
-                                    fontSize: 15.0, color: Colors.black),
+                                    fontSize: 25.0, color: Colors.black),
                                 // onChanged: _handleGoValueChanged,
                                 controller: _backStartController,
                               ),
                               const SizedBox(height: 10),
                               CounterWidget(
+                                height: 50,
+                                width: 120,
                                 title: '结束节点',
                                 initialValue: 0,
                                 step: 1,
                                 backgroundColor: Colors.grey[200],
                                 iconColor: Colors.black,
                                 textStyle: const TextStyle(
-                                    fontSize: 15.0, color: Colors.black),
+                                    fontSize: 25.0, color: Colors.black),
                                 // onChanged: _handleGoValueChanged,
                                 controller: _backEndController,
                               ),
                               CustomButton(
+
                                 text: '回到原点',
                                 icon: Icons.location_on,
                                 height: 50,
-                                width: 160,
+                                width: 120,
                                 onPressed: () {
                                   SendAddressData data_0x3d0 = SendAddressData(
                                       address: 0x3d0,
@@ -876,7 +889,7 @@ class _NavigationNewState extends State<NavigationNew> {
                                 },
                               ),
                             ],
-                          )
+                          ),
                         ],
                       ))
                 ],
