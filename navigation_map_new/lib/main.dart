@@ -12,6 +12,7 @@ void main() async  {
     print('$degrees 度 = $radians 弧度');
     runApp(const Application());
 }
+
 double degreesToRadians(double degrees) {
     return degrees * pi / 180;
 }
