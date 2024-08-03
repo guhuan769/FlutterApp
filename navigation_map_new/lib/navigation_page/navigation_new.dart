@@ -603,7 +603,7 @@ class _NavigationNewState extends State<NavigationNew> {
                 children: [
                   CustomCard(
                     screenWidth: MediaQuery.of(context).size.width,
-                    title: '支撑电击运动控制',
+                    title: '支撑电机运动控制',
                     child: Column(
                       children: [
                         Padding(
