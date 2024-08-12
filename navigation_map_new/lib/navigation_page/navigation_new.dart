@@ -348,14 +348,14 @@ class _NavigationNewState extends State<NavigationNew> {
                       const Divider(
                         color: Colors.grey, // 直线的颜色
                         thickness: 2.0, // 直线的厚度
-                        indent: 10.0, // 左侧缩进
-                        endIndent: 10.0, // 右侧缩进
+                        indent: 0.0, // 左侧缩进
+                        endIndent: 0.0, // 右侧缩进
                       ),
                       const SizedBox(height: 10),
                       Row(
                         children: [
                           const SizedBox(
-                              width: 70,
+                              // width: 0,
                               child: Text(
                                 '车辆状态:',
                                 textAlign: TextAlign.right,
@@ -515,8 +515,8 @@ class _NavigationNewState extends State<NavigationNew> {
                         const Divider(
                           color: Colors.grey, // 直线的颜色
                           thickness: 2.0, // 直线的厚度
-                          indent: 10.0, // 左侧缩进
-                          endIndent: 10.0, // 右侧缩进
+                          indent: 0.0, // 左侧缩进
+                          endIndent: 0.0, // 右侧缩进
                         ),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.start,
