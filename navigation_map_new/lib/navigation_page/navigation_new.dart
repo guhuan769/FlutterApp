@@ -34,6 +34,7 @@ class NavigationNew extends StatefulWidget {
 
 class _NavigationNewState extends State<NavigationNew> {
   late String writeLog = "无日志";
+  late String writeStatusLog = "无日志";
 
   late UdpHelper _udpHelper;
   bool isActive = false;
@@ -261,7 +262,9 @@ class _NavigationNewState extends State<NavigationNew> {
   void _toggleIconColor() {
     setState(() {
       _iconColor = _iconColor == Colors.green ? Colors.red : Colors.green;
+      writeStatusLog  != "已连接" ? Colors.red : Colors.green;
       _carOpen = _iconColor == Colors.red ? "车辆已关闭" : "车辆已开启";
+      // writeStatusLog != "已连接" == Colors.red ? "车辆已关闭" : "车辆已开启";
     });
   }
 
@@ -285,48 +288,81 @@ class _NavigationNewState extends State<NavigationNew> {
                   screenWidth: MediaQuery.of(context).size.width,
                   title: '状态',
                   icon: FontAwesomeIcons.landMineOn,
-                  child: Row(
+                  child: Column(
                     children: [
-                      Expanded(
-                        child: Row(children: [
-                          // const SizedBox(width: 10),
-                          Text(
-                            _carOpen,
-                            style: Theme.of(context).textTheme.bodyMedium,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Row(children: [
+                              // const SizedBox(width: 10),
+                              Text(
+                                _carOpen,
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                            ]),
                           ),
-                        ]),
+                          IconButton(
+                            onPressed: () {
+                              // pingIP('8.8.8.8'); // 替换为你想要 ping 的 IP 地址
+                              // CommonToast.pingIP('192.168.31.7').then((status) {
+                              // });
+                              // _toggleIconColor();
+                              final ping = Ping('192.168.31.7', count: 1);
+                              ping.stream.listen((event) {
+                                try {
+                                  PingResponse entity =
+                                      event.response as PingResponse;
+                                  // if (event.response != null) {
+                                  if (entity.ip != null) {
+                                    print(
+                                        'Ping response time: ${event.response!.time!.inMilliseconds} ms');
+                                    setState(() {
+                                      isActive = true;
+                                    });
+                                    setState(() {
+                                      writeStatusLog = '已连接';
+                                    });
+                                    _toggleIconColor();
+                                    // _onErrorMessageReceived(0, "已连接");
+
+                                  } else if (entity.ip == null) {
+                                    setState(() {
+                                      isActive = false;
+                                    });
+                                  }
+                                } catch (e, stackTrace) {
+                                  // _onErrorMessageReceived(0, "请接入目标设备局域网.");
+                                  setState(() {
+                                    writeStatusLog = '请接入目标设备局域网';
+                                  });
+                                }
+                              });
+                            },
+                            icon: const Icon(Icons.power_settings_new),
+                            color: _iconColor,
+                          ),
+                        
+                        ],
                       ),
-                      IconButton(
-                        onPressed: () {
-                          // pingIP('8.8.8.8'); // 替换为你想要 ping 的 IP 地址
-                          // CommonToast.pingIP('192.168.31.7').then((status) {
-                          // });
-                          final ping = Ping('192.168.31.7', count: 1);
-                          ping.stream.listen((event) {
-                            try {
-                              PingResponse entity =
-                                  event.response as PingResponse;
-                              // if (event.response != null) {
-                              if (entity.ip != null) {
-                                print(
-                                    'Ping response time: ${event.response!.time!.inMilliseconds} ms');
-                                setState(() {
-                                  isActive = true;
-                                });
-                                _toggleIconColor();
-                                _onErrorMessageReceived(0, "已连接");
-                              } else if (entity.ip == null) {
-                                setState(() {
-                                  isActive = false;
-                                });
-                              }
-                            } catch (e, stackTrace) {
-                              _onErrorMessageReceived(0, "请接入目标设备局域网.");
-                            }
-                          });
-                        },
-                        icon: const Icon(Icons.power_settings_new),
-                        color: _iconColor,
+                      const SizedBox(height: 10),
+                      const Divider(
+                        color: Colors.grey, // 直线的颜色
+                        thickness: 2.0, // 直线的厚度
+                        indent: 10.0, // 左侧缩进
+                        endIndent: 10.0, // 右侧缩进
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          const SizedBox(
+                              width: 70,
+                              child: Text(
+                                '车辆状态:',
+                                textAlign: TextAlign.right,
+                              )),
+                          const SizedBox(width: 10),
+                          Text(writeStatusLog),
+                        ],
                       ),
                     ],
                   ),
@@ -512,7 +548,7 @@ class _NavigationNewState extends State<NavigationNew> {
                                   textAlign: TextAlign.right,
                                 )),
                             const SizedBox(width: 10),
-                            Text(writeLog)
+                            Text(writeLog),
                           ],
                         ),
                       ],
@@ -848,7 +884,6 @@ class _NavigationNewState extends State<NavigationNew> {
                                 controller: _backEndController,
                               ),
                               CustomButton(
-
                                 text: '回到原点',
                                 icon: Icons.location_on,
                                 height: 50,
