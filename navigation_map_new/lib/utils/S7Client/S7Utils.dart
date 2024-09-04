@@ -4,7 +4,7 @@ import 'dart:typed_data';
 ///西门子PLC控制
 ///
 class S7utils{
-  Future<void> s7Connect(Socket socket) async {
+  static Future<void> s7Connect(Socket socket) async {
     // 2. 发送COTP连接请求
     List<int> bytes = [
       // TPKT
@@ -39,11 +39,11 @@ class S7utils{
     socket.add(Uint8List.fromList(bytes));
     await socket.flush();
 
-    // 接收COTP CC结果
+    // 接收COTP CC结果 暂时注释
     bytes = List<int>.filled(27, 0);
-    await socket.listen((data) {
-      bytes.setRange(0, data.length, data);
-    }).asFuture();
+    // await socket.listen((data) {
+    //   bytes.setRange(0, data.length, data);
+    // }).asFuture();
 
     // 3. 设置通信
     bytes = [
@@ -81,16 +81,76 @@ class S7utils{
 
     // 接收响应
     List<int> resp = List<int>.filled(27, 0);
-    await socket.listen((data) {
-      resp.setRange(0, data.length, data);
-    }).asFuture();
+    // await socket.listen((data) {
+    //   resp.setRange(0, data.length, data);
+    // }).asFuture();
 
     // 解析PDU长度
     int pdu = (resp[25] << 8) + resp[26];
     print('PDU Length: $pdu');
   }
 
+  static Future<void> s7Read(Socket socket) async {
+    // DB1.DBW100   读取 DB2.DBX0.0 的数据
+    // DB20.DBX6.0
+    List<int> bytes = [
+      // TPKT - 4bytes
+      0x03,
+      0x00,
+      0x00, 0x1f, // 十进制 31    整个数据组的长度
 
+      // COTP
+      0x02,
+      0xf0, // 数据传输
+      0x80,
+
+      // S7 - Header
+      0x32, //协议ID 默认0x32 0x72 S7Plus
+      0x01, // 向PLC发送一个Job请求
+      0x00, 0x00,
+      0x00, 0x01, //累加序号
+
+      //Parameter 长度
+      0x00, 0x0e,
+      // Data 长度
+      0x00, 0x00,
+
+      // S7 - Parameter
+      0x04, //向PLC发送一个读变量的请求
+      0x01, //Item的数量 Item中包含了请求的地址以及类型相关信息
+
+      // S7 - Parameter - Item
+      0x12,
+      0x0a, //当前Item部分，此字节往后还有10个字节
+      0x10,
+      0x02, //传输数据类型 02： byte 01 : bool  // 01 bit 02 byte 04 word
+      0x00, 0x01, //读取的数量 如若读取10个的话就是0x0a
+
+      // v - DB20.DBX6.0
+      0x00, 0x14, // db number 对应DB块的编号，如果区域不是DB，这里写0
+      0x84, //存储区  Datablock -> V   0x81 I区
+      //变量地址 100 Byte -2 100 101 占3个字节
+      0x00, 0x00, 0x30
+
+      // 0000 0000 0000 0000 0000 0000 //表达字节 + 位信息
+      // 0000 0000 0000 0000 0011 0 000
+      // DB1.DBX100.5        0x64  0110 0100     [0-7    110]
+      // 0000 0000 0000 0110 0010 0 000
+      // 0x00 0x02 0x25
+
+      //100 << 3 + 位信息
+      //
+    ];
+
+    //socket.add(bytes); //读取地址变量数据的请求
+    socket.add(Uint8List.fromList(bytes));
+    await socket.flush();
+    // List<int> resp = List.filled(27, 0);
+    // await for (var data in socket) {
+    //   resp.setRange(0, data.length, data);
+    //   int pdu = (resp[26] << 8) | resp[25];
+    // }
+  }
 
 
 }

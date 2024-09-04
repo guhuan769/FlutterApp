@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:dart_ping/dart_ping.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:navigation_map/utils/S7Client/S7Utils.dart';
 
 import '../CustomUserControls/CustomCard.dart';
 import '../custom_controls/custom_button.dart';
@@ -147,8 +150,13 @@ class _WindWalkerLiftModelState extends State<WindWalkerLiftModel> {
                               icon: Icons.arrow_upward,
                               height: 50,
                               width: 200,
-                              onPressed:(){
-
+                              onPressed:() async {
+                                final socket = await Socket.connect('192.168.0.5', 102);
+                                print('Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
+                                await S7utils.s7Connect(socket);
+                                await S7utils.s7Read(socket);
+                                // 关闭连接
+                                await socket.close();
                               }
                             ),
                           ],
