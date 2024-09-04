@@ -7,6 +7,8 @@ import 'dart:typed_data';
 import 'package:crclib/catalog.dart';
 import 'package:crclib/crclib.dart';
 
+///
+/// 易行控制器
 class SendData {
   SendData({
     this.cRCHigh,
