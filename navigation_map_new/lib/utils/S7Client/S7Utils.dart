@@ -153,7 +153,7 @@ class S7utils{
   }
 
 
-  static Future<void> s7WriteUp(Socket socket,int actionStatus) async {
+  static Future<void> s7WriteUp(Socket socket,int actionStatus,int address) async {
     List<int> bytes = [
       // TPKT - 4 bytes
       0x03,
@@ -190,7 +190,7 @@ class S7utils{
       // v - DB1
       0x00, 0x14, // DB number, corresponding to the DB block number, if not DB, write 0
       0x84, // Storage area
-      0x00, 0x00, 0x30,
+      0x00, 0x00, 0x31,// default : 0x30
 
       // 0000 0000 0000 0000 0000 0 000
 
@@ -207,7 +207,7 @@ class S7utils{
     await socket.flush();
   }
 
-  static Future<void> s7WriteDown(Socket socket,int actionStatus) async {
+  static Future<void> s7WriteDown(Socket socket,int actionStatus,int address) async {
     List<int> bytes = [
       // TPKT - 4 bytes
       0x03,
