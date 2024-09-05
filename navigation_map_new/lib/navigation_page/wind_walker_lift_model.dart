@@ -146,15 +146,19 @@ class _WindWalkerLiftModelState extends State<WindWalkerLiftModel> {
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             CustomButton(
-                              text: '前',
+                              text: '上升启动',
                               icon: Icons.arrow_upward,
                               height: 50,
                               width: 200,
                               onPressed:() async {
-                                final socket = await Socket.connect('192.168.0.5', 102);
+                                //192.168.10.1
+                                //192.168.0.5
+                                final socket = await Socket.connect('192.168.10.1', 102);
                                 print('Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
                                 await S7utils.s7Connect(socket);
-                                await S7utils.s7Read(socket);
+                                //此处还有地址没传
+                                await S7utils.s7WriteUp(socket,0x00);
+                                // await S7utils.s7Read(socket);
                                 // 关闭连接
                                 await socket.close();
                               }
@@ -166,11 +170,70 @@ class _WindWalkerLiftModelState extends State<WindWalkerLiftModel> {
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             CustomButton(
-                                text: '后',
+                                text: '上升收起',
                                 icon: Icons.arrow_downward,
                                 height: 50,
                                 width: 200,
-                                onPressed:(){
+                                onPressed:() async {
+                                  //192.168.10.1
+                                  //192.168.0.5
+                                  final socket = await Socket.connect('192.168.10.1', 102);
+                                  print('Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
+                                  await S7utils.s7Connect(socket);
+                                  await S7utils.s7WriteUp(socket,0x01);
+                                  // await S7utils.s7Read(socket);
+                                  // 关闭连接
+                                  await socket.close();
+
+                                }
+                            ),
+                          ],
+                        ),
+
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            CustomButton(
+                                text: '下降启动',
+                                icon: Icons.arrow_downward,
+                                height: 50,
+                                width: 200,
+                                onPressed:() async {
+                                  //192.168.10.1
+                                  //192.168.0.5
+                                  final socket = await Socket.connect('192.168.10.1', 102);
+                                  print('Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
+                                  await S7utils.s7Connect(socket);
+                                  await S7utils.s7WriteDown(socket,0x01);
+                                  // await S7utils.s7Read(socket);
+                                  // 关闭连接
+                                  await socket.close();
+
+                                }
+                            ),
+                          ],
+                        ),
+
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            CustomButton(
+                                text: '下降收起',
+                                icon: Icons.arrow_downward,
+                                height: 50,
+                                width: 200,
+                                onPressed:() async {
+                                  //192.168.10.1
+                                  //192.168.0.5
+                                  final socket = await Socket.connect('192.168.10.1', 102);
+                                  print('Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
+                                  await S7utils.s7Connect(socket);
+                                  await S7utils.s7WriteDown(socket,0x01);
+                                  // await S7utils.s7Read(socket);
+                                  // 关闭连接
+                                  await socket.close();
 
                                 }
                             ),

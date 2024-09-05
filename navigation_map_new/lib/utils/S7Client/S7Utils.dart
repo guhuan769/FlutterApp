@@ -153,5 +153,113 @@ class S7utils{
   }
 
 
+  static Future<void> s7WriteUp(Socket socket,int actionStatus) async {
+    List<int> bytes = [
+      // TPKT - 4 bytes
+      0x03,
+      0x00,
+      0x00, 0x24, // Decimal 31, length of the entire data group
+
+      // COTP
+      0x02,
+      0xf0, // Data transfer
+      0x80,
+
+      // S7 - Header
+      0x32, // Protocol ID, default 0x32, 0x72 for S7Plus
+      0x01, // Send a Job request to PLC
+      0x00, 0x00,
+      0x00, 0x01, // Accumulated sequence number
+
+      // Parameter length
+      0x00, 0x0e,
+      // Data length
+      0x00, 0x05,
+
+      // S7 - Parameter
+      0x05, // Send a write variable request to PLC, 04 for read, 05 for write
+      0x01, // Number of items, contains address and type information
+
+      // S7 - Parameter - Item
+      0x12,
+      0x0a, // Current item part, 10 bytes follow this byte
+      0x10,
+      0x02, // Data type, 02: byte, 01: bool
+      0x00, 0x01, // Number of reads, if reading 10, it would be 0x0a
+
+      // v - DB1
+      0x00, 0x14, // DB number, corresponding to the DB block number, if not DB, write 0
+      0x84, // Storage area
+      0x00, 0x00, 0x30,
+
+      // 0000 0000 0000 0000 0000 0 000
+
+      // S7 - Data - Item
+      0x00,
+      0x04,
+      0x00, 0x08, // Length calculated in bits, 8
+      //0x00 // 写入的数据
+    ];
+
+    bytes.add(actionStatus);
+
+    socket.add(Uint8List.fromList(bytes));
+    await socket.flush();
+  }
+
+  static Future<void> s7WriteDown(Socket socket,int actionStatus) async {
+    List<int> bytes = [
+      // TPKT - 4 bytes
+      0x03,
+      0x00,
+      0x00, 0x24, // Decimal 31, length of the entire data group
+
+      // COTP
+      0x02,
+      0xf0, // Data transfer
+      0x80,
+
+      // S7 - Header
+      0x32, // Protocol ID, default 0x32, 0x72 for S7Plus
+      0x01, // Send a Job request to PLC
+      0x00, 0x00,
+      0x00, 0x01, // Accumulated sequence number
+
+      // Parameter length
+      0x00, 0x0e,
+      // Data length
+      0x00, 0x05,
+
+      // S7 - Parameter
+      0x05, // Send a write variable request to PLC, 04 for read, 05 for write
+      0x01, // Number of items, contains address and type information
+
+      // S7 - Parameter - Item
+      0x12,
+      0x0a, // Current item part, 10 bytes follow this byte
+      0x10,
+      0x02, // Data type, 02: byte, 01: bool
+      0x00, 0x01, // Number of reads, if reading 10, it would be 0x0a
+
+      // v - DB1
+      0x00, 0x14, // DB number, corresponding to the DB block number, if not DB, write 0
+      0x84, // Storage area
+      0x00, 0x00, 0x31,
+
+      // 0000 0000 0000 0000 0000 0 000
+
+      // S7 - Data - Item
+      0x00,
+      0x04,
+      0x00, 0x08, // Length calculated in bits, 8
+      //0x00 // 写入的数据
+    ];
+
+    bytes.add(actionStatus);
+
+    socket.add(Uint8List.fromList(bytes));
+    await socket.flush();
+  }
+
 }
 
