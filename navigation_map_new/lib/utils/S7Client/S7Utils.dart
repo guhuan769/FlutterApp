@@ -190,7 +190,7 @@ class S7utils{
       // v - DB1
       0x00, 0x14, // DB number, corresponding to the DB block number, if not DB, write 0
       0x84, // Storage area
-      0x00, 0x00, 0x31,// default : 0x30
+      0x00, 0x00, address,// default : 0x30
 
       // 0000 0000 0000 0000 0000 0 000
 
@@ -244,7 +244,7 @@ class S7utils{
       // v - DB1
       0x00, 0x14, // DB number, corresponding to the DB block number, if not DB, write 0
       0x84, // Storage area
-      0x00, 0x00, 0x31,
+      0x00, 0x00, address,
 
       // 0000 0000 0000 0000 0000 0 000
 

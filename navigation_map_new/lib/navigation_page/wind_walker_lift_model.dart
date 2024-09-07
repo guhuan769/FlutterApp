@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dart_ping/dart_ping.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:navigation_map/Utils/common_toast.dart';
 import 'package:navigation_map/utils/S7Client/S7Utils.dart';
 
 import '../CustomUserControls/CustomCard.dart';
@@ -21,6 +22,9 @@ class _WindWalkerLiftModelState extends State<WindWalkerLiftModel> {
   late String writeStatusLog = "无日志";
   Color _iconColor = Colors.red;
   String _carOpen = "车辆已关闭";
+
+  //PLC默认IP  192.168.10.1
+  final String ip = "192.168.10.1";
   bool isActive = false;
 
   void _toggleIconColor() {
@@ -67,7 +71,7 @@ class _WindWalkerLiftModelState extends State<WindWalkerLiftModel> {
                               // CommonToast.pingIP('192.168.31.7').then((status) {
                               // });
                               // _toggleIconColor();
-                              final ping = Ping('192.168.0.5', count: 1);
+                              final ping = Ping(ip, count: 1);
                               ping.stream.listen((event) {
                                 try {
                                   PingResponse entity =
@@ -139,102 +143,338 @@ class _WindWalkerLiftModelState extends State<WindWalkerLiftModel> {
                     icon: FontAwesomeIcons.locationCrosshairs,
                     child: Column(
                       children: [
+                        const SizedBox(height: 20),
+
+                        //前进点动
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            GestureDetector(
+                              onTapDown: (value) async {
+                                  // CommonToast.showToastNew(context, "title", "onTapDown", [
+                                  //   Text('data')
+                                  // ]);
+                                // CommonToast.showToast('onTapDown');
+                                final socket =
+                                    await Socket.connect(ip, 102);
+                                print(
+                                    'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
+                                await S7utils.s7Connect(socket);
+                                //此处还有地址没传
+                                await S7utils.s7WriteUp(socket, 0x10, 0x00);
+                                // await S7utils.s7Read(socket);
+                                // 关闭连接
+                                await socket.close();
+                              },
+                              onTapUp: (value) async {
+                                // CommonToast.showToastNew(context, "title", "onTapUp", [
+                                //   Text('data')
+                                // ]);
+                                // CommonToast.showToast('onTapUp');
+                              },
+                              onTapCancel: () async {
+                                // CommonToast.showToast('onTapCancel');
+                                final socket =
+                                await Socket.connect(ip, 102);
+                                print(
+                                    'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
+                                await S7utils.s7Connect(socket);
+                                //此处还有地址没传
+                                await S7utils.s7WriteUp(socket, 0x00, 0x00);
+                                // await S7utils.s7Read(socket);
+                                // 关闭连接
+                                await socket.close();
+                              },
+                              child: CustomButton(
+                                  text: '前进点动',
+                                  icon: Icons.arrow_upward,
+                                  height: 50,
+                                  width: 200,
+                                  onPressed: () async {
+
+                                  }),
+                            ),
+                          ],
+                        ),
+                        //后退点动
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            GestureDetector(
+                              onTapDown: (value) async {
+                                // CommonToast.showToastNew(context, "title", "onTapDown", [
+                                //   Text('data')
+                                // ]);
+                                // CommonToast.showToast('onTapDown');
+                                final socket =
+                                await Socket.connect(ip, 102);
+                                print(
+                                    'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
+                                await S7utils.s7Connect(socket);
+                                //此处还有地址没传
+                                await S7utils.s7WriteUp(socket, 0x20, 0x00);
+                                // await S7utils.s7Read(socket);
+                                // 关闭连接
+                                await socket.close();
+                              },
+                              onTapUp: (value) async {
+                                // CommonToast.showToastNew(context, "title", "onTapUp", [
+                                //   Text('data')
+                                // ]);
+                                // CommonToast.showToast('onTapUp');
+                              },
+                              onTapCancel: () async {
+                                // CommonToast.showToast('onTapCancel');
+                                final socket =
+                                await Socket.connect(ip, 102);
+                                print(
+                                    'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
+                                await S7utils.s7Connect(socket);
+                                //此处还有地址没传
+                                await S7utils.s7WriteUp(socket, 0x00, 0x00);
+                                // await S7utils.s7Read(socket);
+                                // 关闭连接
+                                await socket.close();
+                              },
+                              child: CustomButton(
+                                  text: '后退点动',
+                                  icon: Icons.arrow_downward,
+                                  height: 50,
+                                  width: 200,
+                                  onPressed: () async {
+
+                                  }),
+                            ),
+                          ],
+                        ),
+
+                        //左转弯 未实现
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            GestureDetector(
+                              onTapDown: (value) async {
+                                // CommonToast.showToastNew(context, "title", "onTapDown", [
+                                //   Text('data')
+                                // ]);
+                                // CommonToast.showToast('onTapDown');
+                                final socket =
+                                await Socket.connect(ip, 102);
+                                print(
+                                    'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
+                                await S7utils.s7Connect(socket);
+                                //此处还有地址没传
+                                await S7utils.s7WriteUp(socket, 0x80, 0x00);
+                                // await S7utils.s7Read(socket);
+                                // 关闭连接
+                                await socket.close();
+                              },
+                              onTapUp: (value) async {
+                                // CommonToast.showToastNew(context, "title", "onTapUp", [
+                                //   Text('data')
+                                // ]);
+                                // CommonToast.showToast('onTapUp');
+                              },
+                              onTapCancel: () async {
+                                // CommonToast.showToast('onTapCancel');
+                                final socket =
+                                await Socket.connect(ip, 102);
+                                print(
+                                    'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
+                                await S7utils.s7Connect(socket);
+                                //此处还有地址没传
+                                await S7utils.s7WriteUp(socket, 0x00, 0x00);
+                                // await S7utils.s7Read(socket);
+                                // 关闭连接
+                                await socket.close();
+                              },
+                              child: CustomButton(
+                                  text: '左转弯',
+                                  icon: Icons.arrow_back,
+                                  height: 50,
+                                  width: 200,
+                                  onPressed: () async {
+
+                                  }),
+                            ),
+                          ],
+                        ),
+                        //右转弯 未实现
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            GestureDetector(
+                              onTapDown: (value) async {
+                                // CommonToast.showToastNew(context, "title", "onTapDown", [
+                                //   Text('data')
+                                // ]);
+                                // CommonToast.showToast('onTapDown');
+                                final socket =
+                                await Socket.connect(ip, 102);
+                                print(
+                                    'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
+                                await S7utils.s7Connect(socket);
+                                //此处还有地址没传
+                                await S7utils.s7WriteUp(socket, 0x40, 0x00);
+                                // await S7utils.s7Read(socket);
+                                // 关闭连接
+                                await socket.close();
+                              },
+                              onTapUp: (value) async {
+                                // CommonToast.showToastNew(context, "title", "onTapUp", [
+                                //   Text('data')
+                                // ]);
+                                // CommonToast.showToast('onTapUp');
+                              },
+                              onTapCancel: () async {
+                                // CommonToast.showToast('onTapCancel');
+                                final socket =
+                                await Socket.connect(ip, 102);
+                                print(
+                                    'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
+                                await S7utils.s7Connect(socket);
+                                //此处还有地址没传
+                                await S7utils.s7WriteUp(socket, 0x00, 0x00);
+                                // await S7utils.s7Read(socket);
+                                // 关闭连接
+                                await socket.close();
+                              },
+                              child: CustomButton(
+                                  text: '右转弯',
+                                  icon: Icons.arrow_forward,
+                                  height: 50,
+                                  width: 200,
+                                  onPressed: () async {
+
+                                  }),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CustomCard(
+                    screenWidth: MediaQuery.of(context).size.width,
+                    title: '支撑电机运动控制',
+                    icon: FontAwesomeIcons.elementor,
+                    child: Column(
+                      children: [
                         SizedBox(height: 20),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            CustomButton(
-                                text: '上升收起',
-                                icon: Icons.arrow_upward,
-                                height: 50,
-                                width: 200,
-                                onPressed: () async {
-                                  //192.168.10.1
-                                  //192.168.0.5
-                                  final socket =
-                                      await Socket.connect('192.168.0.5', 102);
-                                  print(
-                                      'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
-                                  await S7utils.s7Connect(socket);
-                                  //此处还有地址没传
-                                  await S7utils.s7WriteUp(socket, 0x00, 0x30);
-                                  // await S7utils.s7Read(socket);
-                                  // 关闭连接
-                                  await socket.close();
-                                }),
+                            GestureDetector(
+                              onTapDown: (value) async {
+                                // CommonToast.showToastNew(context, "title", "onTapDown", [
+                                //   Text('data')
+                                // ]);
+                                // CommonToast.showToast('onTapDown');
+                                final socket =
+                                await Socket.connect(ip, 102);
+                                print(
+                                    'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
+                                await S7utils.s7Connect(socket);
+                                //此处还有地址没传
+                                await S7utils.s7WriteUp(socket, 0x01, 0x30);
+                                // await S7utils.s7Read(socket);
+                                // 关闭连接
+                                await socket.close();
+                              },
+                              onTapUp: (value) async {
+                                // CommonToast.showToastNew(context, "title", "onTapUp", [
+                                //   Text('data')
+                                // ]);
+                                // CommonToast.showToast('onTapUp');
+                              },
+                              onTapCancel: () async {
+                                // CommonToast.showToast('onTapCancel');
+                                final socket =
+                                await Socket.connect(ip, 102);
+                                print(
+                                    'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
+                                await S7utils.s7Connect(socket);
+                                //此处还有地址没传
+                                await S7utils.s7WriteUp(socket, 0x00, 0x30);
+                                // await S7utils.s7Read(socket);
+                                // 关闭连接
+                                await socket.close();
+                              },
+                              child: CustomButton(
+                                  text: '上升启动',
+                                  icon: Icons.arrow_downward,
+                                  height: 50,
+                                  width: 200,
+                                  onPressed: () async {
+                                  }),
+                            ),
                           ],
                         ),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            CustomButton(
-                                text: '上升启动',
-                                icon: Icons.arrow_downward,
-                                height: 50,
-                                width: 200,
-                                onPressed: () async {
-                                  //192.168.10.1
-                                  //192.168.0.5
-                                  final socket =
-                                      await Socket.connect('192.168.0.5', 102);
-                                  print(
-                                      'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
-                                  await S7utils.s7Connect(socket);
-                                  await S7utils.s7WriteUp(socket, 0x01, 0x30);
-                                  // await S7utils.s7Read(socket);
-                                  // 关闭连接
-                                  await socket.close();
-                                }),
-                          ],
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            CustomButton(
-                                text: '下降收起',
-                                icon: Icons.arrow_downward,
-                                height: 50,
-                                width: 200,
-                                onPressed: () async {
-                                  //192.168.10.1
-                                  //192.168.0.5
-                                  final socket =
-                                      await Socket.connect('192.168.0.5', 102);
-                                  print(
-                                      'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
-                                  await S7utils.s7Connect(socket);
-                                  await S7utils.s7WriteDown(socket, 0x00, 0x30);
-                                  // await S7utils.s7Read(socket);
-                                  // 关闭连接
-                                  await socket.close();
-                                }),
-                          ],
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            CustomButton(
-                                text: '下降启动',
-                                icon: Icons.arrow_downward,
-                                height: 50,
-                                width: 200,
-                                onPressed: () async {
-                                  //192.168.10.1
-                                  //192.168.0.5
-                                  final socket =
-                                      await Socket.connect('192.168.0.5', 102);
-                                  print(
-                                      'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
-                                  await S7utils.s7Connect(socket);
-                                  await S7utils.s7WriteDown(socket, 0x02, 0x30);
-                                  // await S7utils.s7Read(socket);
-                                  // 关闭连接
-                                  await socket.close();
-                                }),
+                            GestureDetector(
+                              onTapDown: (value) async {
+                                // CommonToast.showToastNew(context, "title", "onTapDown", [
+                                //   Text('data')
+                                // ]);
+                                // CommonToast.showToast('onTapDown');
+                                final socket =
+                                await Socket.connect(ip, 102);
+                                print(
+                                    'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
+                                await S7utils.s7Connect(socket);
+                                //此处还有地址没传
+                                await S7utils.s7WriteUp(socket, 0x02, 0x30);
+                                // await S7utils.s7Read(socket);
+                                // 关闭连接
+                                await socket.close();
+                              },
+                              onTapUp: (value) async {
+                                // CommonToast.showToastNew(context, "title", "onTapUp", [
+                                //   Text('data')
+                                // ]);
+                                // CommonToast.showToast('onTapUp');
+                              },
+                              onTapCancel: () async {
+                                // CommonToast.showToast('onTapCancel');
+                                final socket =
+                                await Socket.connect(ip, 102);
+                                print(
+                                    'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
+                                await S7utils.s7Connect(socket);
+                                //此处还有地址没传
+                                await S7utils.s7WriteUp(socket, 0x00, 0x30);
+                                // await S7utils.s7Read(socket);
+                                // 关闭连接
+                                await socket.close();
+                              },
+                              child: CustomButton(
+                                  text: '下降启动',
+                                  icon: Icons.arrow_downward,
+                                  height: 50,
+                                  width: 200,
+                                  onPressed: () async {
+                                    // final socket = await Socket.connect(ip, 102);
+                                    // print(
+                                    //     'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
+                                    // await S7utils.s7Connect(socket);
+                                    // await S7utils.s7WriteDown(socket, 0x02, 0x30);
+                                    // // await S7utils.s7Read(socket);
+                                    // // 关闭连接
+                                    // await socket.close();
+                                  }),
+                            ),
                           ],
                         ),
                       ],
