@@ -26,13 +26,13 @@ class _NavigationTabbarState extends State<NavigationTabbar> {
                 // Tab(icon: Icon(Icons.car_rental), text: '123'),
                 Tab(
                   icon: Icon(Icons.speaker),
-                  text: '智行者',
+                  text: '智行者标准款',
                 ),
-                Tab(icon: Icon(Icons.message), text: '领航者'),
+                Tab(icon: Icon(Icons.message), text: '领航者标准款'),
                 Tab(icon: Icon(Icons.message), text: '风行者升降款'),
-                Tab(icon: Icon(Icons.message), text: 'data'),
-                Tab(icon: Icon(Icons.message), text: 'data'),
-                Tab(icon: Icon(Icons.message), text: 'data'),
+                Tab(icon: Icon(Icons.message), text: '风行者标准款'),
+                Tab(icon: Icon(Icons.message), text: '神行者标准款'),
+                Tab(icon: Icon(Icons.message), text: '履行者标准库'),
 
                 // Tab(icon: Icon(Icons.directions_bike)),
               ],
@@ -44,9 +44,9 @@ class _NavigationTabbarState extends State<NavigationTabbar> {
                 Center(child: NavigationNew()),
                 Center(child: NavigationNew()),
                 Center(child: WindWalkerLiftModel()),
-                Center(child: Text('data1')),
-                Center(child: Text('data1')),
-                Center(child: Text('data1')),
+                Center(child: Text('风行者标准款')),
+                Center(child: Text('神行者标准款')),
+                Center(child: Text('履行者标准库')),
 
 
 
