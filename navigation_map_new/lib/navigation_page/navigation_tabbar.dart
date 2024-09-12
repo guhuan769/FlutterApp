@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:navigation_map/navigation_page/wind_walker_lift_model.dart';
+import 'package:navigation_map/navigation_page/wind_walker_standard.dart';
+import 'executor_standard_library.dart';
+import 'freelander_standard_model.dart';
 import 'navigation.dart';
 import 'navigation_new.dart';
 
@@ -44,9 +47,9 @@ class _NavigationTabbarState extends State<NavigationTabbar> {
                 Center(child: NavigationNew()),
                 Center(child: NavigationNew()),
                 Center(child: WindWalkerLiftModel()),
-                Center(child: Text('风行者标准款')),
-                Center(child: Text('神行者标准款')),
-                Center(child: Text('履行者标准库')),
+                Center(child: WindWalkerStandard()),
+                Center(child: FreelanderStandardModel()),
+                Center(child: ExecutorStandardLibrary()),
 
 
 
