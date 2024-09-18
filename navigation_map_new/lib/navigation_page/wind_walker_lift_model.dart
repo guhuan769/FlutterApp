@@ -9,6 +9,9 @@ import 'package:navigation_map/utils/S7Client/S7Utils.dart';
 import '../CustomUserControls/CustomCard.dart';
 import '../custom_controls/custom_button.dart';
 
+import 'package:flutter_joystick/flutter_joystick.dart';
+import 'dart:math';
+
 //风行者升降款
 class WindWalkerLiftModel extends StatefulWidget {
   const WindWalkerLiftModel({super.key});
@@ -143,8 +146,90 @@ class _WindWalkerLiftModelState extends State<WindWalkerLiftModel> {
                     icon: FontAwesomeIcons.locationCrosshairs,
                     child: Column(
                       children: [
-                        const SizedBox(height: 20),
+                        Center(
+                          child: Joystick(
+                            listener: (details) async {
+                              // double angle = atan2(details.y, details.x) * (180 / pi);
+                              // if (angle < 0) angle += 360; // 将角度转换为0-360度范围
+                              // print('操纵杆角度: $angle°');
+                              // print('操纵杆移动到: ${details.x}, ${details.y}');
+                              //
+                               String direction = getDirection(details.x, details.y);
+                               // print('操纵杆方向: $direction');
+                               if(direction == "前"){
+                                 final socket =
+                                 await Socket.connect(ip, 102);
+                                 print(
+                                     'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
+                                 await S7utils.s7Connect(socket);
+                                 //此处还有地址没传
+                                 await S7utils.s7WriteUp(socket, 0x10, 0x00);
+                                 // await S7utils.s7Read(socket);
+                                 // 关闭连接
+                                 await socket.close();
 
+                                 print('前');
+                               }
+                               else if(direction == "后")
+                               {
+                                 final socket =
+                                 await Socket.connect(ip, 102);
+                                 print(
+                                     'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
+                                 await S7utils.s7Connect(socket);
+                                 //此处还有地址没传
+                                 await S7utils.s7WriteUp(socket, 0x20, 0x00);
+                                 // await S7utils.s7Read(socket);
+                                 // 关闭连接
+                                 await socket.close();
+
+                                 print('后');
+                               }
+                               else if(direction == "左")
+                               {
+                                 final socket =
+                                 await Socket.connect(ip, 102);
+                                 print(
+                                     'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
+                                 await S7utils.s7Connect(socket);
+                                 //此处还有地址没传
+                                 await S7utils.s7WriteUp(socket, 0x80, 0x00);
+                                 // await S7utils.s7Read(socket);
+                                 // 关闭连接
+                                 await socket.close();
+                                 print('左');
+                               }
+                               else if(direction == "右")
+                               {
+                                 final socket =
+                                 await Socket.connect(ip, 102);
+                                 print(
+                                     'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
+                                 await S7utils.s7Connect(socket);
+                                 //此处还有地址没传
+                                 await S7utils.s7WriteUp(socket, 0x40, 0x00);
+                                 // await S7utils.s7Read(socket);
+                                 // 关闭连接
+                                 await socket.close();
+                                 print('右');
+                               }
+                               else{
+                                 print('中心');
+                                 final socket =
+                                     await Socket.connect(ip, 102);
+                                 print(
+                                     'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
+                                 await S7utils.s7Connect(socket);
+                                 //此处还有地址没传
+                                 await S7utils.s7WriteUp(socket, 0x00, 0x00);
+                                 // await S7utils.s7Read(socket);
+                                 // 关闭连接
+                                 await socket.close();
+                               }
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 20),
                         //前进点动
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -487,5 +572,18 @@ class _WindWalkerLiftModelState extends State<WindWalkerLiftModel> {
         ),
       ),
     );
+  }
+  String getDirection(double x, double y) {
+    if (y < -0.5) {
+      return '前';
+    } else if (y > 0.5) {
+      return '后';
+    } else if (x < -0.5) {
+      return '左';
+    } else if (x > 0.5) {
+      return '右';
+    } else {
+      return '中心';
+    }
   }
 }
