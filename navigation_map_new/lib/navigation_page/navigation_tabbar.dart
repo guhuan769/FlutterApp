@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:navigation_map/navigation_page/TestJoystick.dart';
 import 'package:navigation_map/navigation_page/wind_walker_lift_model.dart';
 import 'package:navigation_map/navigation_page/wind_walker_standard.dart';
 import 'executor_standard_library.dart';
@@ -17,7 +18,7 @@ class _NavigationTabbarState extends State<NavigationTabbar> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 6,
+      length: 7,
       child: Column(
         children: [
           Container(
@@ -36,7 +37,7 @@ class _NavigationTabbarState extends State<NavigationTabbar> {
                 Tab(icon: Icon(Icons.message), text: '风行者标准款'),
                 Tab(icon: Icon(Icons.message), text: '神行者标准款'),
                 Tab(icon: Icon(Icons.message), text: '履行者标准库'),
-
+                Tab(icon: Icon(Icons.message), text: 'TestJoystick'),
                 // Tab(icon: Icon(Icons.directions_bike)),
               ],
             ),
@@ -50,10 +51,7 @@ class _NavigationTabbarState extends State<NavigationTabbar> {
                 Center(child: WindWalkerStandard()),
                 Center(child: FreelanderStandardModel()),
                 Center(child: ExecutorStandardLibrary()),
-
-
-
-
+                Center(child: Testjoystick()),
               ],
             ),
           ),
