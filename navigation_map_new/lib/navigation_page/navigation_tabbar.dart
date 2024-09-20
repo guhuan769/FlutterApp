@@ -44,6 +44,7 @@ class _NavigationTabbarState extends State<NavigationTabbar> {
           ),
           const Expanded(
             child: TabBarView(
+              physics: NeverScrollableScrollPhysics(),//禁止滑动
               children: [
                 Center(child: NavigationNew()),
                 Center(child: NavigationNew()),

@@ -26,9 +26,73 @@ class _WindWalkerLiftModelState extends State<WindWalkerLiftModel> {
   Color _iconColor = Colors.red;
   String _carOpen = "车辆已关闭";
 
+  //tcp
+  final String ip = '192.168.10.1'; // 替换为你的服务器 IP 地址
+  Socket? _socket;
+
   //PLC默认IP  192.168.10.1
-  final String ip = "192.168.10.1";
+  // final String ip = "192.168.10.1";
   bool isActive = false;
+
+  @override
+  void initState() {
+    super.initState();
+    print('initState');
+    _connectToServer();
+  }
+
+  Future<void> _connectToServer() async {
+    _socket = await Socket.connect(ip, 102);
+    print(
+        'Connected to: ${_socket!.remoteAddress.address}:${_socket!.remotePort}');
+    await S7utils.s7Connect(_socket!);
+  }
+
+  @override
+  void dispose() {
+    print('dispose');
+    _socket?.close();
+    super.dispose();
+  }
+
+  void _sendCommand(String direction) async {
+    if (_socket != null) {
+      // if (direction == "前") {
+      //   print('前');
+      //   await S7utils.s7WriteUp(_socket!, 0x10, 0x00);
+      // } else if (direction == "后") {
+      //   print('后');
+      //   await S7utils.s7WriteUp(_socket!, 0x20, 0x00);
+      // } else if (direction == "左") {
+      //   print('左');
+      //   await S7utils.s7WriteUp(_socket!, 0x80, 0x00);
+      // } else if (direction == "右") {
+      //   print('右');
+      //   await S7utils.s7WriteUp(_socket!, 0x40, 0x00);
+      // } else {
+      //   print('中心');
+      //   await S7utils.s7WriteUp(_socket!, 0x00, 0x00);
+      // }
+
+      if (direction == "前") {
+        print('前');
+        await S7utils.s7WriteUp(_socket!, 0x10, 0x00);
+      } else if (direction == "后") {
+        print('后');
+        await S7utils.s7WriteUp(_socket!, 0x20, 0x00);
+      } else if (direction == "左") {
+        print('左');
+        // await S7utils.s7WriteUp(_socket!, 0x80, 0x07);
+        await S7utils.s7WriteUp(_socket!, 0x80, 0x38);
+      } else if (direction == "右") {
+        print('右');
+        await S7utils.s7WriteUp(_socket!, 0x00, 0x40);
+      } else {
+        print('中心');
+        await S7utils.s7WriteUp(_socket!, 0x00, 0x00);
+      }
+    }
+  }
 
   void _toggleIconColor() {
     setState(() {
@@ -44,8 +108,11 @@ class _WindWalkerLiftModelState extends State<WindWalkerLiftModel> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Scrollbar(
+        // thumbVisibility: true,//始终显示滚动条
+        // thickness: 30.0,//设置滚动条的厚度,
         controller: _scrollController,
         child: SingleChildScrollView(
+          physics: const NeverScrollableScrollPhysics(), //禁止上下滑动
           controller: _scrollController,
           child: Column(
             children: [
@@ -53,7 +120,7 @@ class _WindWalkerLiftModelState extends State<WindWalkerLiftModel> {
               Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                 CustomCard(
                   screenWidth: MediaQuery.of(context).size.width,
-                  title: '状态',
+                  title: '',
                   icon: FontAwesomeIcons.landMineOn,
                   child: Column(
                     children: [
@@ -113,14 +180,14 @@ class _WindWalkerLiftModelState extends State<WindWalkerLiftModel> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 5),
                       const Divider(
                         color: Colors.grey, // 直线的颜色
                         thickness: 2.0, // 直线的厚度
                         indent: 0.0, // 左侧缩进
                         endIndent: 0.0, // 右侧缩进
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 5),
                       Row(
                         children: [
                           const SizedBox(
@@ -142,440 +209,152 @@ class _WindWalkerLiftModelState extends State<WindWalkerLiftModel> {
                 children: [
                   CustomCard(
                     screenWidth: MediaQuery.of(context).size.width,
-                    title: '相对运行',
+                    title: '',
                     icon: FontAwesomeIcons.locationCrosshairs,
                     child: Column(
                       children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                GestureDetector(
+                                  onTapDown: (value) async {
+                                    // CommonToast.showToastNew(context, "title", "onTapDown", [
+                                    //   Text('data')
+                                    // ]);
+                                    // CommonToast.showToast('onTapDown');
+                                    final socket = await Socket.connect(ip, 102);
+                                    print(
+                                        'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
+                                    await S7utils.s7Connect(socket);
+                                    //此处还有地址没传
+                                    await S7utils.s7WriteUp(socket, 0x01, 0x30);
+                                    // await S7utils.s7Read(socket);
+                                    // 关闭连接
+                                    await socket.close();
+                                  },
+                                  onTapUp: (value) async {
+                                    // CommonToast.showToastNew(context, "title", "onTapUp", [
+                                    //   Text('data')
+                                    // ]);
+                                    // CommonToast.showToast('onTapUp');
+                                  },
+                                  onTapCancel: () async {
+                                    // CommonToast.showToast('onTapCancel');
+                                    final socket = await Socket.connect(ip, 102);
+                                    print(
+                                        'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
+                                    await S7utils.s7Connect(socket);
+                                    //此处还有地址没传
+                                    await S7utils.s7WriteUp(socket, 0x00, 0x30);
+                                    // await S7utils.s7Read(socket);
+                                    // 关闭连接
+                                    await socket.close();
+                                  },
+                                  child: CustomButton(
+                                      text: '电机上升',
+                                      icon: Icons.arrow_downward,
+                                      height: 50,
+                                      width: 110,
+                                      onPressed: () async {}),
+                                ),
+                              ],
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                GestureDetector(
+                                  onTapDown: (value) async {
+                                    // CommonToast.showToastNew(context, "title", "onTapDown", [
+                                    //   Text('data')
+                                    // ]);
+                                    // CommonToast.showToast('onTapDown');
+                                    final socket = await Socket.connect(ip, 102);
+                                    print(
+                                        'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
+                                    await S7utils.s7Connect(socket);
+                                    //此处还有地址没传
+                                    await S7utils.s7WriteUp(socket, 0x02, 0x30);
+                                    // await S7utils.s7Read(socket);
+                                    // 关闭连接
+                                    await socket.close();
+                                  },
+                                  onTapUp: (value) async {
+                                    // CommonToast.showToastNew(context, "title", "onTapUp", [
+                                    //   Text('data')
+                                    // ]);
+                                    // CommonToast.showToast('onTapUp');
+                                  },
+                                  onTapCancel: () async {
+                                    // CommonToast.showToast('onTapCancel');
+                                    final socket = await Socket.connect(ip, 102);
+                                    print(
+                                        'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
+                                    await S7utils.s7Connect(socket);
+                                    //此处还有地址没传
+                                    await S7utils.s7WriteUp(socket, 0x00, 0x30);
+                                    // await S7utils.s7Read(socket);
+                                    // 关闭连接
+                                    await socket.close();
+                                  },
+                                  child: CustomButton(
+                                      text: '电机下降',
+                                      icon: Icons.arrow_downward,
+                                      height: 50,
+                                      width: 110,
+                                      onPressed: () async {
+                                        // final socket = await Socket.connect(ip, 102);
+                                        // print(
+                                        //     'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
+                                        // await S7utils.s7Connect(socket);
+                                        // await S7utils.s7WriteDown(socket, 0x02, 0x30);
+                                        // // await S7utils.s7Read(socket);
+                                        // // 关闭连接
+                                        // await socket.close();
+                                      }),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 5),
                         Center(
                           child: Joystick(
-                            listener: (details) async {
+                            listener: (details) {
+                              //async
+                              String direction =
+                                  getDirection(details.x, details.y);
+                              print('操纵杆方向: $direction');
+                               _sendCommand(direction);
+
                               // double angle = atan2(details.y, details.x) * (180 / pi);
                               // if (angle < 0) angle += 360; // 将角度转换为0-360度范围
                               // print('操纵杆角度: $angle°');
                               // print('操纵杆移动到: ${details.x}, ${details.y}');
                               //
-                               String direction = getDirection(details.x, details.y);
-                               // print('操纵杆方向: $direction');
-                               if(direction == "前"){
-                                 print('前');
-                                 final socket =
-                                 await Socket.connect(ip, 102);
-                                 print(
-                                     'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
-                                 await S7utils.s7Connect(socket);
-                                 //此处还有地址没传
-                                 await S7utils.s7WriteUp(socket, 0x10, 0x00);
-                                 // await S7utils.s7Read(socket);
-                                 // 关闭连接
-                                 await socket.close();
+                              //  String direction = getDirection(details.x, details.y);
+                              //  // print('操纵杆方向: $direction');
 
-
-                               }
-                               else if(direction == "后")
-                               {
-                                 print('后');
-                                 final socket =
-                                 await Socket.connect(ip, 102);
-                                 print(
-                                     'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
-                                 await S7utils.s7Connect(socket);
-                                 //此处还有地址没传
-                                 await S7utils.s7WriteUp(socket, 0x20, 0x00);
-                                 // await S7utils.s7Read(socket);
-                                 // 关闭连接
-                                 await socket.close();
-
-
-                               }
-                               else if(direction == "左")
-                               {
-                                 print('左');
-                                 final socket =
-                                 await Socket.connect(ip, 102);
-                                 print(
-                                     'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
-                                 await S7utils.s7Connect(socket);
-                                 //此处还有地址没传
-                                 await S7utils.s7WriteUp(socket, 0x80, 0x00);
-                                 // await S7utils.s7Read(socket);
-                                 // 关闭连接
-                                 await socket.close();
-
-                               }
-                               else if(direction == "右")
-                               {print('右');
-                                 final socket =
-                                 await Socket.connect(ip, 102);
-                                 print(
-                                     'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
-                                 await S7utils.s7Connect(socket);
-                                 //此处还有地址没传
-                                 await S7utils.s7WriteUp(socket, 0x40, 0x00);
-                                 // await S7utils.s7Read(socket);
-                                 // 关闭连接
-                                 await socket.close();
-
-                               }
-                               else{
-                                 print('中心');
-                                 final socket =
-                                     await Socket.connect(ip, 102);
-                                 print(
-                                     'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
-                                 await S7utils.s7Connect(socket);
-                                 //此处还有地址没传
-                                 await S7utils.s7WriteUp(socket, 0x00, 0x00);
-                                 // await S7utils.s7Read(socket);
-                                 // 关闭连接
-                                 await socket.close();
-                               }
                             },
                           ),
                         ),
-                        const SizedBox(height: 20),
-                        // //前进点动
-                        // Row(
-                        //   mainAxisAlignment: MainAxisAlignment.center,
-                        //   crossAxisAlignment: CrossAxisAlignment.center,
-                        //   children: [
-                        //     GestureDetector(
-                        //       onTapDown: (value) async {
-                        //           // CommonToast.showToastNew(context, "title", "onTapDown", [
-                        //           //   Text('data')
-                        //           // ]);
-                        //         // CommonToast.showToast('onTapDown');
-                        //         final socket =
-                        //             await Socket.connect(ip, 102);
-                        //         print(
-                        //             'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
-                        //         await S7utils.s7Connect(socket);
-                        //         //此处还有地址没传
-                        //         await S7utils.s7WriteUp(socket, 0x10, 0x00);
-                        //         // await S7utils.s7Read(socket);
-                        //         // 关闭连接
-                        //         await socket.close();
-                        //       },
-                        //       onTapUp: (value) async {
-                        //         // CommonToast.showToastNew(context, "title", "onTapUp", [
-                        //         //   Text('data')
-                        //         // ]);
-                        //         // CommonToast.showToast('onTapUp');
-                        //       },
-                        //       onTapCancel: () async {
-                        //         // CommonToast.showToast('onTapCancel');
-                        //         final socket =
-                        //         await Socket.connect(ip, 102);
-                        //         print(
-                        //             'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
-                        //         await S7utils.s7Connect(socket);
-                        //         //此处还有地址没传
-                        //         await S7utils.s7WriteUp(socket, 0x00, 0x00);
-                        //         // await S7utils.s7Read(socket);
-                        //         // 关闭连接
-                        //         await socket.close();
-                        //       },
-                        //       child: CustomButton(
-                        //           text: '前进点动',
-                        //           icon: Icons.arrow_upward,
-                        //           height: 50,
-                        //           width: 200,
-                        //           onPressed: () async {
-                        //
-                        //           }),
-                        //     ),
-                        //   ],
-                        // ),
-                        // //后退点动
-                        // Row(
-                        //   mainAxisAlignment: MainAxisAlignment.center,
-                        //   crossAxisAlignment: CrossAxisAlignment.center,
-                        //   children: [
-                        //     GestureDetector(
-                        //       onTapDown: (value) async {
-                        //         // CommonToast.showToastNew(context, "title", "onTapDown", [
-                        //         //   Text('data')
-                        //         // ]);
-                        //         // CommonToast.showToast('onTapDown');
-                        //         final socket =
-                        //         await Socket.connect(ip, 102);
-                        //         print(
-                        //             'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
-                        //         await S7utils.s7Connect(socket);
-                        //         //此处还有地址没传
-                        //         await S7utils.s7WriteUp(socket, 0x20, 0x00);
-                        //         // await S7utils.s7Read(socket);
-                        //         // 关闭连接
-                        //         await socket.close();
-                        //       },
-                        //       onTapUp: (value) async {
-                        //         // CommonToast.showToastNew(context, "title", "onTapUp", [
-                        //         //   Text('data')
-                        //         // ]);
-                        //         // CommonToast.showToast('onTapUp');
-                        //       },
-                        //       onTapCancel: () async {
-                        //         // CommonToast.showToast('onTapCancel');
-                        //         final socket =
-                        //         await Socket.connect(ip, 102);
-                        //         print(
-                        //             'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
-                        //         await S7utils.s7Connect(socket);
-                        //         //此处还有地址没传
-                        //         await S7utils.s7WriteUp(socket, 0x00, 0x00);
-                        //         // await S7utils.s7Read(socket);
-                        //         // 关闭连接
-                        //         await socket.close();
-                        //       },
-                        //       child: CustomButton(
-                        //           text: '后退点动',
-                        //           icon: Icons.arrow_downward,
-                        //           height: 50,
-                        //           width: 200,
-                        //           onPressed: () async {
-                        //
-                        //           }),
-                        //     ),
-                        //   ],
-                        // ),
-                        //
-                        // //左转弯 未实现
-                        // Row(
-                        //   mainAxisAlignment: MainAxisAlignment.center,
-                        //   crossAxisAlignment: CrossAxisAlignment.center,
-                        //   children: [
-                        //     GestureDetector(
-                        //       onTapDown: (value) async {
-                        //         // CommonToast.showToastNew(context, "title", "onTapDown", [
-                        //         //   Text('data')
-                        //         // ]);
-                        //         // CommonToast.showToast('onTapDown');
-                        //         final socket =
-                        //         await Socket.connect(ip, 102);
-                        //         print(
-                        //             'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
-                        //         await S7utils.s7Connect(socket);
-                        //         //此处还有地址没传
-                        //         await S7utils.s7WriteUp(socket, 0x80, 0x00);
-                        //         // await S7utils.s7Read(socket);
-                        //         // 关闭连接
-                        //         await socket.close();
-                        //       },
-                        //       onTapUp: (value) async {
-                        //         // CommonToast.showToastNew(context, "title", "onTapUp", [
-                        //         //   Text('data')
-                        //         // ]);
-                        //         // CommonToast.showToast('onTapUp');
-                        //       },
-                        //       onTapCancel: () async {
-                        //         // CommonToast.showToast('onTapCancel');
-                        //         final socket =
-                        //         await Socket.connect(ip, 102);
-                        //         print(
-                        //             'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
-                        //         await S7utils.s7Connect(socket);
-                        //         //此处还有地址没传
-                        //         await S7utils.s7WriteUp(socket, 0x00, 0x00);
-                        //         // await S7utils.s7Read(socket);
-                        //         // 关闭连接
-                        //         await socket.close();
-                        //       },
-                        //       child: CustomButton(
-                        //           text: '左转弯',
-                        //           icon: Icons.arrow_back,
-                        //           height: 50,
-                        //           width: 200,
-                        //           onPressed: () async {
-                        //
-                        //           }),
-                        //     ),
-                        //   ],
-                        // ),
-                        // //右转弯 未实现
-                        // Row(
-                        //   mainAxisAlignment: MainAxisAlignment.center,
-                        //   crossAxisAlignment: CrossAxisAlignment.center,
-                        //   children: [
-                        //     GestureDetector(
-                        //       onTapDown: (value) async {
-                        //         // CommonToast.showToastNew(context, "title", "onTapDown", [
-                        //         //   Text('data')
-                        //         // ]);
-                        //         // CommonToast.showToast('onTapDown');
-                        //         final socket =
-                        //         await Socket.connect(ip, 102);
-                        //         print(
-                        //             'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
-                        //         await S7utils.s7Connect(socket);
-                        //         //此处还有地址没传
-                        //         await S7utils.s7WriteUp(socket, 0x40, 0x00);
-                        //         // await S7utils.s7Read(socket);
-                        //         // 关闭连接
-                        //         await socket.close();
-                        //       },
-                        //       onTapUp: (value) async {
-                        //         // CommonToast.showToastNew(context, "title", "onTapUp", [
-                        //         //   Text('data')
-                        //         // ]);
-                        //         // CommonToast.showToast('onTapUp');
-                        //       },
-                        //       onTapCancel: () async {
-                        //         // CommonToast.showToast('onTapCancel');
-                        //         final socket =
-                        //         await Socket.connect(ip, 102);
-                        //         print(
-                        //             'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
-                        //         await S7utils.s7Connect(socket);
-                        //         //此处还有地址没传
-                        //         await S7utils.s7WriteUp(socket, 0x00, 0x00);
-                        //         // await S7utils.s7Read(socket);
-                        //         // 关闭连接
-                        //         await socket.close();
-                        //       },
-                        //       child: CustomButton(
-                        //           text: '右转弯',
-                        //           icon: Icons.arrow_forward,
-                        //           height: 50,
-                        //           width: 200,
-                        //           onPressed: () async {
-                        //
-                        //           }),
-                        //     ),
-                        //   ],
-                        // ),
                       ],
                     ),
                   ),
                 ],
               ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CustomCard(
-                    screenWidth: MediaQuery.of(context).size.width,
-                    title: '支撑电机运动控制',
-                    icon: FontAwesomeIcons.elementor,
-                    child: Column(
-                      children: [
-                        SizedBox(height: 20),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            GestureDetector(
-                              onTapDown: (value) async {
-                                // CommonToast.showToastNew(context, "title", "onTapDown", [
-                                //   Text('data')
-                                // ]);
-                                // CommonToast.showToast('onTapDown');
-                                final socket =
-                                await Socket.connect(ip, 102);
-                                print(
-                                    'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
-                                await S7utils.s7Connect(socket);
-                                //此处还有地址没传
-                                await S7utils.s7WriteUp(socket, 0x01, 0x30);
-                                // await S7utils.s7Read(socket);
-                                // 关闭连接
-                                await socket.close();
-                              },
-                              onTapUp: (value) async {
-                                // CommonToast.showToastNew(context, "title", "onTapUp", [
-                                //   Text('data')
-                                // ]);
-                                // CommonToast.showToast('onTapUp');
-                              },
-                              onTapCancel: () async {
-                                // CommonToast.showToast('onTapCancel');
-                                final socket =
-                                await Socket.connect(ip, 102);
-                                print(
-                                    'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
-                                await S7utils.s7Connect(socket);
-                                //此处还有地址没传
-                                await S7utils.s7WriteUp(socket, 0x00, 0x30);
-                                // await S7utils.s7Read(socket);
-                                // 关闭连接
-                                await socket.close();
-                              },
-                              child: CustomButton(
-                                  text: '上升启动',
-                                  icon: Icons.arrow_downward,
-                                  height: 50,
-                                  width: 200,
-                                  onPressed: () async {
-                                  }),
-                            ),
-                          ],
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            GestureDetector(
-                              onTapDown: (value) async {
-                                // CommonToast.showToastNew(context, "title", "onTapDown", [
-                                //   Text('data')
-                                // ]);
-                                // CommonToast.showToast('onTapDown');
-                                final socket =
-                                await Socket.connect(ip, 102);
-                                print(
-                                    'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
-                                await S7utils.s7Connect(socket);
-                                //此处还有地址没传
-                                await S7utils.s7WriteUp(socket, 0x02, 0x30);
-                                // await S7utils.s7Read(socket);
-                                // 关闭连接
-                                await socket.close();
-                              },
-                              onTapUp: (value) async {
-                                // CommonToast.showToastNew(context, "title", "onTapUp", [
-                                //   Text('data')
-                                // ]);
-                                // CommonToast.showToast('onTapUp');
-                              },
-                              onTapCancel: () async {
-                                // CommonToast.showToast('onTapCancel');
-                                final socket =
-                                await Socket.connect(ip, 102);
-                                print(
-                                    'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
-                                await S7utils.s7Connect(socket);
-                                //此处还有地址没传
-                                await S7utils.s7WriteUp(socket, 0x00, 0x30);
-                                // await S7utils.s7Read(socket);
-                                // 关闭连接
-                                await socket.close();
-                              },
-                              child: CustomButton(
-                                  text: '下降启动',
-                                  icon: Icons.arrow_downward,
-                                  height: 50,
-                                  width: 200,
-                                  onPressed: () async {
-                                    // final socket = await Socket.connect(ip, 102);
-                                    // print(
-                                    //     'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
-                                    // await S7utils.s7Connect(socket);
-                                    // await S7utils.s7WriteDown(socket, 0x02, 0x30);
-                                    // // await S7utils.s7Read(socket);
-                                    // // 关闭连接
-                                    // await socket.close();
-                                  }),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+
             ],
           ),
         ),
       ),
     );
   }
+
   String getDirection(double x, double y) {
     if (y < -0.5) {
       return '前';
