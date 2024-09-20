@@ -152,7 +152,6 @@ class S7utils{
     // }
   }
 
-
   static Future<void> s7WriteUp(Socket socket,int actionStatus,int address) async {
     List<int> bytes = [
       // TPKT - 4 bytes
