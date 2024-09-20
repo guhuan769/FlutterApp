@@ -112,7 +112,7 @@ class _WindWalkerLiftModelState extends State<WindWalkerLiftModel> {
         // thickness: 30.0,//设置滚动条的厚度,
         controller: _scrollController,
         child: SingleChildScrollView(
-          physics: const NeverScrollableScrollPhysics(), //禁止上下滑动
+          // physics: const NeverScrollableScrollPhysics(), //禁止上下滑动
           controller: _scrollController,
           child: Column(
             children: [
@@ -145,7 +145,7 @@ class _WindWalkerLiftModelState extends State<WindWalkerLiftModel> {
                               ping.stream.listen((event) {
                                 try {
                                   PingResponse entity =
-                                      event.response as PingResponse;
+                                  event.response as PingResponse;
                                   // if (event.response != null) {
                                   if (entity.ip != null) {
                                     print(
@@ -191,11 +191,11 @@ class _WindWalkerLiftModelState extends State<WindWalkerLiftModel> {
                       Row(
                         children: [
                           const SizedBox(
-                              // width: 0,
+                            // width: 0,
                               child: Text(
-                            '车辆状态:',
-                            textAlign: TextAlign.right,
-                          )),
+                                '车辆状态:',
+                                textAlign: TextAlign.right,
+                              )),
                           const SizedBox(width: 10),
                           Text(writeStatusLog),
                         ],
@@ -327,9 +327,9 @@ class _WindWalkerLiftModelState extends State<WindWalkerLiftModel> {
                             listener: (details) {
                               //async
                               String direction =
-                                  getDirection(details.x, details.y);
+                              getDirection(details.x, details.y);
                               print('操纵杆方向: $direction');
-                               _sendCommand(direction);
+                              _sendCommand(direction);
 
                               // double angle = atan2(details.y, details.x) * (180 / pi);
                               // if (angle < 0) angle += 360; // 将角度转换为0-360度范围
