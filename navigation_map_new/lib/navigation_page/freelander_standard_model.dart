@@ -173,7 +173,7 @@ class _WindWalkerLiftModelState extends State<FreelanderStandardModel> {
                                     'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
                                 await S7utils.s7Connect(socket);
                                 //此处还有地址没传
-                                await S7utils.s7WriteUp(socket, 0x10, 0x00);
+                                await S7utils.s7Write(socket, 0x10, 0x00,0x14);
                                 // await S7utils.s7Read(socket);
                                 // 关闭连接
                                 await socket.close();
@@ -192,7 +192,7 @@ class _WindWalkerLiftModelState extends State<FreelanderStandardModel> {
                                     'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
                                 await S7utils.s7Connect(socket);
                                 //此处还有地址没传
-                                await S7utils.s7WriteUp(socket, 0x00, 0x00);
+                                await S7utils.s7Write(socket, 0x00, 0x00,0x14);
                                 // await S7utils.s7Read(socket);
                                 // 关闭连接
                                 await socket.close();
@@ -225,7 +225,7 @@ class _WindWalkerLiftModelState extends State<FreelanderStandardModel> {
                                     'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
                                 await S7utils.s7Connect(socket);
                                 //此处还有地址没传
-                                await S7utils.s7WriteUp(socket, 0x20, 0x00);
+                                await S7utils.s7Write(socket, 0x20, 0x00,0x14);
                                 // await S7utils.s7Read(socket);
                                 // 关闭连接
                                 await socket.close();
@@ -244,7 +244,7 @@ class _WindWalkerLiftModelState extends State<FreelanderStandardModel> {
                                     'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
                                 await S7utils.s7Connect(socket);
                                 //此处还有地址没传
-                                await S7utils.s7WriteUp(socket, 0x00, 0x00);
+                                await S7utils.s7Write(socket, 0x00, 0x00,0x14);
                                 // await S7utils.s7Read(socket);
                                 // 关闭连接
                                 await socket.close();
@@ -278,7 +278,7 @@ class _WindWalkerLiftModelState extends State<FreelanderStandardModel> {
                                     'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
                                 await S7utils.s7Connect(socket);
                                 //此处还有地址没传
-                                await S7utils.s7WriteUp(socket, 0x80, 0x00);
+                                await S7utils.s7Write(socket, 0x80, 0x00,0x14);
                                 // await S7utils.s7Read(socket);
                                 // 关闭连接
                                 await socket.close();
@@ -297,7 +297,7 @@ class _WindWalkerLiftModelState extends State<FreelanderStandardModel> {
                                     'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
                                 await S7utils.s7Connect(socket);
                                 //此处还有地址没传
-                                await S7utils.s7WriteUp(socket, 0x00, 0x00);
+                                await S7utils.s7Write(socket, 0x00, 0x00,0x14);
                                 // await S7utils.s7Read(socket);
                                 // 关闭连接
                                 await socket.close();
@@ -330,7 +330,7 @@ class _WindWalkerLiftModelState extends State<FreelanderStandardModel> {
                                     'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
                                 await S7utils.s7Connect(socket);
                                 //此处还有地址没传
-                                await S7utils.s7WriteUp(socket, 0x40, 0x00);
+                                await S7utils.s7Write(socket, 0x40, 0x00,0x14);
                                 // await S7utils.s7Read(socket);
                                 // 关闭连接
                                 await socket.close();
@@ -349,7 +349,7 @@ class _WindWalkerLiftModelState extends State<FreelanderStandardModel> {
                                     'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
                                 await S7utils.s7Connect(socket);
                                 //此处还有地址没传
-                                await S7utils.s7WriteUp(socket, 0x00, 0x00);
+                                await S7utils.s7Write(socket, 0x00, 0x00,0x14);
                                 // await S7utils.s7Read(socket);
                                 // 关闭连接
                                 await socket.close();
@@ -396,7 +396,7 @@ class _WindWalkerLiftModelState extends State<FreelanderStandardModel> {
                                     'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
                                 await S7utils.s7Connect(socket);
                                 //此处还有地址没传
-                                await S7utils.s7WriteUp(socket, 0x01, 0x30);
+                                await S7utils.s7Write(socket, 0x01, 0x30,0x14);
                                 // await S7utils.s7Read(socket);
                                 // 关闭连接
                                 await socket.close();
@@ -415,7 +415,7 @@ class _WindWalkerLiftModelState extends State<FreelanderStandardModel> {
                                     'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
                                 await S7utils.s7Connect(socket);
                                 //此处还有地址没传
-                                await S7utils.s7WriteUp(socket, 0x00, 0x30);
+                                await S7utils.s7Write(socket, 0x00, 0x30,0x14);
                                 // await S7utils.s7Read(socket);
                                 // 关闭连接
                                 await socket.close();
@@ -446,7 +446,7 @@ class _WindWalkerLiftModelState extends State<FreelanderStandardModel> {
                                     'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
                                 await S7utils.s7Connect(socket);
                                 //此处还有地址没传
-                                await S7utils.s7WriteUp(socket, 0x02, 0x30);
+                                await S7utils.s7Write(socket, 0x02, 0x30,0x14);
                                 // await S7utils.s7Read(socket);
                                 // 关闭连接
                                 await socket.close();
@@ -465,7 +465,7 @@ class _WindWalkerLiftModelState extends State<FreelanderStandardModel> {
                                     'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
                                 await S7utils.s7Connect(socket);
                                 //此处还有地址没传
-                                await S7utils.s7WriteUp(socket, 0x00, 0x30);
+                                await S7utils.s7Write(socket, 0x00, 0x30,0x14);
                                 // await S7utils.s7Read(socket);
                                 // 关闭连接
                                 await socket.close();

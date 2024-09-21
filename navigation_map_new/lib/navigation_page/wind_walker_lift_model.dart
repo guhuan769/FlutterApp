@@ -76,20 +76,20 @@ class _WindWalkerLiftModelState extends State<WindWalkerLiftModel> {
 
       if (direction == "前") {
         print('前');
-        await S7utils.s7WriteUp(_socket!, 0x10, 0x00);
+        await S7utils.s7Write(_socket!, 0x10, 0x00,0x14);
       } else if (direction == "后") {
         print('后');
-        await S7utils.s7WriteUp(_socket!, 0x20, 0x00);
+        await S7utils.s7Write(_socket!, 0x20, 0x00,0x14);
       } else if (direction == "左") {
         print('左');
         // await S7utils.s7WriteUp(_socket!, 0x80, 0x07);
-        await S7utils.s7WriteUp(_socket!, 0x80, 0x38);
+        await S7utils.s7Write(_socket!, 0x80, 0x38,0x14);
       } else if (direction == "右") {
         print('右');
-        await S7utils.s7WriteUp(_socket!, 0x00, 0x40);
+        await S7utils.s7Write(_socket!, 0x00, 0x40,0x14);
       } else {
         print('中心');
-        await S7utils.s7WriteUp(_socket!, 0x00, 0x00);
+        await S7utils.s7Write(_socket!, 0x00, 0x00,0x14);
       }
     }
   }
@@ -231,7 +231,7 @@ class _WindWalkerLiftModelState extends State<WindWalkerLiftModel> {
                                         'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
                                     await S7utils.s7Connect(socket);
                                     //此处还有地址没传
-                                    await S7utils.s7WriteUp(socket, 0x01, 0x30);
+                                    await S7utils.s7Write(socket, 0x01, 0x30,0x14);
                                     // await S7utils.s7Read(socket);
                                     // 关闭连接
                                     await socket.close();
@@ -249,7 +249,7 @@ class _WindWalkerLiftModelState extends State<WindWalkerLiftModel> {
                                         'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
                                     await S7utils.s7Connect(socket);
                                     //此处还有地址没传
-                                    await S7utils.s7WriteUp(socket, 0x00, 0x30);
+                                    await S7utils.s7Write(socket, 0x00, 0x30,0x14);
                                     // await S7utils.s7Read(socket);
                                     // 关闭连接
                                     await socket.close();
@@ -278,7 +278,7 @@ class _WindWalkerLiftModelState extends State<WindWalkerLiftModel> {
                                         'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
                                     await S7utils.s7Connect(socket);
                                     //此处还有地址没传
-                                    await S7utils.s7WriteUp(socket, 0x02, 0x30);
+                                    await S7utils.s7Write(socket, 0x02, 0x30,0x14);
                                     // await S7utils.s7Read(socket);
                                     // 关闭连接
                                     await socket.close();
@@ -296,7 +296,7 @@ class _WindWalkerLiftModelState extends State<WindWalkerLiftModel> {
                                         'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
                                     await S7utils.s7Connect(socket);
                                     //此处还有地址没传
-                                    await S7utils.s7WriteUp(socket, 0x00, 0x30);
+                                    await S7utils.s7Write(socket, 0x00, 0x30,0x14);
                                     // await S7utils.s7Read(socket);
                                     // 关闭连接
                                     await socket.close();

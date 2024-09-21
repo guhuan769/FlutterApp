@@ -152,7 +152,7 @@ class S7utils{
     // }
   }
 
-  static Future<void> s7WriteUp(Socket socket,int actionStatus,int address) async {
+  static Future<void> s7Write(Socket socket,int actionStatus,int address,int dbAddress) async {
     List<int> bytes = [
       // TPKT - 4 bytes
       0x03,
@@ -187,7 +187,7 @@ class S7utils{
       0x00, 0x01, // Number of reads, if reading 10, it would be 0x0a
 
       // v - DB1
-      0x00, 0x14, // DB number, corresponding to the DB block number, if not DB, write 0
+      0x00, dbAddress, // 0x14 DB number, corresponding to the DB block number, if not DB, write 0
       0x84, // Storage area
       0x00, 0x00, address,// default : 0x30
 
