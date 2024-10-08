@@ -358,11 +358,11 @@ class _TestjoystickState extends State<Testjoystick> {
       // ),
 
 
-      appBar: AppBar(title: Text('Voice Control Example')),
-      body: const Center(
-        // child: VoiceControlWidget(),
-        child: SpeechToTextWidget(),
-      ),
+      // appBar: AppBar(title: Text('Voice Control Example')),
+      // body: const Center(
+      //   // child: VoiceControlWidget(),
+      //   child: SpeechToTextWidget(),
+      // ),
 
 
 
