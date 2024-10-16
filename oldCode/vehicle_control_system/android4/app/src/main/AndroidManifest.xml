@@ -1,0 +1,107 @@
+<!--图片尺寸   72x72  48x48 96x96  144*144  192*192  该尺寸为 app logo所有的-->
+<!--
+You
+/Users/elonsnyder/Library/code/FlutterApp/vehicle_control_system/android/app/src/debug/AndroidManifest.xml Error:
+	Attribute application@icon value=(@mipmap/app_logo) from (unknown)
+	is also present at [com.github.jitpack:android-example:1.0.1] AndroidManifest.xml:13:9-45 value=(@drawable/ic_launcher).
+	Suggestion: add 'tools:replace="android:icon"' to <application> element at AndroidManifest.xml to override.
+/Users/elonsnyder/Library/code/FlutterApp/vehicle_control_system/android/app/src/debug/AndroidManifest.xml Error:
+	Attribute application@label value=(智能车体控制系统) from (unknown)
+	is also present at [com.github.jitpack:android-example:1.0.1] AndroidManifest.xml:14:9-41 value=(@string/app_name).
+	Suggestion: add 'tools:replace="android:label"' to <application> element at AndroidManifest.xml to override.
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:processDebugMainManifest'.
+> Manifest merger failed with multiple errors, see logs
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 24s
+Error: Gradle task assembleDebug failed with exit code 1如何解决该问题
+Copilot
+正如错误提示所建议的，你可以在 AndroidManifest.xml 文件的 <application> 标签中添加 tools:replace 属性来解决这个问题。以下是如何进行调整：
+
+xml
+
+Copy
+<application
+    android:icon="@mipmap/app_logo"
+    android:label="智能车体控制系统"
+    tools:replace="android:icon, android:label">
+    其他内容 -
+    </application>
+    这样可以告诉 Gradle 在合并 AndroidManifest.xml 文件时，使用你的 android:icon 和 android:label 属性来替代依赖库中的属性。
+
+    此外，确保你已经在 AndroidManifest.xml 文件的顶层声明了 tools 命名空间：
+
+    xml
+
+    Copy
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+     其他内容
+</manifest>
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    >
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.BLUETOOTH"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+<!--tools:replace="android:icon, android:label"-->
+    <application
+        android:usesCleartextTraffic="true"
+        android:name="${applicationName}"
+        android:label="智能车体控制系统"
+
+        android:icon="@mipmap/app_logo"
+        >
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <!-- Specifies an Android theme to apply to this Activity as soon as
+                 the Android process has started. This theme is visible to the user
+                 while the Flutter UI initializes. After that, this theme continues
+                 to determine the Window background behind the Flutter UI. -->
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <!-- Don't delete the meta-data below.
+             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+    <!-- Required to query activities that can process text, see:
+         https://developer.android.com/training/package-visibility and
+         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
+
+         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
+    <queries>
+        <intent>
+<!--            <action android:name="android.speech.RecognitionService" />-->
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+    </queries>
+</manifest>
