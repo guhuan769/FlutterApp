@@ -1,5 +1,7 @@
 
 import 'package:get/get.dart';
+import 'package:navigation_map/pages/tabs/dark_setting.dart';
+import 'package:navigation_map/pages/tabs/setting.dart';
 import '../pages/tabs.dart';
 import '../pages/shop.dart';
 import '../pages/user/login.dart';
@@ -22,6 +24,7 @@ class AppPage{
         GetPage(
             name: "/registerSecond", page: () => const RegisterSecondPage()),
         GetPage(name: "/registerThird", page: () => const RegisterThirdPage()),
-       
+        GetPage(name: "/setting", page: ()=>const SettingPage()),
+        GetPage(name: "/dark_setting", page: ()=> const DarkSetting()),
   ];
 }
