@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:navigation_map/models/AppItem.dart';
+import 'package:navigation_map/pages/controls/AppGrid.dart';
+import 'package:navigation_map/pages/controls/AppGridItem.dart';
 
-class CategoryPage extends StatefulWidget {
-  const CategoryPage({super.key});
+class CategoryPage extends StatelessWidget {
+  final ScrollController _scrollController = ScrollController();
 
-  @override
-  State<CategoryPage> createState() => _CategoryPageState();
-}
-
-class _CategoryPageState extends State<CategoryPage> {
   @override
   Widget build(BuildContext context) {
-   return  const Center(
-        child: Text("分类组件"),
-      );
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Scrollbar(
+        controller: _scrollController,
+        thumbVisibility: true,
+        child: AppGrid(scrollController: _scrollController),
+      ),
+    );
   }
 }

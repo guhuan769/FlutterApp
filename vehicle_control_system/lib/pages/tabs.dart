@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:navigation_map/pages/tabs/focus_on.dart';
 import './tabs/home.dart';
 import './tabs/category.dart';
 import './tabs/message.dart';
@@ -25,11 +26,12 @@ class _TabsState extends State<Tabs> {
     _currentIndex = widget.index;
   }
 
-  final List<Widget> _pages = const [
+  final List<Widget> _pages =  [
     HomePage(),
     CategoryPage(),
     MessagePage(),
-    SettingPage(),
+    FocusOn(),
+    // SettingPage(),
     UserPage()
   ];
 
@@ -108,10 +110,10 @@ class _TabsState extends State<Tabs> {
           },
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.home), label: "首页"),
-            BottomNavigationBarItem(icon: Icon(Icons.category), label: "分类"),
+            BottomNavigationBarItem(icon: Icon(Icons.functions), label: "功能"),
             BottomNavigationBarItem(icon: Icon(Icons.message), label: "消息"),
-            BottomNavigationBarItem(icon: Icon(Icons.settings), label: "设置"),
-            BottomNavigationBarItem(icon: Icon(Icons.people), label: "用户")
+            BottomNavigationBarItem(icon: Icon(Icons.add_circle_outline), label: "关注"),
+            BottomNavigationBarItem(icon: Icon(Icons.people), label: "我的")
           ]),
       floatingActionButton: Container(
         height: 60,
