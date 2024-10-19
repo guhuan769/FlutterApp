@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:navigation_map/models/AppItem.dart';
+import 'package:vehicle_control_system/models/AppItem.dart';
 
 class AppGridItem extends StatelessWidget {
   final AppItem item;

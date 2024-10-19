@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import './routers/routers.dart';
-
 import 'package:get/get.dart';
+import './Utilities/language.dart';
 
 void main() {
   runApp(const MyApp());
+}
+
+Future<String> getSavedLanguage() async {
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  return prefs.getString('language_code') ?? 'zh'; // 默认语言为中文
 }
 
 class MyApp extends StatelessWidget {
@@ -15,7 +20,10 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetMaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Flutter Demo',
+      title: '',
+      translations: Messages(), // 你的翻译
+      locale: const Locale('zh', 'CN'), // 将会按照此处指定的语言翻译
+      fallbackLocale: const Locale('en', 'US'), // 添加
       theme: ThemeData(
           primarySwatch: Colors.blue,
           appBarTheme: const AppBarTheme(

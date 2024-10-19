@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:navigation_map/pages/tabs/focus_on.dart';
+import 'package:vehicle_control_system/pages/tabs/focus_on.dart';
 import './tabs/home.dart';
 import './tabs/category.dart';
 import './tabs/message.dart';
 import './tabs/setting.dart';
 import './tabs/user.dart';
+import 'package:vehicle_control_system/pages/Utilities/language.dart';
+
+
 
 class Tabs extends StatefulWidget {
   final int index;
@@ -108,12 +111,12 @@ class _TabsState extends State<Tabs> {
               _currentIndex = index;
             });
           },
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: "首页"),
-            BottomNavigationBarItem(icon: Icon(Icons.functions), label: "功能"),
-            BottomNavigationBarItem(icon: Icon(Icons.message), label: "消息"),
-            BottomNavigationBarItem(icon: Icon(Icons.add_circle_outline), label: "关注"),
-            BottomNavigationBarItem(icon: Icon(Icons.people), label: "我的")
+          items:  [
+            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'FrontPage'.tr),
+            BottomNavigationBarItem(icon: Icon(Icons.functions), label: "Function".tr),
+            BottomNavigationBarItem(icon: Icon(Icons.message), label: "Information".tr),
+            BottomNavigationBarItem(icon: Icon(Icons.add_circle_outline), label: "FocusOn".tr),
+            BottomNavigationBarItem(icon: Icon(Icons.people), label: "Mine".tr)
           ]),
       floatingActionButton: Container(
         height: 60,

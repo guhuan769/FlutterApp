@@ -31,10 +31,14 @@ class _SettingPageState extends State<SettingPage> {
             _buildListTile(context, '首页推荐设置'),
             _buildListTile(context, '首页头像入口设置'),
             _buildListTile(context, '深色设置'),
+            _buildListTile(context, '语言设置'),
             _buildListTile(context, '消息设置'),
             _buildListTile(context, '下载管理'),
             _buildListTile(context, '清理存储空间'),
-          ],
+          ].map((widget) => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 5.0),
+            child: widget,
+          )).toList(),
         ),
         // bottomNavigationBar: BottomNavigationBar(
         //   items: [
@@ -58,7 +62,8 @@ class _SettingPageState extends State<SettingPage> {
   Widget _buildListTile(BuildContext context, String title) {
     return ListTile(
       title: Text(title),
-      trailing: Icon(Icons.arrow_forward_ios),
+      trailing: const Icon(Icons.arrow_forward_ios),
+      tileColor: Colors.white,
       onTap: () {
         // 点击事件处理逻辑
         // ScaffoldMessenger.of(fvmcontext).showSnackBar(
@@ -68,6 +73,9 @@ class _SettingPageState extends State<SettingPage> {
           case "深色设置":
             // print('今天是星期一');
             Get.toNamed('/dark_setting');
+            break;
+          case "语言设置":
+            Get.toNamed('/language_settings');
             break;
         }
       },

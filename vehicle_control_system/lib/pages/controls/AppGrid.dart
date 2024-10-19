@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:navigation_map/models/AppItem.dart';
-import 'package:navigation_map/pages/controls/AppGridItem.dart';
+import 'package:vehicle_control_system/models/AppItem.dart';
+import 'package:vehicle_control_system/pages/controls/AppGridItem.dart';
 import 'package:get/get.dart';
+import 'package:vehicle_control_system/models/AppItem.dart';
+import 'package:vehicle_control_system/pages/controls/AppGridItem.dart';
 
 class AppGrid extends StatefulWidget {
   final ScrollController scrollController;

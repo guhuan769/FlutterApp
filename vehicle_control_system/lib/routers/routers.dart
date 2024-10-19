@@ -1,7 +1,8 @@
 import 'package:get/get.dart';
-import 'package:navigation_map/pages/tabs/dark_setting.dart';
-import 'package:navigation_map/pages/tabs/focus_on.dart';
-import 'package:navigation_map/pages/tabs/setting.dart';
+import 'package:vehicle_control_system/pages/tabs/dark_setting.dart';
+import 'package:vehicle_control_system/pages/tabs/focus_on.dart';
+import 'package:vehicle_control_system/pages/tabs/language_settings.dart';
+import 'package:vehicle_control_system/pages/tabs/setting.dart';
 import '../pages/tabs.dart';
 import '../pages/shop.dart';
 import '../pages/user/login.dart';
@@ -27,5 +28,7 @@ class AppPage {
     GetPage(name: "/setting", page: () => const SettingPage()),
     GetPage(name: "/dark_setting", page: () => const DarkSetting()),
     GetPage(name: "/focus_on", page: () => const FocusOn()),
+    GetPage(name: "/language_settings", page:  ()=> const LanguageSettings())
   ];
+
 }
