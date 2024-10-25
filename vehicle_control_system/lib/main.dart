@@ -4,13 +4,14 @@ import 'package:get/get.dart';
 import './Utilities/language.dart';
 
 void main() {
+
   runApp(const MyApp());
 }
 
-Future<String> getSavedLanguage() async {
-  SharedPreferences prefs = await SharedPreferences.getInstance();
-  return prefs.getString('language_code') ?? 'zh'; // 默认语言为中文
-}
+// Future<String> getSavedLanguage() async {
+//   SharedPreferences prefs = await SharedPreferences.getInstance();
+//   return prefs.getString('language_code') ?? 'zh'; // 默认语言为中文
+// }
 
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);

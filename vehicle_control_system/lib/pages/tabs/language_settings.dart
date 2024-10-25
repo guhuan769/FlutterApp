@@ -24,9 +24,9 @@ class _SettingsPageState extends State<LanguageSettings> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('设置'),
+        title: Text('LanguageSettings'.tr),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () {
             Get.back();
             // 返回按钮的处理逻辑
@@ -36,8 +36,8 @@ class _SettingsPageState extends State<LanguageSettings> {
       body: ListView(
         children: <Widget>[
           _buildSwitchListTile(
-            '语言切换',
-            '关闭中文/开启英文',
+            'LanguageSwitch'.tr,
+            'Close Chinese or open Chinese'.tr,
             _darkMode,
             (bool value) {
               if (value) {

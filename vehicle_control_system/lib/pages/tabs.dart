@@ -6,7 +6,7 @@ import './tabs/category.dart';
 import './tabs/message.dart';
 import './tabs/setting.dart';
 import './tabs/user.dart';
-import 'package:vehicle_control_system/pages/Utilities/language.dart';
+//import 'package:vehicle_control_system/pages/Utilities/language.dart';
 
 
 
@@ -71,18 +71,18 @@ class _TabsState extends State<Tabs> {
                     ))
               ],
             ),
-            const ListTile(
+             ListTile(
               leading: CircleAvatar(
                 child: Icon(Icons.people),
               ),
-              title: Text("个人中心"),
+              title: Text("PersonalCenter".tr),
             ),
             const Divider(),
             ListTile(
               leading: CircleAvatar(
                 child: Icon(Icons.settings),
               ),
-              title: Text("系统设置"),
+              title: Text("SystemSettings".tr),
               onTap: () {
                 // 处理点击事件
                 print('Phone 被点击');

@@ -58,6 +58,7 @@ class _AppGridState extends State<AppGrid> {
       ),
       itemCount: items.length,
       itemBuilder: (context, index) {
+
         return AppGridItem(
           item: items[index],
           isSelected: _selectedIndex == index,
