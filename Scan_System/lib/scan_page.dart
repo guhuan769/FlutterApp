@@ -77,7 +77,7 @@ class _ScanPageState extends State<ScanPage> {
     // imgTable.queryData().then((data) async {
     //   String aa = json.encode(data);
     //   setState(() {
-    //     List<ImageModel> imageModel =
+    //     List<ImageModel> imageModel =™
     //         data.map((json) => ImageModel.fromJson(json)).toList();
     //     myImageUrls = imageModel;
     //   });
