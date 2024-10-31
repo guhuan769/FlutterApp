@@ -18,6 +18,7 @@ class AppGridItem extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8.0),
+            //
             color: isSelected ? Colors.blue.withAlpha(50) : Colors.white,
           ),
           child: Column(

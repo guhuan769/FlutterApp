@@ -28,7 +28,8 @@ class AppPage {
     GetPage(name: "/setting", page: () => const SettingPage()),
     GetPage(name: "/dark_setting", page: () => const DarkSetting()),
     GetPage(name: "/focus_on", page: () => const FocusOn()),
-    GetPage(name: "/language_settings", page:  ()=> const LanguageSettings())
+    GetPage(name: "/language_settings", page:  ()=> const LanguageSettings()),
+    //GetPage(name: "/", page: page:()=>)
   ];
 
 }

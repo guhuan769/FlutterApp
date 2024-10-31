@@ -26,7 +26,13 @@ class Messages extends Translations {
       'SystemSettings':'系统设置',
       'PersonalCenter':'个人中心',
       'LanguageSwitch':'语言切换',
-      'Close Chinese or open Chinese':'语言切换',
+      'Close Chinese or open Chinese':'关闭中文/打开中文',
+
+      //function
+
+      'RemoteControl':'遥控器',
+      'RoboticControl':'机器人控制',
+
     },
     'en_US': {
       'FrontPage': 'Front Page',
@@ -49,6 +55,9 @@ class Messages extends Translations {
       'PersonalCenter':'Personal center',
       'LanguageSwitch':'Language switch',
       'Close Chinese or open Chinese':'Close Chinese or open Chinese',
+
+      'RemoteControl':'Remote control',
+      'RoboticControl':'Robotic control',
     }
   };
 }

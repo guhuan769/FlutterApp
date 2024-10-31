@@ -70,7 +70,4 @@ class DBHelper {
       return false;
     }
   }
-
-
-
 }

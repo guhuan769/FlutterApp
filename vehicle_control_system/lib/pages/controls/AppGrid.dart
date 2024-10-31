@@ -18,7 +18,8 @@ class _AppGridState extends State<AppGrid> {
   int _selectedIndex = -1;
 
   final List<AppItem> items = [
-    AppItem(icon: Icons.gamepad, label: '遥控器'),
+    AppItem(icon: Icons.gamepad, label: 'RemoteControl'.tr),
+    AppItem(icon: Icons.settings_remote, label: 'RoboticControl'.tr),
     // AppItem(icon: Icons.message, label: '社交通讯'),
     // AppItem(icon: Icons.school, label: '教育'),
     // AppItem(icon: Icons.newspaper, label: '新闻阅读'),
@@ -50,7 +51,7 @@ class _AppGridState extends State<AppGrid> {
 
     return GridView.builder(
       controller: widget.scrollController,
-      padding: EdgeInsets.all(10.0),
+      padding: const EdgeInsets.all(10.0),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: crossAxisCount,
         crossAxisSpacing: 10.0,
