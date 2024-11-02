@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:vehicle_control_system/models/AppItem.dart';
-import 'package:vehicle_control_system/pages/controls/AppGrid.dart';
-import 'package:vehicle_control_system/pages/controls/AppGridItem.dart';
+import 'package:vehicle_control_system/pages/remote_control/app_grid.dart';
+import 'package:vehicle_control_system/pages/remote_control/app_gridItem.dart';
 
 class CategoryPage extends StatelessWidget {
   final ScrollController _scrollController = ScrollController();

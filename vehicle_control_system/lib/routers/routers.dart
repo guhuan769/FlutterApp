@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:vehicle_control_system/pages/remote_control/remote_control.dart';
 import 'package:vehicle_control_system/pages/tabs/dark_setting.dart';
 import 'package:vehicle_control_system/pages/tabs/focus_on.dart';
 import 'package:vehicle_control_system/pages/tabs/language_settings.dart';
@@ -29,7 +30,7 @@ class AppPage {
     GetPage(name: "/dark_setting", page: () => const DarkSetting()),
     GetPage(name: "/focus_on", page: () => const FocusOn()),
     GetPage(name: "/language_settings", page:  ()=> const LanguageSettings()),
-    //GetPage(name: "/", page: page:()=>)
+    GetPage(name: "/remote_control", page:()=> const RemoteControl())
   ];
 
 }

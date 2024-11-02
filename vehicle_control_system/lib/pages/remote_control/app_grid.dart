@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:vehicle_control_system/models/AppItem.dart';
-import 'package:vehicle_control_system/pages/controls/AppGridItem.dart';
+import 'package:vehicle_control_system/pages/remote_control/app_gridItem.dart';
 import 'package:get/get.dart';
 import 'package:vehicle_control_system/models/AppItem.dart';
-import 'package:vehicle_control_system/pages/controls/AppGridItem.dart';
+import 'package:vehicle_control_system/pages/remote_control/app_gridItem.dart';
 
 class AppGrid extends StatefulWidget {
   final ScrollController scrollController;
@@ -37,7 +37,7 @@ class _AppGridState extends State<AppGrid> {
     });
     switch(index){
       case 0:
-          Get.toNamed('/setting');
+          Get.toNamed('/remote_control');
         break;
     }
   }
