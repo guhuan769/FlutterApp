@@ -1,7 +1,11 @@
 import 'package:get/get.dart';
 import 'package:vehicle_control_system/pages/exercise_control/car_body_control.dart';
+import 'package:vehicle_control_system/pages/exercise_control/remote_control/executor_standard_library.dart';
+import 'package:vehicle_control_system/pages/exercise_control/remote_control/freelander_standard_model.dart';
 import 'package:vehicle_control_system/pages/exercise_control/remote_control/navigation.dart';
 import 'package:vehicle_control_system/pages/exercise_control/remote_control/remote_control_manager.dart';
+import 'package:vehicle_control_system/pages/exercise_control/remote_control/wind_walker_lift_model.dart';
+import 'package:vehicle_control_system/pages/exercise_control/remote_control/wind_walker_standard.dart';
 import 'package:vehicle_control_system/pages/exercise_control/robotic_control/roboti_control_panel.dart';
 import 'package:vehicle_control_system/pages/exercise_control/robotic_control/robotic_control_manager.dart';
 import 'package:vehicle_control_system/pages/tabs/dark_setting.dart';
@@ -38,7 +42,12 @@ class AppPage {
     GetPage(name: "/robotic_control_manager", page:()=> const RoboticControlManager()),
     GetPage(name: "/car_body_control", page:()=>  CarBodyControl()),
     GetPage(name: "/roboti_control_panel", page:()=>  RobotiControlPanel()),
-    GetPage(name: "/navigation", page:()=>  Navigation()),
+    //遥控器
+    GetPage(name: "/navigation", page:()=> const Navigation()),
+    GetPage(name: "/wind_walker_lift_model", page:()=> const WindWalkerLiftModel()),
+    GetPage(name: "/wind_walker_standard", page:()=> const WindWalkerStandard()),
+    GetPage(name: "/freelander_standard_model", page:()=> const FreelanderStandardModel()),
+    GetPage(name: "/executor_standard_library", page:()=> const ExecutorStandardLibrary()),
 
   ];
 

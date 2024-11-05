@@ -80,6 +80,16 @@ class _RemoteControlState extends State<RemoteControlManager> {
                     Get.toNamed('/navigation', arguments: {'title': items[index].title});
                     break;
                   case 2:
+                    Get.toNamed('/wind_walker_lift_model', arguments: {'title': items[index].title});
+                    break;
+                  case 3:
+                    Get.toNamed('/wind_walker_standard', arguments: {'title': items[index].title});
+                    break;
+                  case 4:
+                    Get.toNamed('/freelander_standard_model', arguments: {'title': items[index].title});
+                    break;
+                  case 5:
+                    Get.toNamed('/executor_standard_library', arguments: {'title': items[index].title});
                     break;
                   default:
                     Get.toNamed('/car_body_control', arguments: {'title': items[index].title});

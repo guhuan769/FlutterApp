@@ -1,10 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-
 // import 'dart:ffi';
 import 'dart:io';
-
-// import 'dart:nativewrappers/_internal/vm/lib/ffi_native_type_patch.dart';
 import 'dart:typed_data';
 import 'package:dart_ping/dart_ping.dart';
 import 'package:flutter/material.dart';
@@ -18,6 +15,8 @@ import 'package:vehicle_control_system/pages/controls/custom_card.dart';
 import 'package:vehicle_control_system/pages/controls/icon_text_button.dart';
 import 'package:vehicle_control_system/tool_box/common_toast.dart';
 
+
+//智行者/领航者通用
 class Navigation extends StatefulWidget {
   const Navigation({super.key});
 
