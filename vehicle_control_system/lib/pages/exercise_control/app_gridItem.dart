@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:vehicle_control_system/models/AppItem.dart';
+import 'package:vehicle_control_system/data/models/appItem.dart';
 
 class AppGridItem extends StatelessWidget {
   final AppItem item;
@@ -25,7 +25,7 @@ class AppGridItem extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(item.icon, size: 50.0),
-              SizedBox(height: 10.0),
+              const SizedBox(height: 10.0),
               Text(item.label),
             ],
           ),

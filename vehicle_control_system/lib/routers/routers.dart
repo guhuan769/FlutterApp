@@ -1,5 +1,9 @@
 import 'package:get/get.dart';
-import 'package:vehicle_control_system/pages/remote_control/remote_control.dart';
+import 'package:vehicle_control_system/pages/exercise_control/car_body_control.dart';
+import 'package:vehicle_control_system/pages/exercise_control/remote_control/navigation.dart';
+import 'package:vehicle_control_system/pages/exercise_control/remote_control/remote_control_manager.dart';
+import 'package:vehicle_control_system/pages/exercise_control/robotic_control/roboti_control_panel.dart';
+import 'package:vehicle_control_system/pages/exercise_control/robotic_control/robotic_control_manager.dart';
 import 'package:vehicle_control_system/pages/tabs/dark_setting.dart';
 import 'package:vehicle_control_system/pages/tabs/focus_on.dart';
 import 'package:vehicle_control_system/pages/tabs/language_settings.dart';
@@ -30,7 +34,12 @@ class AppPage {
     GetPage(name: "/dark_setting", page: () => const DarkSetting()),
     GetPage(name: "/focus_on", page: () => const FocusOn()),
     GetPage(name: "/language_settings", page:  ()=> const LanguageSettings()),
-    GetPage(name: "/remote_control", page:()=> const RemoteControl())
+    GetPage(name: "/remote_control_manager", page:()=> const RemoteControlManager()),
+    GetPage(name: "/robotic_control_manager", page:()=> const RoboticControlManager()),
+    GetPage(name: "/car_body_control", page:()=>  CarBodyControl()),
+    GetPage(name: "/roboti_control_panel", page:()=>  RobotiControlPanel()),
+    GetPage(name: "/navigation", page:()=>  Navigation()),
+
   ];
 
 }

@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:vehicle_control_system/models/AppItem.dart';
-import 'package:vehicle_control_system/pages/remote_control/app_gridItem.dart';
+import 'package:vehicle_control_system/data/models/appItem.dart';
 import 'package:get/get.dart';
-import 'package:vehicle_control_system/models/AppItem.dart';
-import 'package:vehicle_control_system/pages/remote_control/app_gridItem.dart';
+import 'package:vehicle_control_system/data/models/appItem.dart';
+import 'package:vehicle_control_system/pages/exercise_control/app_gridItem.dart';
 
 class AppGrid extends StatefulWidget {
   final ScrollController scrollController;
@@ -21,7 +20,7 @@ class _AppGridState extends State<AppGrid> {
     AppItem(icon: Icons.gamepad, label: 'RemoteControl'.tr),
     AppItem(icon: Icons.settings_remote, label: 'RoboticControl'.tr),
     // AppItem(icon: Icons.message, label: '社交通讯'),
-    // AppItem(icon: Icons.school, label: '教育'),
+    // AppItem(icon: Icons.school, label: '教育'),2
     // AppItem(icon: Icons.newspaper, label: '新闻阅读'),
     // AppItem(icon: Icons.food_bank, label: '美食'),
     // AppItem(icon: Icons.travel_explore, label: '出行导航'),
@@ -37,7 +36,10 @@ class _AppGridState extends State<AppGrid> {
     });
     switch(index){
       case 0:
-          Get.toNamed('/remote_control');
+          Get.toNamed('/remote_control_manager');
+        break;
+      case 1:
+          Get.toNamed('/robotic_control_manager');
         break;
     }
   }
