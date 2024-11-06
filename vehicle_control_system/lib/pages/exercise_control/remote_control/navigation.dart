@@ -382,8 +382,8 @@ class _NavigationState extends State<Navigation> {
                         Row(
                           children: [
                             CounterWidget(
-                              height: 50,
-                              width: 150,
+                              height: 80,
+                              width: 200,
                               title: '前进后退',
                               initialValue: 0.0,
                               step: 0.01,
@@ -408,7 +408,7 @@ class _NavigationState extends State<Navigation> {
                               child: IconTextButton(
                                 filled: true,
                                 height: 40,
-                                width: 100,
+                                width: 80,
                                 icon: Icons.send,
                                 text: '发送',
                                 iconColor: Colors.grey,
@@ -427,8 +427,8 @@ class _NavigationState extends State<Navigation> {
                         Row(
                           children: [
                             CounterWidget(
-                              height: 50,
-                              width: 150,
+                              height: 80,
+                              width: 200,
                               title: '左右移动',
                               initialValue: 0.0,
                               step: 0.01,
@@ -453,7 +453,7 @@ class _NavigationState extends State<Navigation> {
                               child: IconTextButton(
                                 filled: true,
                                 height: 40,
-                                width: 100,
+                                width: 80,
                                 icon: Icons.send,
                                 text: '发送',
                                 iconColor: Colors.grey,
@@ -472,8 +472,8 @@ class _NavigationState extends State<Navigation> {
                         Row(
                           children: [
                             CounterWidget(
-                              height: 50,
-                              width: 150,
+                              height: 80,
+                              width: 200,
                               title: '车辆角度',
                               initialValue: 0.0,
                               step: 0.01,
@@ -498,7 +498,7 @@ class _NavigationState extends State<Navigation> {
                               child: IconTextButton(
                                 filled: true,
                                 height: 40,
-                                width: 100,
+                                width: 80,
                                 icon: Icons.send,
                                 text: '发送',
                                 iconColor: Colors.grey,
@@ -772,163 +772,166 @@ class _NavigationState extends State<Navigation> {
                   ),
                 ],
               ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CustomCard(
-                      screenWidth: MediaQuery.of(context).size.width,
-                      title: '节点运行',
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            children: [
-                              CounterWidget(
-                                height: 50,
-                                width: 120,
-                                title: '开始节点',
-                                initialValue: 0,
-                                step: 1,
-                                backgroundColor: Colors.grey[200],
-                                iconColor: Colors.black,
-                                textStyle: const TextStyle(
-                                    fontSize: 25.0, color: Colors.black),
-                                // onChanged: _handleGoValueChanged,
-                                controller: _startController,
-                              ),
-                              const SizedBox(height: 10),
-                              CounterWidget(
-                                height: 50,
-                                width: 120,
-                                title: '结束节点',
-                                initialValue: 0,
-                                step: 1,
-                                backgroundColor: Colors.grey[200],
-                                iconColor: Colors.black,
-                                textStyle: const TextStyle(
-                                    fontSize: 25.0, color: Colors.black),
-                                // onChanged: _handleGoValueChanged,
-                                controller: _endController,
-                              ),
-                              CustomButton(
-                                text: '目的地',
-                                icon: Icons.location_on,
-                                height: 50,
-                                width: 120,
-                                onPressed: () {
-                                  // CommonToast.showToast(_startController.text);
-                                  SendAddressData data_0x3d0 = SendAddressData(
-                                      address: 0x3d0,
-                                      length: 4,
-                                      data: int.parse(_startController.text));
-
-                                  SendAddressData data_0x3d4 = SendAddressData(
-                                      address: 0x3d4,
-                                      length: 4,
-                                      data: int.parse(_endController.text));
-
-                                  SendAddressData data_0x250 = SendAddressData(
-                                      address: 0x250, length: 1, data: 1);
-
-                                  List<SendAddressData> dataList = [];
-                                  dataList.add(data_0x3d0);
-                                  dataList.add(data_0x3d4);
-                                  dataList.add(data_0x250);
-
-                                  SendData sendData = SendData(
-                                      cRCHigh: null,
-                                      cRCLow: null,
-                                      cmd: 2,
-                                      sn: 10,
-                                      sendAddressData: dataList);
-
-                                  sendData.buildBytesAddCrc();
-                                  Uint8List sendAll = sendData.buildAllBytes();
-                                  _sendUdpMessage(sendAll);
-                                  _onErrorMessageReceived(0, "数据已发送。");
-                                },
-                              ),
-                            ],
-                          ),
-                          Container(
-                            height: 200,
-                            width: 1,
-                            color: Colors.grey,
-                          ),
-                          Column(
-                            children: [
-                              CounterWidget(
-                                height: 50,
-                                width: 120,
-                                title: '开始节点',
-                                initialValue: 0,
-                                step: 1,
-                                backgroundColor: Colors.grey[200],
-                                iconColor: Colors.black,
-                                textStyle: const TextStyle(
-                                    fontSize: 25.0, color: Colors.black),
-                                // onChanged: _handleGoValueChanged,
-                                controller: _backStartController,
-                              ),
-                              const SizedBox(height: 10),
-                              CounterWidget(
-                                height: 50,
-                                width: 120,
-                                title: '结束节点',
-                                initialValue: 0,
-                                step: 1,
-                                backgroundColor: Colors.grey[200],
-                                iconColor: Colors.black,
-                                textStyle: const TextStyle(
-                                    fontSize: 25.0, color: Colors.black),
-                                // onChanged: _handleGoValueChanged,
-                                controller: _backEndController,
-                              ),
-                              CustomButton(
-                                text: '回到原点',
-                                icon: Icons.location_on,
-                                height: 50,
-                                width: 120,
-                                onPressed: () {
-                                  SendAddressData data_0x3d0 = SendAddressData(
-                                      address: 0x3d0,
-                                      length: 4,
-                                      data:
-                                      int.parse(_backStartController.text));
-
-                                  SendAddressData data_0x3d4 = SendAddressData(
-                                      address: 0x3d4,
-                                      length: 4,
-                                      data: int.parse(_backEndController.text));
-
-                                  SendAddressData data_0x250 = SendAddressData(
-                                      address: 0x250, length: 1, data: 1);
-
-                                  List<SendAddressData> dataList = [];
-                                  dataList.add(data_0x3d0);
-                                  dataList.add(data_0x3d4);
-                                  dataList.add(data_0x250);
-
-                                  SendData sendData = SendData(
-                                      cRCHigh: null,
-                                      cRCLow: null,
-                                      cmd: 2,
-                                      sn: 10,
-                                      sendAddressData: dataList);
-
-                                  sendData.buildBytesAddCrc();
-                                  Uint8List sendAll = sendData.buildAllBytes();
-                                  _sendUdpMessage(sendAll);
-
-                                  _onErrorMessageReceived(0,
-                                      "数据已发送。  ${_backStartController.text}  ${_backEndController.text} ");
-                                },
-                              ),
-                            ],
-                          ),
-                        ],
-                      ))
-                ],
+              Visibility(
+                visible: false,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CustomCard(
+                        screenWidth: MediaQuery.of(context).size.width,
+                        title: '节点运行',
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              children: [
+                                CounterWidget(
+                                  height: 50,
+                                  width: 120,
+                                  title: '开始节点',
+                                  initialValue: 0,
+                                  step: 1,
+                                  backgroundColor: Colors.grey[200],
+                                  iconColor: Colors.black,
+                                  textStyle: const TextStyle(
+                                      fontSize: 25.0, color: Colors.black),
+                                  // onChanged: _handleGoValueChanged,
+                                  controller: _startController,
+                                ),
+                                const SizedBox(height: 10),
+                                CounterWidget(
+                                  height: 50,
+                                  width: 120,
+                                  title: '结束节点',
+                                  initialValue: 0,
+                                  step: 1,
+                                  backgroundColor: Colors.grey[200],
+                                  iconColor: Colors.black,
+                                  textStyle: const TextStyle(
+                                      fontSize: 25.0, color: Colors.black),
+                                  // onChanged: _handleGoValueChanged,
+                                  controller: _endController,
+                                ),
+                                CustomButton(
+                                  text: '目的地',
+                                  icon: Icons.location_on,
+                                  height: 50,
+                                  width: 120,
+                                  onPressed: () {
+                                    // CommonToast.showToast(_startController.text);
+                                    SendAddressData data_0x3d0 = SendAddressData(
+                                        address: 0x3d0,
+                                        length: 4,
+                                        data: int.parse(_startController.text));
+                
+                                    SendAddressData data_0x3d4 = SendAddressData(
+                                        address: 0x3d4,
+                                        length: 4,
+                                        data: int.parse(_endController.text));
+                
+                                    SendAddressData data_0x250 = SendAddressData(
+                                        address: 0x250, length: 1, data: 1);
+                
+                                    List<SendAddressData> dataList = [];
+                                    dataList.add(data_0x3d0);
+                                    dataList.add(data_0x3d4);
+                                    dataList.add(data_0x250);
+                
+                                    SendData sendData = SendData(
+                                        cRCHigh: null,
+                                        cRCLow: null,
+                                        cmd: 2,
+                                        sn: 10,
+                                        sendAddressData: dataList);
+                
+                                    sendData.buildBytesAddCrc();
+                                    Uint8List sendAll = sendData.buildAllBytes();
+                                    _sendUdpMessage(sendAll);
+                                    _onErrorMessageReceived(0, "数据已发送。");
+                                  },
+                                ),
+                              ],
+                            ),
+                            Container(
+                              height: 200,
+                              width: 1,
+                              color: Colors.grey,
+                            ),
+                            Column(
+                              children: [
+                                CounterWidget(
+                                  height: 50,
+                                  width: 120,
+                                  title: '开始节点',
+                                  initialValue: 0,
+                                  step: 1,
+                                  backgroundColor: Colors.grey[200],
+                                  iconColor: Colors.black,
+                                  textStyle: const TextStyle(
+                                      fontSize: 25.0, color: Colors.black),
+                                  // onChanged: _handleGoValueChanged,
+                                  controller: _backStartController,
+                                ),
+                                const SizedBox(height: 10),
+                                CounterWidget(
+                                  height: 50,
+                                  width: 120,
+                                  title: '结束节点',
+                                  initialValue: 0,
+                                  step: 1,
+                                  backgroundColor: Colors.grey[200],
+                                  iconColor: Colors.black,
+                                  textStyle: const TextStyle(
+                                      fontSize: 25.0, color: Colors.black),
+                                  // onChanged: _handleGoValueChanged,
+                                  controller: _backEndController,
+                                ),
+                                CustomButton(
+                                  text: '回到原点',
+                                  icon: Icons.location_on,
+                                  height: 50,
+                                  width: 120,
+                                  onPressed: () {
+                                    SendAddressData data_0x3d0 = SendAddressData(
+                                        address: 0x3d0,
+                                        length: 4,
+                                        data:
+                                        int.parse(_backStartController.text));
+                
+                                    SendAddressData data_0x3d4 = SendAddressData(
+                                        address: 0x3d4,
+                                        length: 4,
+                                        data: int.parse(_backEndController.text));
+                
+                                    SendAddressData data_0x250 = SendAddressData(
+                                        address: 0x250, length: 1, data: 1);
+                
+                                    List<SendAddressData> dataList = [];
+                                    dataList.add(data_0x3d0);
+                                    dataList.add(data_0x3d4);
+                                    dataList.add(data_0x250);
+                
+                                    SendData sendData = SendData(
+                                        cRCHigh: null,
+                                        cRCLow: null,
+                                        cmd: 2,
+                                        sn: 10,
+                                        sendAddressData: dataList);
+                
+                                    sendData.buildBytesAddCrc();
+                                    Uint8List sendAll = sendData.buildAllBytes();
+                                    _sendUdpMessage(sendAll);
+                
+                                    _onErrorMessageReceived(0,
+                                        "数据已发送。  ${_backStartController.text}  ${_backEndController.text} ");
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
+                        ))
+                  ],
+                ),
               ),
               const SizedBox(height: 5),
             ],

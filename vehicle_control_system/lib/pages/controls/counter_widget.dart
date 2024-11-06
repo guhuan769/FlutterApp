@@ -47,11 +47,7 @@ class _CounterWidgetState extends State<CounterWidget> {
   }
 
   String _formatValue(num value) {
-    if (value is int) {
-      return value.toString();
-    } else {
-      return value.toStringAsFixed(2);
-    }
+    return value is int ? value.toString() : value.toStringAsFixed(2);
   }
 
   void _incrementCounter() {
@@ -71,9 +67,7 @@ class _CounterWidgetState extends State<CounterWidget> {
   }
 
   void _startTimer(Function action) {
-    _timer = Timer.periodic(Duration(milliseconds: 100), (timer) {
-      action();
-    });
+    _timer = Timer.periodic(const Duration(milliseconds: 100), (timer) => action());
   }
 
   void _stopTimer() {
@@ -89,59 +83,61 @@ class _CounterWidgetState extends State<CounterWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final double containerWidth = widget.width ?? screenWidth * 0.6; // 60% of screen width
+
     return Container(
-      width: widget.width,
-      height: widget.height,
-      padding: const EdgeInsets.symmetric(horizontal: 0.0),
+      width: containerWidth,
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       decoration: BoxDecoration(
         color: widget.backgroundColor ?? Colors.white,
-        borderRadius: BorderRadius.circular(50.0),
+        borderRadius: BorderRadius.circular(16.0),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.5),
+            color: Colors.grey.withOpacity(0.2),
+            blurRadius: 10.0,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: FittedBox(
-        fit: BoxFit.contain,
+      child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            SizedBox(
-              height: 10,
-            ),
             if (widget.title != null)
-              Text(
-                widget.title!,
-                style: widget.titleStyle ??
-                    const TextStyle(
-                        fontSize: 18.0, fontWeight: FontWeight.bold),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: Text(
+                  widget.title!,
+                  style: widget.titleStyle ??
+                      TextStyle(fontSize: 20.0, fontWeight: FontWeight.bold, color: Colors.black87),
+                ),
               ),
             Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 GestureDetector(
                   onLongPressStart: (_) => _startTimer(_decrementCounter),
                   onLongPressEnd: (_) => _stopTimer(),
                   child: IconButton(
-                    icon: Icon(Icons.remove,
-                        size: 40, color: widget.iconColor ?? Colors.black),
+                    icon: Icon(Icons.remove, size: 28, color: widget.iconColor ?? Colors.blue),
                     onPressed: _decrementCounter,
                   ),
                 ),
                 SizedBox(
-                  width: 80,
-                  height: 45,
+                  width: screenWidth * 0.2, // Ensure the text box is responsive
+                  height: 50,
                   child: TextFormField(
                     controller: _controller,
                     textAlign: TextAlign.center,
-                    style: widget.textStyle ?? const TextStyle(fontSize: 15.0),
+                    style: widget.textStyle ?? TextStyle(fontSize: 18.0),
                     decoration: InputDecoration(
-                      border: InputBorder.none,
-                      // labelText: widget.title,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 8.0),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12.0),
+                        borderSide: BorderSide(color: Colors.grey.withOpacity(0.5)),
+                      ),
                     ),
                     keyboardType: TextInputType.number,
                     onChanged: _onTextChanged,
@@ -151,8 +147,7 @@ class _CounterWidgetState extends State<CounterWidget> {
                   onLongPressStart: (_) => _startTimer(_incrementCounter),
                   onLongPressEnd: (_) => _stopTimer(),
                   child: IconButton(
-                    icon: Icon(Icons.add,
-                        size: 40, color: widget.iconColor ?? Colors.black),
+                    icon: Icon(Icons.add, size: 28, color: widget.iconColor ?? Colors.blue),
                     onPressed: _incrementCounter,
                   ),
                 ),

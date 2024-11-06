@@ -6,7 +6,7 @@ class HexUtils {
     // 将数字转换为3个字节的16进制字符串
     String hexString = number.toRadixString(16).padLeft(6, '0').toUpperCase();
 
-    // 插入分隔符并加上0x
+    // 插入分隔符并加上0x¡™™
     String formattedString = '0x' + hexString.replaceAllMapped(
       RegExp(r'.{2}'),
           (match) => '${match.group(0)} 0x',
