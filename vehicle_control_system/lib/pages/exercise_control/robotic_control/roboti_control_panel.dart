@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:vehicle_control_system/data/models/protocol_packet.dart';
 import 'package:vehicle_control_system/pages/controls/counter_widget.dart';
 import 'package:vehicle_control_system/pages/controls/custom_card_new.dart';
 import 'package:vehicle_control_system/pages/controls/radio_option.dart';
@@ -16,6 +17,7 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
   final TextEditingController stepController = TextEditingController();
   String selectedOption = '基础';
   double _moveValue = 0.0;
+  String selectedCoordinate = 'X'; // 默认坐标类型
 
   // 存储错误信息
   String? ipError;
@@ -24,6 +26,40 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
 
   // 连接状态
   String? connectionStatus;
+
+  // 获取模式类型的整数值
+  int get modeType {
+    switch (selectedOption) {
+      case '基础':
+        return 1;
+      case '工具':
+        return 2;
+      case '轴':
+        return 3;
+      default:
+        return 1;
+    }
+  }
+
+  // 获取坐标类型的整数值
+  int get coordinateType {
+    switch (selectedCoordinate) {
+      case 'X':
+        return 1;
+      case 'Y':
+        return 2;
+      case 'Z':
+        return 3;
+      case 'RX':
+        return 4;
+      case 'RY':
+        return 5;
+      case 'RZ':
+        return 6;
+      default:
+        return 1;
+    }
+  }
 
   @override
   void initState() {
@@ -36,7 +72,7 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
 
   void _handleMoveValueChanged(newValue) {
     setState(() {
-      _moveValue = newValue;
+      _moveValue = newValue.toDouble();;
     });
   }
 
@@ -62,30 +98,37 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
   }
 
   // 发送 TCP 数据
+// 发送 TCP 数据
   Future<void> _sendTCPData() async {
     final String ip = ipController.text;
     final String port = portController.text;
 
     if (!_validateIP(ip) || !_validatePort(port)) {
-      // 提示用户 IP 地址或端口无效
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('无效的 IP 或端口')),
       );
       return;
     }
 
+    final stepLength = double.tryParse(stepController.text) ?? 1.0;
+    final packet = ProtocolPacket(
+      modeType: modeType,
+      stepLength: stepLength,
+      coordinateType: coordinateType,
+      coordinateValue: _moveValue,
+    );
+
     try {
       final socket = await Socket.connect(ip, int.parse(port), timeout: Duration(seconds: 5));
       print('Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
 
-      // 发送数据
-      String data = 'Hello from Flutter TCP Client';
+      // 发送协议包数据
+      final data = packet.toProtocolString();
       socket.write(data);
       print('Data sent: $data');
 
-      socket.close();  // 关闭连接
+      socket.close();
 
-      // 连接成功提示
       setState(() {
         connectionStatus = '连接成功';
       });
@@ -95,7 +138,6 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
     } catch (e) {
       print('Error connecting to the socket: $e');
 
-      // 连接失败提示
       setState(() {
         connectionStatus = '连接失败';
       });
@@ -104,6 +146,26 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
       );
     }
   }
+
+  Future<bool> testConnection(String ip, int port, {int timeoutSeconds = 5}) async {
+    try {
+      // 创建一个套接字连接
+      final socket = await Socket.connect(
+        ip,
+        port,
+        timeout: Duration(seconds: timeoutSeconds),
+      );
+
+      // 连接成功，关闭连接并返回 true
+      socket.destroy();
+      return true;
+    } catch (e) {
+      // 连接失败，返回 false
+      print('连接失败: $e');
+      return false;
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -174,9 +236,21 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
                       ),
                       const SizedBox(width: 10),
                       ElevatedButton(
-                        onPressed: () {
+                        onPressed: () async {
                           if (_validateIP(ipController.text) && _validatePort(portController.text)) {
-                            _sendTCPData();
+                             int port = int.parse(portController.text);
+                            //待处理
+                            //_sendTCPData();
+                             bool isConnected = await testConnection(ipController.text, port);
+                             if (isConnected) {
+                               print('连接成功');
+                               connectionStatus = "连接成功";
+                               // 这里可以添加连接成功的处理逻辑
+                             } else {
+                               print('连接失败');
+                               connectionStatus = "连接失败";
+                               // 这里可以添加连接失败的处理逻辑
+                             }
                           } else {
                             // Show an error message if validation fails
                             ScaffoldMessenger.of(context).showSnackBar(

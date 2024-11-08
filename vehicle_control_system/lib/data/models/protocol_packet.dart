@@ -13,6 +13,6 @@ class ProtocolPacket {
 
   // 协议包的字符串表示
   String toProtocolString() {
-    return '类型: $modeType 步长: $stepLength 坐标: $coordinateType 坐标值: $coordinateValue';
+    return '类型:$modeType|步长:$stepLength|坐标:$coordinateType|坐标值:$coordinateValue';
   }
 }
