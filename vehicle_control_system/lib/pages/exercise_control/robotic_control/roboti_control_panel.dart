@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:vehicle_control_system/data/models/protocol_packet.dart';
 import 'package:vehicle_control_system/pages/communication/tcp_server.dart';
 import 'package:vehicle_control_system/pages/controls/counter_widget.dart';
+import 'package:vehicle_control_system/pages/controls/counter_widget_four.dart';
 import 'package:vehicle_control_system/pages/controls/custom_card_new.dart';
 
 class RobotiControlPanel extends StatefulWidget {
@@ -487,22 +488,46 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
             // 连接设置、模式选择等...
             CustomCardNew(
               title: '当前位置',
-              child: Column(
-                children: ['X', 'Y', 'Z', 'RX', 'RY', 'RZ'].map((axis) {
-                  return Padding(
-                    padding: EdgeInsets.symmetric(vertical: 5.0),
-                    child: TextField(
+              child: Padding(
+                padding: EdgeInsets.all(8.0),
+                child: GridView.count(
+                  crossAxisCount: 3,
+                  shrinkWrap: true,
+                  mainAxisSpacing: 10.0,
+                  crossAxisSpacing: 10.0,
+                  children: ['X', 'Y', 'Z', 'RX', 'RY', 'RZ'].map((axis) {
+                    return TextField(
                       controller: coordinateControllers[axis],
                       readOnly: true,
                       decoration: InputDecoration(
                         labelText: axis,
                         border: OutlineInputBorder(),
                       ),
-                    ),
-                  );
-                }).toList(),
+                    );
+                  }).toList(),
+                ),
               ),
             ),
+
+
+            // CustomCardNew(
+            //   title: '当前位置',
+            //   child: Column(
+            //     children: ['X', 'Y', 'Z', 'RX', 'RY', 'RZ'].map((axis) {
+            //       return Padding(
+            //         padding: EdgeInsets.symmetric(vertical: 5.0),
+            //         child: TextField(
+            //           controller: coordinateControllers[axis],
+            //           readOnly: true,
+            //           decoration: InputDecoration(
+            //             labelText: axis,
+            //             border: OutlineInputBorder(),
+            //           ),
+            //         ),
+            //       );
+            //     }).toList(),
+            //   ),
+            // ),
             // 其他控件...
             const SizedBox(height: 20),
             CustomCardNew(
@@ -512,18 +537,43 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
                   final axis = ['X', 'Y', 'Z', 'RX', 'RY', 'RZ'][index];
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 5.0),
-                    child: CounterWidget(
-                      height: 80,
-                      width: double.infinity,
-                      title: axis,
+                    child:CounterWidgetFour(
                       initialValue: 0,
                       step: 1,
-                      backgroundColor: Colors.grey[200],
-                      iconColor: Colors.black,
-                      textStyle:
-                          const TextStyle(fontSize: 18.0, color: Colors.black),
+                      title: "",
+                      backgroundColor: Colors.grey.shade200,
+                      iconColor: Colors.blue,
+                      textStyle: const TextStyle(fontSize: 20, color: Colors.black),
+                      titleStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      onLeftPressed: (){
+                        _sendTCPData();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Left')),
+
+                        );
+                        print('left');
+                      },
+                      onRightPressed: (){
+                        _sendTCPData();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Right')),
+                        );
+                        print('right');
+                      },
                       onChanged: _handleMoveValueChanged,
                     ),
+                    // CounterWidgetFour(
+                    //   height: 80,
+                    //   width: double.infinity,
+                    //   title: axis,
+                    //   initialValue: 0,
+                    //   step: 1,
+                    //   backgroundColor: Colors.grey[200],
+                    //   iconColor: Colors.black,
+                    //   textStyle:
+                    //       const TextStyle(fontSize: 18.0, color: Colors.black),
+                    //   onChanged: _handleMoveValueChanged,
+                    // ),
                   );
                 }),
               ),
