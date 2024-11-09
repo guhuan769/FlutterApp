@@ -8,7 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:vehicle_control_system/data/models/send_data.dart';
 import 'package:get/get.dart';
-import 'package:vehicle_control_system/pages/%20communication/udp_helper.dart';
+import 'package:vehicle_control_system/pages/communication/s7_utils.dart';
+import 'package:vehicle_control_system/pages/communication/udp_helper.dart';
 import 'package:vehicle_control_system/pages/controls/counter_widget.dart';
 import 'package:vehicle_control_system/pages/controls/custom_button.dart';
 import 'package:vehicle_control_system/pages/controls/custom_card.dart';
@@ -381,17 +382,19 @@ class _NavigationState extends State<Navigation> {
                         const SizedBox(height: 20),
                         Row(
                           children: [
-                            CounterWidget(
-                              height: 80,
-                              width: 200,
-                              title: '前进后退',
-                              initialValue: 0.0,
-                              step: 0.01,
-                              backgroundColor: Colors.grey[200],
-                              iconColor: Colors.black,
-                              textStyle: const TextStyle(
-                                  fontSize: 25.0, color: Colors.black),
-                              onChanged: _handleGoValueChanged,
+                            Expanded(
+                              child: CounterWidget(
+                                height: 80,
+                                width: 200,
+                                title: '前进后退',
+                                initialValue: 0.0,
+                                step: 0.01,
+                                backgroundColor: Colors.grey[200],
+                                iconColor: Colors.black,
+                                textStyle: const TextStyle(
+                                    fontSize: 25.0, color: Colors.black),
+                                onChanged: _handleGoValueChanged,
+                              ),
                             ),
                             const SizedBox(
                               width: 5,
@@ -407,14 +410,14 @@ class _NavigationState extends State<Navigation> {
                               },
                               child: IconTextButton(
                                 filled: true,
-                                height: 40,
-                                width: 80,
+                                height: 60,
+                                width: 120,
                                 icon: Icons.send,
                                 text: '发送',
                                 iconColor: Colors.grey,
                                 textColor: Colors.grey,
-                                iconSize: 20.0,
-                                textSize: 15.0,
+                                iconSize: 30.0,
+                                textSize: 20.0,
                                 onPressed: () {
                                   _sportControl(1);
                                   // _onErrorMessageReceived(0, "数据发送成功");
@@ -426,17 +429,19 @@ class _NavigationState extends State<Navigation> {
                         const SizedBox(height: 20),
                         Row(
                           children: [
-                            CounterWidget(
-                              height: 80,
-                              width: 200,
-                              title: '左右移动',
-                              initialValue: 0.0,
-                              step: 0.01,
-                              backgroundColor: Colors.grey[200],
-                              iconColor: Colors.black,
-                              textStyle: const TextStyle(
-                                  fontSize: 25.0, color: Colors.black),
-                              onChanged: _handleMoveValueChanged,
+                            Expanded(
+                              child: CounterWidget(
+                                height: 80,
+                                width: 200,
+                                title: '左右移动',
+                                initialValue: 0.0,
+                                step: 0.01,
+                                backgroundColor: Colors.grey[200],
+                                iconColor: Colors.black,
+                                textStyle: const TextStyle(
+                                    fontSize: 25.0, color: Colors.black),
+                                onChanged: _handleMoveValueChanged,
+                              ),
                             ),
                             const SizedBox(
                               width: 5,
@@ -452,14 +457,14 @@ class _NavigationState extends State<Navigation> {
                               },
                               child: IconTextButton(
                                 filled: true,
-                                height: 40,
-                                width: 80,
+                                height: 60,
+                                width: 120,
                                 icon: Icons.send,
                                 text: '发送',
                                 iconColor: Colors.grey,
                                 textColor: Colors.grey,
-                                iconSize: 20.0,
-                                textSize: 15.0,
+                                iconSize: 30.0,
+                                textSize: 20.0,
                                 onPressed: () {
                                   _sportControl(2);
                                   // _onErrorMessageReceived(0, "数据发送成功");
@@ -471,17 +476,19 @@ class _NavigationState extends State<Navigation> {
                         const SizedBox(height: 20),
                         Row(
                           children: [
-                            CounterWidget(
-                              height: 80,
-                              width: 200,
-                              title: '车辆角度',
-                              initialValue: 0.0,
-                              step: 0.01,
-                              backgroundColor: Colors.grey[200],
-                              iconColor: Colors.black,
-                              textStyle: const TextStyle(
-                                  fontSize: 25.0, color: Colors.black),
-                              onChanged: _handleThemeValueChanged,
+                            Expanded(
+                              child: CounterWidget(
+                                height: 80,
+                                width: 200,
+                                title: '车辆角度',
+                                initialValue: 0.0,
+                                step: 0.01,
+                                backgroundColor: Colors.grey[200],
+                                iconColor: Colors.black,
+                                textStyle: const TextStyle(
+                                    fontSize: 25.0, color: Colors.black),
+                                onChanged: _handleThemeValueChanged,
+                              ),
                             ),
                             const SizedBox(
                               width: 5,
@@ -497,14 +504,14 @@ class _NavigationState extends State<Navigation> {
                               },
                               child: IconTextButton(
                                 filled: true,
-                                height: 40,
-                                width: 80,
+                                height: 60,
+                                width: 120,
                                 icon: Icons.send,
                                 text: '发送',
                                 iconColor: Colors.grey,
                                 textColor: Colors.grey,
-                                iconSize: 20.0,
-                                textSize: 15.0,
+                                iconSize: 30.0,
+                                textSize: 20.0,
                                 onPressed: () {
                                   _sportControl(3);
                                 },

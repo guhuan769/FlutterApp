@@ -105,15 +105,15 @@ class _CounterWidgetState extends State<CounterWidget> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            if (widget.title != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8.0),
-                child: Text(
-                  widget.title!,
-                  style: widget.titleStyle ??
-                      TextStyle(fontSize: 20.0, fontWeight: FontWeight.bold, color: Colors.black87),
-                ),
-              ),
+            // if (widget.title != null)
+            //   Padding(
+            //     padding: const EdgeInsets.only(bottom: 8.0),
+            //     child: Text(
+            //       widget.title!,
+            //       style: widget.titleStyle ??
+            //           TextStyle(fontSize: 20.0, fontWeight: FontWeight.bold, color: Colors.black87),
+            //     ),
+            //   ),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -125,22 +125,25 @@ class _CounterWidgetState extends State<CounterWidget> {
                     onPressed: _decrementCounter,
                   ),
                 ),
-                SizedBox(
-                  width: screenWidth * 0.2, // Ensure the text box is responsive
-                  height: 50,
-                  child: TextFormField(
-                    controller: _controller,
-                    textAlign: TextAlign.center,
-                    style: widget.textStyle ?? TextStyle(fontSize: 18.0),
-                    decoration: InputDecoration(
-                      contentPadding: const EdgeInsets.symmetric(vertical: 8.0),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12.0),
-                        borderSide: BorderSide(color: Colors.grey.withOpacity(0.5)),
+                Expanded(
+                  child: SizedBox(
+                    width: screenWidth * 0.2, // Ensure the text box is responsive
+                    height: 50,
+                    child: TextFormField(
+                      controller: _controller,
+                      textAlign: TextAlign.center,
+                      style: widget.textStyle ?? TextStyle(fontSize: 18.0),
+                      decoration: InputDecoration(
+                        labelText: widget.title!,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 8.0),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12.0),
+                          borderSide: BorderSide(color: Colors.grey.withOpacity(0.5)),
+                        ),
                       ),
+                      keyboardType: TextInputType.number,
+                      onChanged: _onTextChanged,
                     ),
-                    keyboardType: TextInputType.number,
-                    onChanged: _onTextChanged,
                   ),
                 ),
                 GestureDetector(

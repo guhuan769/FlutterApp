@@ -9,7 +9,7 @@ import 'package:flutter_joystick/flutter_joystick.dart';
 import 'package:get/get.dart';
 import 'dart:math';
 
-import 'package:vehicle_control_system/pages/%20communication/s7_utils.dart';
+import 'package:vehicle_control_system/pages/communication/s7_utils.dart';
 import 'package:vehicle_control_system/pages/controls/custom_button.dart';
 import 'package:vehicle_control_system/pages/controls/custom_card.dart';
 

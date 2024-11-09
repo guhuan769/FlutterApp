@@ -1,10 +1,11 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:vehicle_control_system/data/models/protocol_packet.dart';
+import 'package:vehicle_control_system/pages/communication/tcp_server.dart';
 import 'package:vehicle_control_system/pages/controls/counter_widget.dart';
 import 'package:vehicle_control_system/pages/controls/custom_card_new.dart';
-import 'package:vehicle_control_system/pages/controls/radio_option.dart';
 
 class RobotiControlPanel extends StatefulWidget {
   @override
@@ -14,7 +15,134 @@ class RobotiControlPanel extends StatefulWidget {
 class _RobotiControlPanelState extends State<RobotiControlPanel> {
   final TextEditingController ipController = TextEditingController();
   final TextEditingController portController = TextEditingController();
-  final TextEditingController stepController = TextEditingController();
+
+  final Map<String, TextEditingController> coordinateControllers = {
+    'X': TextEditingController(text: '0'),
+    'Y': TextEditingController(text: '0'),
+    'Z': TextEditingController(text: '0'),
+    'RX': TextEditingController(text: '0'),
+    'RY': TextEditingController(text: '0'),
+    'RZ': TextEditingController(text: '0'),
+  };
+
+  Socket? _socket;
+  StreamSubscription? _subscription;
+
+  final TcpServer _tcpServer = TcpServer();
+  String _receivedData = '等待数据...';
+
+  Future<void> _startTcpServer() async {
+    // 启动 TCP 服务端，监听地址为 0.0.0.0，端口为 9098
+    await _tcpServer.startServer(address: '0.0.0.0', port: 9098);
+
+    // 订阅数据流
+    _tcpServer.dataStream.listen((data) {
+      setState(() {
+        _receivedData = data; // 更新界面显示
+      });
+
+      print("订阅数据" + _receivedData);
+
+      ProtocolPacket packet = ProtocolPacket.fromProtocolString(_receivedData);
+
+      _updateCoordinates(_receivedData);
+
+      String coordinateType = getCoordinateType(packet.coordinateType);
+
+      if (coordinateControllers.containsKey(coordinateType)) {
+        setState(() {
+          coordinateControllers[coordinateType]!.text = packet.coordinateValue.toString();
+        });
+      }
+
+    });
+  }
+
+  String getCoordinateType(int coordinateType) {
+    switch (coordinateType) {
+      case 1:
+        return 'X';
+      case 2:
+        return 'Y';
+      case 3:
+        return 'Z';
+      case 4:
+        return 'RX';
+      case 5:
+        return 'RY';
+      case 6:
+        return 'RZ';
+      default:
+        return 'Unknown';
+    }
+  }
+
+  // 连接并接收数据
+  Future<void> _connectAndListen() async {
+    final ip = ipController.text;
+    final port = int.parse(portController.text);
+
+    print('我爱你${ip} : ${port}');
+    try {
+      // _socket = await Socket.connect(ip, port);
+      _socket = await Socket.connect("0.0.0.0", 9999);
+      _subscription = _socket!.listen((data) {
+        String receivedData = String.fromCharCodes(data);
+        print('我爱你  ====== object');
+        _updateCoordinates(receivedData);
+      });
+      setState(() {
+        connectionStatus = '连接成功';
+      });
+    } catch (e) {
+      setState(() {
+        connectionStatus = '连接失败';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('TCP 连接失败')),
+      );
+    }
+  }
+
+  // 解析并更新坐标
+  void _updateCoordinates(String data) {
+    final Map<String, double> coordinates = parseData(data);
+
+    coordinates.forEach((axis, value) {
+      if (coordinateControllers.containsKey(axis)) {
+        setState(() {
+          coordinateControllers[axis]!.text = value.toString();
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    // _socket?.close();
+    // _subscription?.cancel();
+    // super.dispose();
+    print("dispose");
+    _tcpServer.stopServer();
+    super.dispose();
+  }
+
+  // 假设数据格式为 "X:1.0,Y:2.0,Z:3.0,RX:4.0,RY:5.0,RZ:6.0"
+  Map<String, double> parseData(String data) {
+    final Map<String, double> result = {};
+    final pairs = data.split(',');
+
+    for (var pair in pairs) {
+      final parts = pair.split(':');
+      if (parts.length == 2) {
+        final key = parts[0].trim();
+        final value = double.tryParse(parts[1].trim()) ?? 0.0;
+        result[key] = value;
+      }
+    }
+    return result;
+  }
+
   String selectedOption = '基础';
   double _moveValue = 0.0;
   String selectedCoordinate = 'X'; // 默认坐标类型
@@ -67,21 +195,22 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
     // 设置默认值
     ipController.text = '127.0.0.1';
     portController.text = '8080';
-    stepController.text = '1';  // 默认步长设置为 1 毫米
+    _startTcpServer();
   }
 
   void _handleMoveValueChanged(newValue) {
     setState(() {
-      _moveValue = newValue.toDouble();;
+      _moveValue = newValue.toDouble();
+      ;
     });
   }
 
   // 验证 IP 地址
   bool _validateIP(String ip) {
     final RegExp ipRegExp = RegExp(r'^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.'
-    r'(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.'
-    r'(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.'
-    r'(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$');
+        r'(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.'
+        r'(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.'
+        r'(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$');
     return ipRegExp.hasMatch(ip);
   }
 
@@ -110,17 +239,17 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
       return;
     }
 
-    final stepLength = double.tryParse(stepController.text) ?? 1.0;
     final packet = ProtocolPacket(
       modeType: modeType,
-      stepLength: stepLength,
       coordinateType: coordinateType,
       coordinateValue: _moveValue,
     );
 
     try {
-      final socket = await Socket.connect(ip, int.parse(port), timeout: Duration(seconds: 5));
-      print('Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
+      final socket = await Socket.connect(ip, int.parse(port),
+          timeout: Duration(seconds: 5));
+      print(
+          'Connected to: ${socket.remoteAddress.address}:${socket.remotePort}');
 
       // 发送协议包数据
       final data = packet.toProtocolString();
@@ -133,7 +262,7 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
         connectionStatus = '连接成功';
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('连接成功')),
+        const SnackBar(content: Text('连接成功-数据发送')),
       );
     } catch (e) {
       print('Error connecting to the socket: $e');
@@ -147,7 +276,8 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
     }
   }
 
-  Future<bool> testConnection(String ip, int port, {int timeoutSeconds = 5}) async {
+  Future<bool> testConnection(String ip, int port,
+      {int timeoutSeconds = 5}) async {
     try {
       // 创建一个套接字连接
       final socket = await Socket.connect(
@@ -166,7 +296,6 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     final args = Get.arguments as Map<String, dynamic>?;
@@ -177,8 +306,12 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
         title: Text(title),
         actions: [
           TextButton(
-            onPressed: _sendTCPData,  // 发送数据的回调
+            onPressed: _sendTCPData, // 发送数据的回调
             child: const Text('数据发送', style: TextStyle(color: Colors.black)),
+          ),
+          TextButton(
+            onPressed: _startTcpServer, // 开始 TCP 连接
+            child: const Text('连接', style: TextStyle(color: Colors.black)),
           ),
         ],
       ),
@@ -198,17 +331,21 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
                           controller: ipController,
                           decoration: InputDecoration(
                             labelText: 'IP 地址',
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8)),
                             errorText: ipError,
                           ),
                           onChanged: (value) {
                             setState(() {
-                              ipError = _validateIP(value) ? null : '请输入有效的 IP 地址';
+                              ipError =
+                                  _validateIP(value) ? null : '请输入有效的 IP 地址';
                             });
                           },
                           onEditingComplete: () {
                             setState(() {
-                              ipError = _validateIP(ipController.text) ? null : '请输入有效的 IP 地址';
+                              ipError = _validateIP(ipController.text)
+                                  ? null
+                                  : '请输入有效的 IP 地址';
                             });
                           },
                         ),
@@ -219,17 +356,22 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
                           controller: portController,
                           decoration: InputDecoration(
                             labelText: '端口',
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8)),
                             errorText: portError,
                           ),
                           onChanged: (value) {
                             setState(() {
-                              portError = _validatePort(value) ? null : '请输入有效的端口号（1-65535）';
+                              portError = _validatePort(value)
+                                  ? null
+                                  : '请输入有效的端口号（1-65535）';
                             });
                           },
                           onEditingComplete: () {
                             setState(() {
-                              portError = _validatePort(portController.text) ? null : '请输入有效的端口号（1-65535）';
+                              portError = _validatePort(portController.text)
+                                  ? null
+                                  : '请输入有效的端口号（1-65535）';
                             });
                           },
                         ),
@@ -237,20 +379,26 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
                       const SizedBox(width: 10),
                       ElevatedButton(
                         onPressed: () async {
-                          if (_validateIP(ipController.text) && _validatePort(portController.text)) {
-                             int port = int.parse(portController.text);
+                          if (_validateIP(ipController.text) &&
+                              _validatePort(portController.text)) {
+                            int port = int.parse(portController.text);
                             //待处理
                             //_sendTCPData();
-                             bool isConnected = await testConnection(ipController.text, port);
-                             if (isConnected) {
-                               print('连接成功');
-                               connectionStatus = "连接成功";
-                               // 这里可以添加连接成功的处理逻辑
-                             } else {
-                               print('连接失败');
-                               connectionStatus = "连接失败";
-                               // 这里可以添加连接失败的处理逻辑
-                             }
+                            bool isConnected =
+                                await testConnection(ipController.text, port);
+                            if (isConnected) {
+                              print('连接成功');
+                              setState(() {
+                                connectionStatus = "连接成功";
+                              });
+                              // 这里可以添加连接成功的处理逻辑
+                            } else {
+                              print('连接失败');
+                              setState(() {
+                                connectionStatus = "连接失败";
+                              });
+                              // 这里可以添加连接失败的处理逻辑
+                            }
                           } else {
                             // Show an error message if validation fails
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -259,7 +407,8 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
                           }
                         },
                         style: ElevatedButton.styleFrom(
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
                         ),
                         child: const Text('连接'),
                       ),
@@ -273,7 +422,9 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: connectionStatus == '连接成功' ? Colors.green : Colors.red,
+                        color: connectionStatus == '连接成功'
+                            ? Colors.green
+                            : Colors.red,
                       ),
                     ),
                 ],
@@ -292,7 +443,8 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
                         Radio<String>(
                           value: '基础',
                           groupValue: selectedOption,
-                          onChanged: (value) => setState(() => selectedOption = value!),
+                          onChanged: (value) =>
+                              setState(() => selectedOption = value!),
                         ),
                         const Text('基础'),
                       ],
@@ -306,7 +458,8 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
                         Radio<String>(
                           value: '工具',
                           groupValue: selectedOption,
-                          onChanged: (value) => setState(() => selectedOption = value!),
+                          onChanged: (value) =>
+                              setState(() => selectedOption = value!),
                         ),
                         const Text('工具'),
                       ],
@@ -320,7 +473,8 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
                         Radio<String>(
                           value: '轴',
                           groupValue: selectedOption,
-                          onChanged: (value) => setState(() => selectedOption = value!),
+                          onChanged: (value) =>
+                              setState(() => selectedOption = value!),
                         ),
                         const Text('轴'),
                       ],
@@ -330,38 +484,29 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
               ),
             ),
             const SizedBox(height: 20),
+            // 连接设置、模式选择等...
             CustomCardNew(
-              title: '步长',
-              child: Row(
-                children: [
-                  const Text('步长', style: TextStyle(fontSize: 16)),
-                  const SizedBox(width: 10),
-                  Expanded(
+              title: '当前位置',
+              child: Column(
+                children: ['X', 'Y', 'Z', 'RX', 'RY', 'RZ'].map((axis) {
+                  return Padding(
+                    padding: EdgeInsets.symmetric(vertical: 5.0),
                     child: TextField(
-                      controller: stepController,
+                      controller: coordinateControllers[axis],
+                      readOnly: true,
                       decoration: InputDecoration(
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        labelText: '1毫米到500毫米',
-                        errorText: stepError,
+                        labelText: axis,
+                        border: OutlineInputBorder(),
                       ),
-                      onChanged: (value) {
-                        setState(() {
-                          stepError = _validateStep(value) ? null : '请输入有效的步长（1-500毫米）';
-                        });
-                      },
-                      onEditingComplete: () {
-                        setState(() {
-                          stepError = _validateStep(stepController.text) ? null : '请输入有效的步长（1-500毫米）';
-                        });
-                      },
                     ),
-                  ),
-                ],
+                  );
+                }).toList(),
               ),
             ),
+            // 其他控件...
             const SizedBox(height: 20),
             CustomCardNew(
-              title: '坐标',
+              title: '机器人坐标',
               child: Column(
                 children: List.generate(6, (index) {
                   final axis = ['X', 'Y', 'Z', 'RX', 'RY', 'RZ'][index];
@@ -371,17 +516,43 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
                       height: 80,
                       width: double.infinity,
                       title: axis,
-                      initialValue: 0.0,
-                      step: 0.01,
+                      initialValue: 0,
+                      step: 1,
                       backgroundColor: Colors.grey[200],
                       iconColor: Colors.black,
-                      textStyle: const TextStyle(fontSize: 18.0, color: Colors.black),
+                      textStyle:
+                          const TextStyle(fontSize: 18.0, color: Colors.black),
                       onChanged: _handleMoveValueChanged,
                     ),
                   );
                 }),
               ),
             ),
+            // CustomCardNew(
+            //   title: "日志",
+            //   child: StreamBuilder<String>(
+            //     stream: _tcpServer.dataStream,
+            //     builder: (context, snapshot) {
+            //       print('Connection State: ${snapshot.connectionState}');
+            //       print('Has Data: ${snapshot.hasData}');
+            //       print('Data: ${snapshot.data}');
+            //
+            //       if (snapshot.connectionState == ConnectionState.waiting) {
+            //         return Center(child: CircularProgressIndicator());
+            //       } else if (snapshot.hasError) {
+            //         return Center(child: Text('发生错误: ${snapshot.error}'));
+            //       } else if (!snapshot.hasData) {
+            //         return Center(child: Text('等待数据...'));
+            //       } else {
+            //         return ListView(
+            //           children: [
+            //             Text(snapshot.data!),
+            //           ],
+            //         );
+            //       }
+            //     },
+            //   ),
+            // )
           ],
         ),
       ),

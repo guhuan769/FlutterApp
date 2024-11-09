@@ -8,9 +8,9 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import 'package:flutter_joystick/flutter_joystick.dart';
 import 'package:get/get.dart';
+import 'package:vehicle_control_system/pages/communication/s7_utils.dart';
 import 'dart:math';
 
-import 'package:vehicle_control_system/pages/%20communication/s7_utils.dart';
 import 'package:vehicle_control_system/pages/controls/custom_button.dart';
 import 'package:vehicle_control_system/pages/controls/custom_card.dart';
 
