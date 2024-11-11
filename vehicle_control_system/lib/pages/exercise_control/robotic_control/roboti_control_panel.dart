@@ -540,7 +540,7 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
                     child:CounterWidgetFour(
                       initialValue: 0,
                       step: 1,
-                      title: "",
+                      title: axis,
                       backgroundColor: Colors.grey.shade200,
                       iconColor: Colors.blue,
                       textStyle: const TextStyle(fontSize: 20, color: Colors.black),

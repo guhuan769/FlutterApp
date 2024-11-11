@@ -131,7 +131,7 @@ class _CounterWidgetFourState extends State<CounterWidgetFour> {
             onLongPressStart: (_) => _startTimer(_incrementCounter),
             onLongPressEnd: (_) => _stopTimer(),
             child: IconButton(
-              icon: Icon(Icons.arrow_drop_up, size: 28, color: widget.iconColor ?? Colors.blue),
+              icon: Icon(Icons.add, size: 28, color: widget.iconColor ?? Colors.blue),
               onPressed: _incrementCounter,
             ),
           ),
@@ -143,7 +143,7 @@ class _CounterWidgetFourState extends State<CounterWidgetFour> {
                 onLongPressStart: (_) => _startLeftTimer(),
                 onLongPressEnd: (_) => _stopLeftTimer(),
                 child: IconButton(
-                  icon: Icon(Icons.arrow_left, size: 28, color: widget.iconColor ?? Colors.blue),
+                  icon: Icon(Icons.add, size: 28, color: widget.iconColor ?? Colors.blue),
                   onPressed: widget.onLeftPressed,
                 ),
               ),
@@ -174,7 +174,7 @@ class _CounterWidgetFourState extends State<CounterWidgetFour> {
                 onLongPressStart: (_) => _startRightTimer(),
                 onLongPressEnd: (_) => _stopRightTimer(),
                 child: IconButton(
-                  icon: Icon(Icons.arrow_right, size: 28, color: widget.iconColor ?? Colors.blue),
+                  icon: Icon(Icons.remove, size: 28, color: widget.iconColor ?? Colors.blue),
                   onPressed: widget.onRightPressed,
                 ),
               ),
@@ -184,7 +184,7 @@ class _CounterWidgetFourState extends State<CounterWidgetFour> {
             onLongPressStart: (_) => _startTimer(_decrementCounter),
             onLongPressEnd: (_) => _stopTimer(),
             child: IconButton(
-              icon: Icon(Icons.arrow_drop_down, size: 28, color: widget.iconColor ?? Colors.blue),
+              icon: Icon(Icons.remove, size: 28, color: widget.iconColor ?? Colors.blue),
               onPressed: _decrementCounter,
             ),
           ),
