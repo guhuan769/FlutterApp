@@ -72,7 +72,7 @@
 class ProtocolPacket {
   final int modeType;
   final int coordinateType;
-  final double coordinateValue;
+  final num coordinateValue;
 
   ProtocolPacket({
     required this.modeType,

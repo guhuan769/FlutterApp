@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:vehicle_control_system/data/models/protocol_packet.dart';
 import 'package:vehicle_control_system/pages/communication/tcp_server.dart';
+import 'package:vehicle_control_system/pages/controls/counter_widget.dart';
 import 'package:vehicle_control_system/pages/controls/counter_widget_four.dart';
 import 'package:vehicle_control_system/pages/controls/custom_card_new.dart';
 
@@ -33,7 +34,7 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
 
   Future<void> _startTcpServer() async {
     // 启动 TCP 服务端，监听地址为 0.0.0.0，端口为 9098
-    await _tcpServer.startServer(address: '0.0.0.0', port: 9999);
+    await _tcpServer.startServer(address: '0.0.0.0', port: 9098);
 
     // 订阅数据流
     _tcpServer.dataStream.listen((data) {
@@ -144,7 +145,7 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
   }
 
   String selectedOption = '基础';
-  num _moveValue = 0.0;
+  double _moveValue = 0.0;
   String selectedCoordinate = 'X'; // 默认坐标类型
 
   // 存储错误信息
@@ -208,9 +209,9 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
   // 验证 IP 地址
   bool _validateIP(String ip) {
     final RegExp ipRegExp = RegExp(r'^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.'
-    r'(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.'
-    r'(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.'
-    r'(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$');
+        r'(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.'
+        r'(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.'
+        r'(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$');
     return ipRegExp.hasMatch(ip);
   }
 
@@ -231,7 +232,7 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
   Future<void> _sendTCPData() async {
     final String ip = ipController.text;
     final String port = portController.text;
-    print(_moveValue);
+
     if (!_validateIP(ip) || !_validatePort(port)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('无效的 IP 或端口')),
@@ -309,10 +310,10 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
             onPressed: _sendTCPData, // 发送数据的回调
             child: const Text('数据发送', style: TextStyle(color: Colors.black)),
           ),
-          // TextButton(
-          //   onPressed: _startTcpServer, // 开始 TCP 连接
-          //   child: const Text('连接', style: TextStyle(color: Colors.black)),
-          // ),
+          TextButton(
+            onPressed: _startTcpServer, // 开始 TCP 连接
+            child: const Text('连接', style: TextStyle(color: Colors.black)),
+          ),
         ],
       ),
       body: Padding(
@@ -338,7 +339,7 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
                           onChanged: (value) {
                             setState(() {
                               ipError =
-                              _validateIP(value) ? null : '请输入有效的 IP 地址';
+                                  _validateIP(value) ? null : '请输入有效的 IP 地址';
                             });
                           },
                           onEditingComplete: () {
@@ -385,7 +386,7 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
                             //待处理
                             //_sendTCPData();
                             bool isConnected =
-                            await testConnection(ipController.text, port);
+                                await testConnection(ipController.text, port);
                             if (isConnected) {
                               print('连接成功');
                               setState(() {
@@ -545,26 +546,18 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
                       textStyle: const TextStyle(fontSize: 20, color: Colors.black),
                       titleStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       onLeftPressed: (value){
-                        setState(() {
-                          _moveValue = value;
-                          selectedCoordinate = axis;
-                        });
                         _sendTCPData();
-                        // ScaffoldMessenger.of(context).showSnackBar(
-                        //   const SnackBar(content: Text('Left')),
-                        //
-                        // );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Left')),
+
+                        );
                         print('left---${value}');
                       },
                       onRightPressed: (value){
-                        setState(() {
-                          _moveValue = value;
-                          selectedCoordinate = axis;
-                        });
                         _sendTCPData();
-                        // ScaffoldMessenger.of(context).showSnackBar(
-                        //   const SnackBar(content: Text('Right')),
-                        // );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Right')),
+                        );
                         print('right---${value}');
                       },
                       onChanged: _handleMoveValueChanged,

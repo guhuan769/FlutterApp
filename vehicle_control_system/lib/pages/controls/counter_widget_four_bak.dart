@@ -12,8 +12,8 @@ class CounterWidgetFour extends StatefulWidget {
   final TextStyle? titleStyle;
   final TextEditingController? controller;
   final double? height;
-  final ValueChanged<num>? onLeftPressed;  // 将传出当前输入框的值(负数)
-  final ValueChanged<num>? onRightPressed; // 将传出当前输入框的值(正数)
+  final VoidCallback? onLeftPressed;
+  final VoidCallback? onRightPressed;
 
   const CounterWidgetFour({
     super.key,
@@ -64,24 +64,10 @@ class _CounterWidgetFourState extends State<CounterWidgetFour> {
 
   void _decrementCounter() {
     setState(() {
-      if (_counter - widget.step >= 0) {
-        _counter -= widget.step;
-        _controller.text = _formatValue(_counter);
-        widget.onChanged?.call(_counter);
-      }
+      _counter -= widget.step;
+      _controller.text = _formatValue(_counter);
+      widget.onChanged?.call(_counter);
     });
-  }
-
-  // 处理左按钮点击 (传出负值)
-  void _handleLeftButtonPress() {
-    final num currentValue = num.tryParse(_controller.text) ?? 0;
-    widget.onLeftPressed?.call(-currentValue); // 传出当前值的负数
-  }
-
-  // 处理右按钮点击 (传出正值)
-  void _handleRightButtonPress() {
-    final num currentValue = num.tryParse(_controller.text) ?? 0;
-    widget.onRightPressed?.call(currentValue); // 传出当前值的正数
   }
 
   void _startTimer(Function action) {
@@ -94,7 +80,9 @@ class _CounterWidgetFourState extends State<CounterWidgetFour> {
 
   void _startLeftTimer() {
     _leftTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
-      _handleLeftButtonPress();
+      if (widget.onLeftPressed != null) {
+        widget.onLeftPressed!();
+      }
     });
   }
 
@@ -104,7 +92,9 @@ class _CounterWidgetFourState extends State<CounterWidgetFour> {
 
   void _startRightTimer() {
     _rightTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
-      _handleRightButtonPress();
+      if (widget.onRightPressed != null) {
+        widget.onRightPressed!();
+      }
     });
   }
 
@@ -113,33 +103,16 @@ class _CounterWidgetFourState extends State<CounterWidgetFour> {
   }
 
   void _onTextChanged(String value) {
-    if (value.isEmpty) {
-      setState(() {
-        _counter = 0;
-        widget.onChanged?.call(_counter);
-      });
-      return;
-    }
-
-    num? newValue = num.tryParse(value);
-    if (newValue != null && newValue >= 0) {
-      setState(() {
-        _counter = newValue;
-        widget.onChanged?.call(_counter);
-      });
-    } else {
-      _controller.text = _formatValue(_counter);
-      _controller.selection = TextSelection.fromPosition(
-        TextPosition(offset: _controller.text.length),
-      );
-    }
+    setState(() {
+      _counter = num.tryParse(value) ?? _counter;
+      widget.onChanged?.call(_counter);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: widget.height ?? 160,
-      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+      padding: const EdgeInsets.all(8.0),
       decoration: BoxDecoration(
         color: widget.backgroundColor ?? Colors.white,
         borderRadius: BorderRadius.circular(16.0),
@@ -152,38 +125,37 @@ class _CounterWidgetFourState extends State<CounterWidgetFour> {
         ],
       ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
           GestureDetector(
             onLongPressStart: (_) => _startTimer(_incrementCounter),
             onLongPressEnd: (_) => _stopTimer(),
             child: IconButton(
-              icon: Icon(Icons.add, size: 24, color: widget.iconColor ?? Colors.blue),
+              icon: Icon(Icons.add, size: 28, color: widget.iconColor ?? Colors.blue),
               onPressed: _incrementCounter,
             ),
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // 左边减号按钮
+              // Left Button
               GestureDetector(
                 onLongPressStart: (_) => _startLeftTimer(),
                 onLongPressEnd: (_) => _stopLeftTimer(),
                 child: IconButton(
-                  icon: Icon(Icons.remove, size: 24, color: widget.iconColor ?? Colors.blue),
-                  onPressed: _handleLeftButtonPress,
+                  icon: Icon(Icons.add, size: 28, color: widget.iconColor ?? Colors.blue),
+                  onPressed: widget.onLeftPressed,
                 ),
               ),
-              // 中间输入框
+              // Center input field
               Expanded(
                 flex: 2,
                 child: SizedBox(
-                  height: 45,
+                  height: 50,
                   child: TextFormField(
                     controller: _controller,
                     textAlign: TextAlign.center,
-                    style: widget.textStyle ?? const TextStyle(fontSize: 16.0),
+                    style: widget.textStyle ?? const TextStyle(fontSize: 18.0),
                     decoration: InputDecoration(
                       labelText: widget.title,
                       contentPadding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -191,21 +163,19 @@ class _CounterWidgetFourState extends State<CounterWidgetFour> {
                         borderRadius: BorderRadius.circular(12.0),
                         borderSide: BorderSide(color: Colors.grey.withOpacity(0.5)),
                       ),
-                      errorText: num.tryParse(_controller.text) != null &&
-                          num.tryParse(_controller.text)! < 0 ? '不能输入负数' : null,
                     ),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: false),
+                    keyboardType: TextInputType.number,
                     onChanged: _onTextChanged,
                   ),
                 ),
               ),
-              // 右边加号按钮
+              // Right Button
               GestureDetector(
                 onLongPressStart: (_) => _startRightTimer(),
                 onLongPressEnd: (_) => _stopRightTimer(),
                 child: IconButton(
-                  icon: Icon(Icons.add, size: 24, color: widget.iconColor ?? Colors.blue),
-                  onPressed: _handleRightButtonPress,
+                  icon: Icon(Icons.remove, size: 28, color: widget.iconColor ?? Colors.blue),
+                  onPressed: widget.onRightPressed,
                 ),
               ),
             ],
@@ -214,7 +184,7 @@ class _CounterWidgetFourState extends State<CounterWidgetFour> {
             onLongPressStart: (_) => _startTimer(_decrementCounter),
             onLongPressEnd: (_) => _stopTimer(),
             child: IconButton(
-              icon: Icon(Icons.remove, size: 24, color: widget.iconColor ?? Colors.blue),
+              icon: Icon(Icons.remove, size: 28, color: widget.iconColor ?? Colors.blue),
               onPressed: _decrementCounter,
             ),
           ),
