@@ -2,10 +2,12 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:vehicle_control_system/data/enum/ToastType.dart';
 import 'package:vehicle_control_system/data/models/protocol_packet.dart';
 import 'package:vehicle_control_system/pages/communication/tcp_server.dart';
 import 'package:vehicle_control_system/pages/controls/counter_widget_four.dart';
 import 'package:vehicle_control_system/pages/controls/custom_card_new.dart';
+import 'package:vehicle_control_system/pages/controls/toast.dart';
 
 class RobotiControlPanel extends StatefulWidget {
   @override
@@ -25,6 +27,9 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
     'RZ': TextEditingController(text: '0'),
   };
 
+  //是否收到信息
+  bool isInformation = true;
+
   Socket? _socket;
   StreamSubscription? _subscription;
 
@@ -40,6 +45,16 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
       setState(() {
         _receivedData = data; // 更新界面显示
       });
+
+      setState(() {
+        isInformation = true;
+      });
+
+      Toast.show(
+        context,
+        "收到一条来自服务端的消息 ",
+        type: ToastType.success,
+      );
 
       print("订阅数据" + _receivedData);
 
@@ -98,8 +113,13 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
       setState(() {
         connectionStatus = '连接失败';
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('TCP 连接失败')),
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   const SnackBar(content: Text('TCP 连接失败')),
+      // );
+      Toast.show(
+        context,
+        "TCP 连接失败 ",
+        type: ToastType.error,
       );
     }
   }
@@ -194,7 +214,7 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
     super.initState();
     // 设置默认值
     ipController.text = '127.0.0.1';
-    portController.text = '8080';
+    portController.text = '9999';
     _startTcpServer();
   }
 
@@ -233,8 +253,10 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
     final String port = portController.text;
     print(_moveValue);
     if (!_validateIP(ip) || !_validatePort(port)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('无效的 IP 或端口')),
+      Toast.show(
+        context,
+        "无效的 IP 或端口",
+        type: ToastType.warning,
       );
       return;
     }
@@ -261,8 +283,14 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
       setState(() {
         connectionStatus = '连接成功';
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('连接成功-数据发送')),
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   const SnackBar(content: Text('连接成功-数据发送')),
+      // );
+      // 提示信息
+      Toast.show(
+        context,
+        "连接成功-数据发送 ",
+        type: ToastType.success,
       );
     } catch (e) {
       print('Error connecting to the socket: $e');
@@ -270,9 +298,16 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
       setState(() {
         connectionStatus = '连接失败';
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('TCP 连接失败')),
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   const SnackBar(content: Text('TCP 连接失败')),
+      // );
+
+      Toast.show(
+        context,
+        "连接失败 ",
+        type: ToastType.error,
       );
+
     }
   }
 
@@ -549,7 +584,22 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
                           _moveValue = value;
                           selectedCoordinate = axis;
                         });
-                        _sendTCPData();
+                        if(isInformation == true)
+                        {
+                          _sendTCPData();
+                          setState(() {
+                            isInformation = false;
+                          });
+                        }
+                        else
+                        {
+                          Toast.show(
+                            context,
+                            "没有收到服务端回传信息!",
+                            type: ToastType.error,
+                          );
+                        }
+
                         // ScaffoldMessenger.of(context).showSnackBar(
                         //   const SnackBar(content: Text('Left')),
                         //
@@ -561,11 +611,23 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
                           _moveValue = value;
                           selectedCoordinate = axis;
                         });
-                        _sendTCPData();
-                        // ScaffoldMessenger.of(context).showSnackBar(
-                        //   const SnackBar(content: Text('Right')),
-                        // );
-                        print('right---${value}');
+                        // 提示信息
+                        if(isInformation == true)
+                        {
+                          _sendTCPData();
+                          setState(() {
+                            isInformation = false;
+                          });
+                        }
+                        else
+                        {
+                          Toast.show(
+                            context,
+                            "没有收到服务端回传信息!",
+                            type: ToastType.error,
+                          );
+                        }
+
                       },
                       onChanged: _handleMoveValueChanged,
                     ),
