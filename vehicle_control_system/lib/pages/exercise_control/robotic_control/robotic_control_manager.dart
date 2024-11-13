@@ -43,6 +43,7 @@ class _RemoteControlState extends State<RoboticControlManager> {
               isThreeLine: true,
               onTap: () {
                 print(items[index].title);
+                //实现增删改查
                 // Get.toNamed('/car_body_control', arguments: {'title': items[index].title});
                 Get.toNamed('/roboti_control_panel', arguments: {'title': items[index].title});
 

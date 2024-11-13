@@ -221,7 +221,6 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
   void _handleMoveValueChanged(newValue) {
     setState(() {
       _moveValue = newValue.toDouble();
-      ;
     });
   }
 
@@ -340,10 +339,10 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
       appBar: AppBar(
         title: Text(title),
         actions: [
-          TextButton(
-            onPressed: _sendTCPData, // 发送数据的回调
-            child: const Text('数据发送', style: TextStyle(color: Colors.black)),
-          ),
+          // TextButton(
+          //   onPressed: _sendTCPData, // 发送数据的回调
+          //   child: const Text('数据发送', style: TextStyle(color: Colors.black)),
+          // ),
           // TextButton(
           //   onPressed: _startTcpServer, // 开始 TCP 连接
           //   child: const Text('连接', style: TextStyle(color: Colors.black)),
@@ -529,6 +528,7 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
                   shrinkWrap: true,
                   mainAxisSpacing: 10.0,
                   crossAxisSpacing: 10.0,
+                  physics: NeverScrollableScrollPhysics(), // 禁用滚动
                   children: ['X', 'Y', 'Z', 'RX', 'RY', 'RZ'].map((axis) {
                     return TextField(
                       controller: coordinateControllers[axis],

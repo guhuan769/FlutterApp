@@ -1,3 +1,25 @@
+
+
+# Database files
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+*.sqlite3-journal
+
+# Backup files
+*.bak
+*.backup
+*.dbf
+
+# Log files
+*.log
+
+# Environment variables and secrets
+.env
+.env.local
+config.ini
+
 # Miscellaneous
 *.class
 *.log
