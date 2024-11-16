@@ -33,6 +33,8 @@ class Messages extends Translations {
       'RemoteControl':'遥控器',
       'RoboticControl':'机器人控制',
 
+       // Configuration
+      'Configuration':'配置'
     },
     'en_US': {
       'FrontPage': 'Front Page',
@@ -58,6 +60,9 @@ class Messages extends Translations {
 
       'RemoteControl':'Remote control',
       'RoboticControl':'Robotic control',
+
+      // Configuration
+      'Configuration':'Configuration'
     }
   };
 }

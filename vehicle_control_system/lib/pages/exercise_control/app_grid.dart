@@ -19,6 +19,7 @@ class _AppGridState extends State<AppGrid> {
   final List<AppItem> items = [
     AppItem(icon: Icons.gamepad, label: 'RemoteControl'.tr),
     AppItem(icon: Icons.settings_remote, label: 'RoboticControl'.tr),
+    AppItem(icon: Icons.settings, label: 'Configuration'.tr), // 焊接实时配置
     // AppItem(icon: Icons.message, label: '社交通讯'),
     // AppItem(icon: Icons.school, label: '教育'),2
     // AppItem(icon: Icons.newspaper, label: '新闻阅读'),
@@ -40,6 +41,9 @@ class _AppGridState extends State<AppGrid> {
         break;
       case 1:
           Get.toNamed('/robotic_control_manager');
+        break;
+      case 2:
+        Get.toNamed('/welding_configuration_manager');
         break;
     }
   }

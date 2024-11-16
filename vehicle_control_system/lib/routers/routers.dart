@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'package:vehicle_control_system/pages/exercise_control/car_body_control.dart';
+import 'package:vehicle_control_system/pages/exercise_control/configuration/welding_configuration_manager.dart';
 import 'package:vehicle_control_system/pages/exercise_control/remote_control/executor_standard_library.dart';
 import 'package:vehicle_control_system/pages/exercise_control/remote_control/freelander_standard_model.dart';
 import 'package:vehicle_control_system/pages/exercise_control/remote_control/navigation.dart';
@@ -48,6 +49,8 @@ class AppPage {
     GetPage(name: "/wind_walker_standard", page:()=> const WindWalkerStandard()),
     GetPage(name: "/freelander_standard_model", page:()=> const FreelanderStandardModel()),
     GetPage(name: "/executor_standard_library", page:()=> const ExecutorStandardLibrary()),
+    //配置
+    GetPage(name: "/welding_configuration_manager", page:()=> const WeldingConfigurationManager()),
 
   ];
 

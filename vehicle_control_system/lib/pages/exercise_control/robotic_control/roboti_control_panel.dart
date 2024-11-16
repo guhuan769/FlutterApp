@@ -565,7 +565,7 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
             // 其他控件...
             const SizedBox(height: 20),
             CustomCardNew(
-              title: '机器人坐标',
+              title: '机器人坐标 (单位毫米)',
               child: Column(
                 children: List.generate(6, (index) {
                   final axis = ['X', 'Y', 'Z', 'RX', 'RY', 'RZ'][index];
