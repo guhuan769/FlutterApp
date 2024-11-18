@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:vehicle_control_system/data/models/title_item.dart';
 import 'package:get/get.dart';
 
-class WeldingConfigurationManager extends StatefulWidget {
-  const WeldingConfigurationManager({super.key});
+class ConfigurationManager extends StatefulWidget {
+  const ConfigurationManager({super.key});
 
   @override
-  State<WeldingConfigurationManager> createState() => _WeldingConfigurationManagerState();
+  State<ConfigurationManager> createState() => _ConfigurationManagerState();
 }
 
-class _WeldingConfigurationManagerState extends State<WeldingConfigurationManager> {
+class _ConfigurationManagerState extends State<ConfigurationManager> {
 
   final List<TitleItem> items = [
     TitleItem(
@@ -39,7 +39,7 @@ class _WeldingConfigurationManagerState extends State<WeldingConfigurationManage
                 print(items[index].title);
                 //实现增删改查
                 // Get.toNamed('/car_body_control', arguments: {'title': items[index].title});
-                Get.toNamed('/roboti_control_panel', arguments: {'title': items[index].title});
+                Get.toNamed('/welding_real_time_configuration_panel', arguments: {'title': items[index].title});
               },
             ),
           );

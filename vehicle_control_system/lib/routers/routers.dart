@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:vehicle_control_system/pages/exercise_control/car_body_control.dart';
-import 'package:vehicle_control_system/pages/exercise_control/configuration/welding_configuration_manager.dart';
+import 'package:vehicle_control_system/pages/exercise_control/configuration/configuration_manager.dart';
+import 'package:vehicle_control_system/pages/exercise_control/configuration/welding_real_time_configuration_panel.dart';
 import 'package:vehicle_control_system/pages/exercise_control/remote_control/executor_standard_library.dart';
 import 'package:vehicle_control_system/pages/exercise_control/remote_control/freelander_standard_model.dart';
 import 'package:vehicle_control_system/pages/exercise_control/remote_control/navigation.dart';
@@ -50,7 +51,8 @@ class AppPage {
     GetPage(name: "/freelander_standard_model", page:()=> const FreelanderStandardModel()),
     GetPage(name: "/executor_standard_library", page:()=> const ExecutorStandardLibrary()),
     //配置
-    GetPage(name: "/welding_configuration_manager", page:()=> const WeldingConfigurationManager()),
+    GetPage(name: "/welding_real_time_configuration_panel", page:()=> const WeldingRealTimeConfigurationPanel()),
+    GetPage(name: "/configuration_manager", page:()=> const ConfigurationManager()),
 
   ];
 

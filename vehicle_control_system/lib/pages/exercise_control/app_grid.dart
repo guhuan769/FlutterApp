@@ -43,7 +43,7 @@ class _AppGridState extends State<AppGrid> {
           Get.toNamed('/robotic_control_manager');
         break;
       case 2:
-        Get.toNamed('/welding_configuration_manager');
+        Get.toNamed('/configuration_manager');
         break;
     }
   }
