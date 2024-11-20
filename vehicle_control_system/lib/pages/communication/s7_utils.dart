@@ -186,7 +186,7 @@ class S7utils{
       0x02, // Data type, 02: byte, 01: bool
       0x00, 0x01, // Number of reads, if reading 10, it would be 0x0a
 
-      // v - DB1
+      // v - DB1  如  db20.100.5 那么dbaddress填写20 最后defualt填写 100.5 如    // 0000 0000 0000 0000 0000 0 000
       0x00, dbAddress, // 0x14 DB number, corresponding to the DB block number, if not DB, write 0
       0x84, // Storage area
       0x00, 0x00, address,// default : 0x30
@@ -261,3 +261,13 @@ class S7utils{
   }
 
 }
+
+
+
+
+
+
+
+
+
+

@@ -69,7 +69,7 @@ class _WindWalkerLiftModelState extends State<ExecutorStandardLibrary> {
         // await S7utils.s7WriteUp(_socket!, 0x80, 0x07);
         await S7utils.s7Write(_socket!, 0x08, 0x20,0x0c);
       } else if (direction == "右") {
-        print('右');
+         print('右');
         await S7utils.s7Write(_socket!, 0x10, 0x20,0x0c);
       } else {
         print('中心');
