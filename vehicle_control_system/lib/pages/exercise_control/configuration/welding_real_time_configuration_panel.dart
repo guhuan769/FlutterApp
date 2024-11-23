@@ -2,8 +2,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:vehicle_control_system/data/models/EnergyField.dart';
-import 'package:vehicle_control_system/data/models/title_item.dart';
-import 'package:get/get.dart';
 import 'package:vehicle_control_system/pages/controls/counter_widget.dart';
 import 'package:vehicle_control_system/pages/controls/custom_card_new.dart';
 import 'package:vehicle_control_system/pages/controls/icon_text_button.dart';

@@ -1,4 +1,3 @@
-import 'package:sqflite/sqflite.dart';
 import '../../config/database_config.dart';
 
 class TitleItemsDao {

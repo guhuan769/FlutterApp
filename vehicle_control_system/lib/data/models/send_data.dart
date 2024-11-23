@@ -1,9 +1,5 @@
 import 'dart:convert';
-// import 'dart:js_interop';
-
-// import 'dart:ffi' as ffi;
 import 'dart:typed_data';
-
 import 'package:crclib/catalog.dart';
 import 'package:crclib/crclib.dart';
 
