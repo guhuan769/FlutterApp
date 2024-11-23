@@ -16,7 +16,6 @@ import 'package:vehicle_control_system/pages/controls/custom_card.dart';
 import 'package:vehicle_control_system/pages/controls/icon_text_button.dart';
 import 'package:vehicle_control_system/tool_box/common_toast.dart';
 
-
 //智行者/领航者通用
 class Navigation extends StatefulWidget {
   const Navigation({super.key});
