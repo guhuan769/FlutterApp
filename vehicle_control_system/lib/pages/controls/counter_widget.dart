@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:vehicle_control_system/data/enum/ToastType.dart';
 import 'dart:async';
+
+import 'package:vehicle_control_system/pages/controls/toast.dart';
 
 class CounterWidget extends StatefulWidget {
   final num initialValue;
@@ -62,22 +65,30 @@ class _CounterWidgetState extends State<CounterWidget> {
 
   // 显示错误提示的方法
   void _showErrorMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(10),
-        backgroundColor: Colors.red.shade700,
-        action: SnackBarAction(
-          label: '关闭',
-          textColor: Colors.white,
-          onPressed: () {
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          },
-        ),
-      ),
-    );
+
+  Toast.show(
+    context,
+    message,
+    type: ToastType.error,
+  );
+
+    //自定义
+    // ScaffoldMessenger.of(context).showSnackBar(
+    //   SnackBar(
+    //     content: Text(message),
+    //     duration: const Duration(seconds: 2),
+    //     behavior: SnackBarBehavior.floating,
+    //     margin: const EdgeInsets.all(10),
+    //     backgroundColor: Colors.red.shade700,
+    //     action: SnackBarAction(
+    //       label: '关闭',
+    //       textColor: Colors.white,
+    //       onPressed: () {
+    //         ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    //       },
+    //     ),
+    //   ),
+    // );
   }
 
   bool _validateValue(num value) {

@@ -3,18 +3,21 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:vehicle_control_system/data/models/EnergyField.dart';
 import 'package:vehicle_control_system/pages/controls/counter_widget.dart';
+import 'package:vehicle_control_system/pages/controls/counter_widget_four.dart';
 import 'package:vehicle_control_system/pages/controls/custom_card_new.dart';
 import 'package:vehicle_control_system/pages/controls/icon_text_button.dart';
+import 'package:vehicle_control_system/tool_box/ip_utils.dart';
 
 class WeldingRealTimeConfigurationPanel extends StatefulWidget {
   const WeldingRealTimeConfigurationPanel({super.key});
 
   @override
-  State<WeldingRealTimeConfigurationPanel> createState() => _WeldingRealTimeConfigurationPanelState();
+  State<WeldingRealTimeConfigurationPanel> createState() =>
+      _WeldingRealTimeConfigurationPanelState();
 }
 
-class _WeldingRealTimeConfigurationPanelState extends State<WeldingRealTimeConfigurationPanel> {
-
+class _WeldingRealTimeConfigurationPanelState
+    extends State<WeldingRealTimeConfigurationPanel> {
   final TextEditingController ipController = TextEditingController();
   final TextEditingController portController = TextEditingController();
 
@@ -24,42 +27,134 @@ class _WeldingRealTimeConfigurationPanelState extends State<WeldingRealTimeConfi
   String? stepError;
 
   // 定义字段配置
+
+  //调节电流电压
   static const List<EnergyField> fields = [
-    EnergyField(key:'current', label: '电流',unit:  '安',maxValue: 500,minValue: 100,autoIncrementValue: 1),
-    EnergyField(key: 'voltage',label:  '电压',unit:  '伏特',maxValue: 40,minValue: 10,autoIncrementValue: 0.1),
+    EnergyField(
+        key: 'current',
+        label: '电流',
+        unit: '安',
+        maxValue: 500,
+        minValue: 100,
+        autoIncrementValue: 1),
+    EnergyField(
+        key: 'voltage',
+        label: '电压',
+        unit: '伏特',
+        maxValue: 40,
+        minValue: 10,
+        autoIncrementValue: 0.1),
+  ];
+
+  // 机器人偏移
+  //RobotOffset
+  static const List<EnergyField> robotOffsetFields = [
+    EnergyField(
+        key: 'X',
+        label: 'X',
+        unit: '',
+        // maxValue: 500,
+        // minValue: 100,
+        autoIncrementValue: 1),
+    EnergyField(
+        key: 'Y',
+        label: 'Y',
+        unit: '',
+        // maxValue: 40,
+        // minValue: 10,
+        autoIncrementValue: 0.1),
+    EnergyField(
+        key: 'Z',
+        label: 'Z',
+        unit: '',
+        // maxValue: 40,
+        // minValue: 10,
+        autoIncrementValue: 0.1),
   ];
 
   // 定义控制器
+
+  //调节电流电压
   final Map<String, TextEditingController> energyControllers = {
     'current': TextEditingController(text: '0'),
     'voltage': TextEditingController(text: '0'),
   };
 
+  // Robot Offset
+  final Map<String, TextEditingController> robotOffsetControllers = {
+    'X': TextEditingController(text: '0'),
+    'Y': TextEditingController(text: '0'),
+    'Z': TextEditingController(text: '0'),
+  };
+
+
   // 获取值的方法
+
+  //调节电流电压
   Map<String, double> getValues() {
     return {
-      'current': double.tryParse(energyControllers['current']?.text ?? '0') ?? 0,
-      'voltage': double.tryParse(energyControllers['voltage']?.text ?? '0') ?? 0,
+      'current':
+          double.tryParse(energyControllers['current']?.text ?? '0') ?? 0,
+      'voltage':
+          double.tryParse(energyControllers['voltage']?.text ?? '0') ?? 0,
     };
   }
+
+  // Robot Offset
+  Map<String, double> getRobotOffsetValues() {
+    return {
+      'X':
+      double.tryParse(energyControllers['X']?.text ?? '0') ?? 0,
+      'Y':
+      double.tryParse(energyControllers['Y']?.text ?? '0') ?? 0,
+      'Z':
+      double.tryParse(energyControllers['Z']?.text ?? '0') ?? 0,
+    };
+  }
+
+  double _currentValue = 0.0; //电流
+  double _voltageValue = 0.0; //电压
+
+  //调节电流电压
+  void _handleGoValueChanged(newValue, key) {
+    if (key == "current") {
+      setState(() {
+        _currentValue = newValue;
+      });
+      // print(newValue);
+      print('current');
+    } else if (key == "voltage") {
+      print('voltage');
+    } else if(key == "X"){
+      print('X');
+    }else if(key == "Y"){
+      print('Y');
+    }else if(key == "Z"){
+      print('Z');
+    }
+  }
+
+
+
+
 
   // 连接状态
   String? connectionStatus;
 
   // 验证 IP 地址
-  bool _validateIP(String ip) {
-    final RegExp ipRegExp = RegExp(r'^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.'
-    r'(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.'
-    r'(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.'
-    r'(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$');
-    return ipRegExp.hasMatch(ip);
-  }
-
-  // 验证端口
-  bool _validatePort(String port) {
-    final int? portInt = int.tryParse(port);
-    return portInt != null && portInt >= 1 && portInt <= 65535;
-  }
+  // bool _validateIP(String ip) {
+  //   final RegExp ipRegExp = RegExp(r'^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.'
+  //       r'(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.'
+  //       r'(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.'
+  //       r'(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$');
+  //   return ipRegExp.hasMatch(ip);
+  // }
+  //
+  // // 验证端口
+  // bool _validatePort(String port) {
+  //   final int? portInt = int.tryParse(port);
+  //   return portInt != null && portInt >= 1 && portInt <= 65535;
+  // }
 
   Future<bool> testConnection(String ip, int port,
       {int timeoutSeconds = 5}) async {
@@ -97,17 +192,14 @@ class _WeldingRealTimeConfigurationPanelState extends State<WeldingRealTimeConfi
     super.dispose();
   }
 
-  void _handleGoValueChanged(newValue,key) {
-    setState(() {
-      // _goValue = newValue;
-    });
-    print(newValue);
-  }
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('焊接实时配置'),),
+      appBar: AppBar(
+        title: Text('焊接实时配置'),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: ListView(
@@ -131,12 +223,12 @@ class _WeldingRealTimeConfigurationPanelState extends State<WeldingRealTimeConfi
                           onChanged: (value) {
                             setState(() {
                               ipError =
-                              _validateIP(value) ? null : '请输入有效的 IP 地址';
+                                  IpUtils.isIpValid(value) ? null : '请输入有效的 IP 地址';
                             });
                           },
                           onEditingComplete: () {
                             setState(() {
-                              ipError = _validateIP(ipController.text)
+                              ipError = IpUtils.isIpValid(ipController.text)
                                   ? null
                                   : '请输入有效的 IP 地址';
                             });
@@ -155,14 +247,14 @@ class _WeldingRealTimeConfigurationPanelState extends State<WeldingRealTimeConfi
                           ),
                           onChanged: (value) {
                             setState(() {
-                              portError = _validatePort(value)
+                              portError = IpUtils.validatePort(value)
                                   ? null
                                   : '请输入有效的端口号（1-65535）';
                             });
                           },
                           onEditingComplete: () {
                             setState(() {
-                              portError = _validatePort(portController.text)
+                              portError = IpUtils.validatePort(portController.text)
                                   ? null
                                   : '请输入有效的端口号（1-65535）';
                             });
@@ -172,13 +264,13 @@ class _WeldingRealTimeConfigurationPanelState extends State<WeldingRealTimeConfi
                       const SizedBox(width: 10),
                       ElevatedButton(
                         onPressed: () async {
-                          if (_validateIP(ipController.text) &&
-                              _validatePort(portController.text)) {
+                          if (IpUtils.isIpValid(ipController.text) &&
+                              IpUtils.validatePort(portController.text)) {
                             int port = int.parse(portController.text);
                             //待处理
                             //_sendTCPData();
                             bool isConnected =
-                            await testConnection(ipController.text, port);
+                                await testConnection(ipController.text, port);
                             if (isConnected) {
                               print('连接成功');
                               setState(() {
@@ -232,20 +324,22 @@ class _WeldingRealTimeConfigurationPanelState extends State<WeldingRealTimeConfi
                   shrinkWrap: true,
                   mainAxisSpacing: 10.0,
                   crossAxisSpacing: 10.0,
-                  childAspectRatio: 3.0,  // 控制每个 TextField 的宽高比
-                  physics: NeverScrollableScrollPhysics(), // 禁用滚动
-                //     final Map<String, String> energyMap = {
-                // 'current': '电流(安)',
-                // 'voltage': '电压(伏特)',
-                // };
+                  childAspectRatio: 3.0,
+                  // 控制每个 TextField 的宽高比
+                  physics: NeverScrollableScrollPhysics(),
+                  // 禁用滚动
+                  //     final Map<String, String> energyMap = {
+                  // 'current': '电流(安)',
+                  // 'voltage': '电压(伏特)',
+                  // };
 
-                children: fields.map((field) {
+                  children: fields.map((field) {
                     return TextField(
                       controller: energyControllers[field.key],
                       readOnly: true,
                       decoration: InputDecoration(
                         labelText: '${field.label}(${field.unit})',
-                        border: OutlineInputBorder(),
+                        border: const OutlineInputBorder(),
                       ),
                     );
                   }).toList(),
@@ -263,8 +357,10 @@ class _WeldingRealTimeConfigurationPanelState extends State<WeldingRealTimeConfi
                       shrinkWrap: true,
                       mainAxisSpacing: 10.0,
                       crossAxisSpacing: 10.0,
-                      childAspectRatio: 5.0,  // 控制每个 TextField 的宽高比
-                      physics: NeverScrollableScrollPhysics(), // 禁用滚动
+                      childAspectRatio: 5.0,
+                      // 控制每个 TextField 的宽高比
+                      physics: const NeverScrollableScrollPhysics(),
+                      // 禁用滚动
                       children: fields.map((field) {
                         return CounterWidget(
                           height: 80,
@@ -272,32 +368,25 @@ class _WeldingRealTimeConfigurationPanelState extends State<WeldingRealTimeConfi
                           title: '${field.label} (${field.unit})',
                           initialValue: field.minValue!,
                           step: field.autoIncrementValue!,
-                          maxValue: field.maxValue,  // 可选值
-                          minValue: field.minValue,  // 可选值
+                          maxValue: field.maxValue,
+                          // 可选值
+                          minValue: field.minValue,
+                          // 可选值
                           maxErrorText: field.maxValue != null
                               ? '${field.label}不能超过${field.maxValue}${field.unit}'
                               : null,
                           minErrorText: field.minValue != null
                               ? '${field.label}不能小于${field.minValue}${field.unit}'
                               : null,
-                          backgroundColor: Colors.transparent,
+                          backgroundColor:  Colors.grey.shade200,
                           iconColor: Colors.black,
                           textStyle: const TextStyle(
                               fontSize: 25.0, color: Colors.black),
-                          onChanged: (value)=>_handleGoValueChanged(value,field.key),
+                          onChanged: (value) =>
+                              _handleGoValueChanged(value, field.key),
                         );
-
-                        //   TextField(
-                        //   controller: energyControllers[axis],
-                        //   readOnly: true,
-                        //   decoration: InputDecoration(
-                        //     labelText: axis,
-                        //     border: OutlineInputBorder(),
-                        //   ),
-                        // );
                       }).toList(),
-                    )
-                    ,
+                    ),
                     const SizedBox(
                       height: 20,
                     ),
@@ -331,26 +420,80 @@ class _WeldingRealTimeConfigurationPanelState extends State<WeldingRealTimeConfi
             ),
             CustomCardNew(
               title: '调节机器人偏移',
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: GridView.count(
-                  crossAxisCount: 2,
-                  shrinkWrap: true,
-                  mainAxisSpacing: 10.0,
-                  crossAxisSpacing: 10.0,
-                  childAspectRatio: 3.0,  // 控制每个 TextField 的宽高比
-                  physics: NeverScrollableScrollPhysics(), // 禁用滚动
-                  children: ['电流(安)', '电压(伏特)'].map((axis) {
-                    return TextField(
-                      controller: energyControllers[axis],
-                      readOnly: true,
-                      decoration: InputDecoration(
-                        labelText: axis,
-                        border: OutlineInputBorder(),
-                      ),
-                    );
-                  }).toList(),
-                ),
+              child: Column(
+                children: [
+                  GridView.count(
+                    crossAxisCount: 1,
+                    shrinkWrap: true,
+                    mainAxisSpacing: 10.0,
+                    crossAxisSpacing: 10.0,
+                    childAspectRatio: 2.2,
+                    // 控制每个 TextField 的宽高比
+                    physics: const NeverScrollableScrollPhysics(),
+                    // 禁用滚动
+                    children: robotOffsetFields.map((field) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 5.0),
+                        child:CounterWidgetFour(
+                          initialValue: 0,
+                          step: 1,
+                          title: field.label,
+                          backgroundColor: Colors.grey.shade200,
+                          iconColor: Colors.blue,
+                          textStyle: const TextStyle(fontSize: 20, color: Colors.black),
+                          titleStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          onLeftPressed: (value){
+                            // setState(() {
+                            //   _moveValue = value;
+                            //   selectedCoordinate = axis;
+                            // });
+                            // if(isInformation == true)
+                            // {
+                            //   _sendTCPData();
+                            //   setState(() {
+                            //     isInformation = false;
+                            //   });
+                            // }
+                            // else
+                            // {
+                            //   Toast.show(
+                            //     context,
+                            //     "没有收到服务端回传信息!",
+                            //     type: ToastType.error,
+                            //   );
+                            // }
+                            // print('left---${value}');
+                          },
+                          onRightPressed: (value){
+                            // setState(() {
+                            //   _moveValue = value;
+                            //   selectedCoordinate = axis;
+                            // });
+                            // // 提示信息
+                            // if(isInformation == true)
+                            // {
+                            //   _sendTCPData();
+                            //   setState(() {
+                            //     isInformation = false;
+                            //   });
+                            // }
+                            // else
+                            // {
+                            //   Toast.show(
+                            //     context,
+                            //     "没有收到服务端回传信息!",
+                            //     type: ToastType.error,
+                            //   );
+                            // }
+
+                          },
+                          onChanged: (value) =>
+                              _handleGoValueChanged(value, field.key),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ]
               ),
             ),
           ],

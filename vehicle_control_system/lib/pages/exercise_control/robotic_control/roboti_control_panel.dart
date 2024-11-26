@@ -8,6 +8,7 @@ import 'package:vehicle_control_system/pages/communication/tcp_server.dart';
 import 'package:vehicle_control_system/pages/controls/counter_widget_four.dart';
 import 'package:vehicle_control_system/pages/controls/custom_card_new.dart';
 import 'package:vehicle_control_system/pages/controls/toast.dart';
+import 'package:vehicle_control_system/tool_box/ip_utils.dart';
 
 class RobotiControlPanel extends StatefulWidget {
   @override
@@ -224,34 +225,34 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
     });
   }
 
-  // 验证 IP 地址
-  bool _validateIP(String ip) {
-    final RegExp ipRegExp = RegExp(r'^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.'
-    r'(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.'
-    r'(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.'
-    r'(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$');
-    return ipRegExp.hasMatch(ip);
-  }
-
-  // 验证端口
-  bool _validatePort(String port) {
-    final int? portInt = int.tryParse(port);
-    return portInt != null && portInt >= 1 && portInt <= 65535;
-  }
+  // // 验证 IP 地址
+  // bool _validateIP(String ip) {
+  //   final RegExp ipRegExp = RegExp(r'^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.'
+  //   r'(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.'
+  //   r'(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.'
+  //   r'(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$');
+  //   return ipRegExp.hasMatch(ip);
+  // }
+  //
+  // // 验证端口
+  // bool _validatePort(String port) {
+  //   final int? portInt = int.tryParse(port);
+  //   return portInt != null && portInt >= 1 && portInt <= 65535;
+  // }
 
   // 验证步长
   bool _validateStep(String step) {
     final double? stepValue = double.tryParse(step);
     return stepValue != null && stepValue >= 1 && stepValue <= 500;
   }
-
+  // IpUtils.isIpValid(ipStr)
   // 发送 TCP 数据
 // 发送 TCP 数据
   Future<void> _sendTCPData() async {
     final String ip = ipController.text;
     final String port = portController.text;
     print(_moveValue);
-    if (!_validateIP(ip) || !_validatePort(port)) {
+    if (!IpUtils.isIpValid(ip) || !IpUtils.validatePort(port)) {
       Toast.show(
         context,
         "无效的 IP 或端口",
@@ -372,12 +373,12 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
                           onChanged: (value) {
                             setState(() {
                               ipError =
-                              _validateIP(value) ? null : '请输入有效的 IP 地址';
+                              IpUtils.isIpValid(value) ? null : '请输入有效的 IP 地址';
                             });
                           },
                           onEditingComplete: () {
                             setState(() {
-                              ipError = _validateIP(ipController.text)
+                              ipError = IpUtils.isIpValid(ipController.text)
                                   ? null
                                   : '请输入有效的 IP 地址';
                             });
@@ -396,14 +397,14 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
                           ),
                           onChanged: (value) {
                             setState(() {
-                              portError = _validatePort(value)
+                              portError = IpUtils.validatePort(value)
                                   ? null
                                   : '请输入有效的端口号（1-65535）';
                             });
                           },
                           onEditingComplete: () {
                             setState(() {
-                              portError = _validatePort(portController.text)
+                              portError = IpUtils.validatePort(portController.text)
                                   ? null
                                   : '请输入有效的端口号（1-65535）';
                             });
@@ -413,8 +414,8 @@ class _RobotiControlPanelState extends State<RobotiControlPanel> {
                       const SizedBox(width: 10),
                       ElevatedButton(
                         onPressed: () async {
-                          if (_validateIP(ipController.text) &&
-                              _validatePort(portController.text)) {
+                          if (IpUtils.isIpValid(ipController.text) &&
+                              IpUtils.validatePort(portController.text)) {
                             int port = int.parse(portController.text);
                             //待处理
                             //_sendTCPData();
