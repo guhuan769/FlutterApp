@@ -81,6 +81,33 @@ class _WeldingRealTimeConfigurationPanelState
   double _currentValue = 0.0;
   double _voltageValue = 0.0;
 
+  // 添加数据处理方法
+  void _processEnergyData(String data) {
+    try {
+      // 检查数据是否为空
+      if (data.isEmpty) return;
+
+      // 解析数据包
+      ProtocolPacket packet = ProtocolPacket.fromProtocolString(data);
+
+      setState(() {
+        // 根据模式类型更新相应的控制器
+        switch (packet.modeType) {
+          case 1: // 电流
+            energyControllers['current']?.text = packet.coordinateValue.toString();
+            _currentValue = packet.coordinateValue.toDouble();
+            break;
+          case 2: // 电压
+            energyControllers['voltage']?.text = packet.coordinateValue.toString();
+            _voltageValue = packet.coordinateValue.toDouble();
+            break;
+        }
+      });
+    } catch (e) {
+      print('数据处理错误: $e');
+    }
+  }
+
   // 启动TCP服务器
   Future<void> _startTcpServer() async {
     await _tcpServer.startServer(address: '0.0.0.0', port: 9998);
@@ -90,6 +117,9 @@ class _WeldingRealTimeConfigurationPanelState
         _receivedData = data;
         isInformation = true;
       });
+      // print('收到的数据eeee ${data}');
+      // 处理接收到的数据
+      _processEnergyData(data);
 
       Toast.show(
         context,
@@ -137,11 +167,6 @@ class _WeldingRealTimeConfigurationPanelState
         return 'Unknown';
     }
   }
-
-  // required int current,
-  // required int currentValue,
-  // required double voltage,
-  // required double voltageValue,
 
   // 电流电压
   Future<void> _sendTCPData1({
@@ -278,7 +303,6 @@ class _WeldingRealTimeConfigurationPanelState
     }
   }
 
-
   // 发送机器人偏移数据
   void _sendRobotOffsetData(String axis, double value) {
     int coordinateType;
@@ -347,6 +371,11 @@ class _WeldingRealTimeConfigurationPanelState
     super.initState();
     ipController.text = '127.0.0.1';
     portController.text = '9998';
+
+    // 初始化能源控制器的默认值
+    energyControllers['current']?.text = '0.0';
+    energyControllers['voltage']?.text = '0.0';
+
     _startTcpServer();
   }
 
@@ -363,237 +392,235 @@ class _WeldingRealTimeConfigurationPanelState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+        appBar: AppBar(
         title: Text('焊接实时配置'),
+    ),
+    body: Padding(
+    padding: const EdgeInsets.all(16.0),
+    child: ListView(
+    children: [
+    // 连接设置卡片
+    CustomCardNew(
+    title: '连接设置',
+    child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+    Row(
+    children: [
+    Expanded(
+    child: TextField(
+    controller: ipController,
+    decoration: InputDecoration(
+    labelText: 'IP 地址',
+    border: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(8)),
+    errorText: ipError,
+    ),
+    onChanged: (value) {
+    setState(() {
+    ipError = IpUtils.isIpValid(value)
+    ? null
+        : '请输入有效的 IP 地址';
+    });
+    },
+    ),
+    ),
+    const SizedBox(width: 10),
+    Expanded(
+    child: TextField(
+    controller: portController,
+    decoration: InputDecoration(
+    labelText: '端口',
+    border: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(8)),
+    errorText: portError,
+    ),
+    onChanged: (value) {
+    setState(() {
+    portError = IpUtils.validatePort(value)
+    ? null
+        : '请输入有效的端口号（1-65535）';
+    });
+    },
+    ),
+    ),
+    const SizedBox(width: 10),
+    ElevatedButton(
+    onPressed: () async {
+    if (IpUtils.isIpValid(ipController.text) &&
+    IpUtils.validatePort(portController.text)) {
+    int port = int.parse(portController.text);
+    bool isConnected =
+    await testConnection(ipController.text, port);
+    setState(() {
+    connectionStatus = isConnected ? "连接成功" : "连接失败";
+    });
+    if (!isConnected) {
+    ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('连接失败，请检查网络设置')),
+    );
+    }
+    } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('IP 地址或端口无效，请检查')),
+    );
+    }
+    },style: ElevatedButton.styleFrom(
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8)),
+    ),
+      child: const Text('连接'),
+    ),
+    ],
+    ),
+      const SizedBox(height: 20),
+      if (connectionStatus != null)
+        Text(
+          '连接状态: $connectionStatus',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: connectionStatus == '连接成功'
+                ? Colors.green
+                : Colors.red,
+          ),
+        ),
+    ],
+    ),
+    ),
+
+      // 能源监控卡片
+      CustomCardNew(
+        title: '能源监控',
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            mainAxisSpacing: 10.0,
+            crossAxisSpacing: 10.0,
+            childAspectRatio: 3.0,
+            physics: NeverScrollableScrollPhysics(),
+            children: fields.map((field) {
+              return TextField(
+                controller: energyControllers[field.key],
+                readOnly: true,
+                decoration: InputDecoration(
+                  labelText: '${field.label}(${field.unit})',
+                  border: const OutlineInputBorder(),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: ListView(
+
+      // 调节电流电压卡片
+      CustomCardNew(
+        title: '调节电流电压',
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            children: [
+              GridView.count(
+                crossAxisCount: 1,
+                shrinkWrap: true,
+                mainAxisSpacing: 10.0,
+                crossAxisSpacing: 10.0,
+                childAspectRatio: 4.0,
+                physics: const NeverScrollableScrollPhysics(),
+                children: fields.map((field) {
+                  return CounterWidget(
+                    height: 80,
+                    width: 200,
+                    title: '${field.label} (${field.unit})',
+                    initialValue: field.minValue!,
+                    step: field.autoIncrementValue!,
+                    maxValue: field.maxValue,
+                    minValue: field.minValue,
+                    maxErrorText: field.maxValue != null
+                        ? '${field.label}不能超过${field.maxValue}${field.unit}'
+                        : null,
+                    minErrorText: field.minValue != null
+                        ? '${field.label}不能小于${field.minValue}${field.unit}'
+                        : null,
+                    backgroundColor: Colors.grey.shade200,
+                    iconColor: Colors.black,
+                    textStyle: const TextStyle(
+                        fontSize: 25.0, color: Colors.black),
+                    onChanged: (value) =>
+                        _handleGoValueChanged(value, field.key),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 20),
+              IconTextButton(
+                filled: true,
+                height: 50,
+                width: 150,
+                icon: Icons.send,
+                text: '发送',
+                iconColor: Colors.grey,
+                textColor: Colors.grey,
+                iconSize: 30.0,
+                textSize: 20.0,
+                onPressed: () async {
+                  await _sendTCPData1(
+                      current: 'current',
+                      currentValue: _currentValue,
+                      voltage: 'voltage',
+                      voltageValue: _voltageValue
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+
+      // 调节机器人偏移卡片
+      CustomCardNew(
+        title: '调节机器人偏移',
+        child: Column(
           children: [
-            // 连接设置卡片
-            CustomCardNew(
-              title: '连接设置',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: ipController,
-                          decoration: InputDecoration(
-                            labelText: 'IP 地址',
-                            border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8)),
-                            errorText: ipError,
-                          ),
-                          onChanged: (value) {
-                            setState(() {
-                              ipError = IpUtils.isIpValid(value)
-                                  ? null
-                                  : '请输入有效的 IP 地址';
-                            });
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: TextField(
-                          controller: portController,
-                          decoration: InputDecoration(
-                            labelText: '端口',
-                            border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8)),
-                            errorText: portError,
-                          ),
-                          onChanged: (value) {
-                            setState(() {
-                              portError = IpUtils.validatePort(value)
-                                  ? null
-                                  : '请输入有效的端口号（1-65535）';
-                            });
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      ElevatedButton(
-                        onPressed: () async {
-                          if (IpUtils.isIpValid(ipController.text) &&
-                              IpUtils.validatePort(portController.text)) {
-                            int port = int.parse(portController.text);
-                            bool isConnected =
-                                await testConnection(ipController.text, port);
-                            setState(() {
-                              connectionStatus = isConnected ? "连接成功" : "连接失败";
-                            });
-                            if (!isConnected) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('连接失败，请检查网络设置')),
-                              );
-                            }
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('IP 地址或端口无效，请检查')),
-                            );
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8)),
-                        ),
-                        child: const Text('连接'),
-                      ),
-                    ],
+            GridView.count(
+              crossAxisCount: 1,
+              shrinkWrap: true,
+              mainAxisSpacing: 10.0,
+              crossAxisSpacing: 10.0,
+              childAspectRatio: 1.7,
+              physics: const NeverScrollableScrollPhysics(),
+              children: robotOffsetFields.map((field) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 5.0),
+                  child: CounterWidgetFour(
+                    initialValue: 0,
+                    step: field.autoIncrementValue!,
+                    title: field.label,
+                    backgroundColor: Colors.grey.shade200,
+                    iconColor: Colors.blue,
+                    textStyle: const TextStyle(
+                        fontSize: 20, color: Colors.black),
+                    titleStyle: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold),
+                    onLeftPressed: (value) {
+                      _sendRobotOffsetData(field.key, value.toDouble());
+                    },
+                    onRightPressed: (value) {
+                      _sendRobotOffsetData(field.key, value.toDouble());
+                    },
+                    onChanged: (value) =>
+                        _handleGoValueChanged(value, field.key),
                   ),
-                  const SizedBox(height: 20),
-                  if (connectionStatus != null)
-                    Text(
-                      '连接状态: $connectionStatus',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: connectionStatus == '连接成功'
-                            ? Colors.green
-                            : Colors.red,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-
-            // 能源监控卡片
-            CustomCardNew(
-              title: '能源监控',
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: GridView.count(
-                  crossAxisCount: 2,
-                  shrinkWrap: true,
-                  mainAxisSpacing: 10.0,
-                  crossAxisSpacing: 10.0,
-                  childAspectRatio: 3.0,
-                  physics: NeverScrollableScrollPhysics(),
-                  children: fields.map((field) {
-                    return TextField(
-                      controller: energyControllers[field.key],
-                      readOnly: true,
-                      decoration: InputDecoration(
-                        labelText: '${field.label}(${field.unit})',
-                        border: const OutlineInputBorder(),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
-
-            // 调节电流电压卡片
-            CustomCardNew(
-              title: '调节电流电压',
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Column(
-                  children: [
-                    GridView.count(
-                      crossAxisCount: 1,
-                      shrinkWrap: true,
-                      mainAxisSpacing: 10.0,
-                      crossAxisSpacing: 10.0,
-                      childAspectRatio: 4.0,
-                      physics: const NeverScrollableScrollPhysics(),
-                      children: fields.map((field) {
-                        return CounterWidget(
-                          height: 80,
-                          width: 200,
-                          title: '${field.label} (${field.unit})',
-                          initialValue: field.minValue!,
-                          step: field.autoIncrementValue!,
-                          maxValue: field.maxValue,
-                          minValue: field.minValue,
-                          maxErrorText: field.maxValue != null
-                              ? '${field.label}不能超过${field.maxValue}${field.unit}'
-                              : null,
-                          minErrorText: field.minValue != null
-                              ? '${field.label}不能小于${field.minValue}${field.unit}'
-                              : null,
-                          backgroundColor: Colors.grey.shade200,
-                          iconColor: Colors.black,
-                          textStyle: const TextStyle(
-                              fontSize: 25.0, color: Colors.black),
-                          onChanged: (value) =>
-                              _handleGoValueChanged(value, field.key),
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 20),
-                    IconTextButton(
-                      filled: true,
-                      height: 50,
-                      width: 150,
-                      icon: Icons.send,
-                      text: '发送',
-                      iconColor: Colors.grey,
-                      textColor: Colors.grey,
-                      iconSize: 30.0,
-                      textSize: 20.0,
-                      onPressed: () async {
-                        // 发送当前的电流和电压值
-                        // _sendEnergyData('current', _currentValue);
-                        // _sendEnergyData('voltage', _voltageValue);
-                        // required String current,
-                        // required int currentValue,
-                        // required String voltage,
-                       await _sendTCPData1(current: 'current',currentValue: 10,voltage: 'voltage',voltageValue: 10);
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // 调节机器人偏移卡片
-            CustomCardNew(
-              title: '调节机器人偏移',
-              child: Column(
-                children: [
-                  GridView.count(
-                    crossAxisCount: 1,
-                    shrinkWrap: true,
-                    mainAxisSpacing: 10.0,
-                    crossAxisSpacing: 10.0,
-                    childAspectRatio: 1.7,
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: robotOffsetFields.map((field) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 5.0),
-                        child: CounterWidgetFour(
-                          initialValue: 0,
-                          step: field.autoIncrementValue!,
-                          title: field.label,
-                          backgroundColor: Colors.grey.shade200,
-                          iconColor: Colors.blue,
-                          textStyle: const TextStyle(
-                              fontSize: 20, color: Colors.black),
-                          titleStyle: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold),
-                          onLeftPressed: (value) {
-                            _sendRobotOffsetData(field.key, value.toDouble());
-                          },
-                          onRightPressed: (value) {
-                            _sendRobotOffsetData(field.key, value.toDouble());
-                          },
-                          onChanged: (value) =>
-                              _handleGoValueChanged(value, field.key),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ],
-              ),
+                );
+              }).toList(),
             ),
           ],
         ),
       ),
+    ],
+    ),
+    ),
     );
   }
 }

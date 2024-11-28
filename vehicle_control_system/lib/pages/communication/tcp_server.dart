@@ -69,11 +69,10 @@
 // }
 //
 
-
-
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:vehicle_control_system/data/models/data_packet.dart';
 import 'package:vehicle_control_system/data/models/protocol_packet.dart';
 
 class TcpServer {
@@ -81,7 +80,8 @@ class TcpServer {
   final List<Socket> _clientSockets = [];
 
   // 创建一个 StreamController，用于向 UI 传递数据
-  final StreamController<String> _dataStreamController = StreamController<String>.broadcast();
+  final StreamController<String> _dataStreamController =
+      StreamController<String>.broadcast();
 
   // 获取数据流
   Stream<String> get dataStream => _dataStreamController.stream;
@@ -94,7 +94,8 @@ class TcpServer {
 
       // 监听客户端连接
       _serverSocket.listen((clientSocket) {
-        print('客户端连接: ${clientSocket.remoteAddress.address}:${clientSocket.remotePort}');
+        print(
+            '客户端连接: ${clientSocket.remoteAddress.address}:${clientSocket.remotePort}');
         _clientSockets.add(clientSocket);
 
         // 启动接收数据
@@ -107,23 +108,31 @@ class TcpServer {
 
   Future<void> _receiveData(Socket clientSocket) async {
     clientSocket.listen(
-          (List<int> data) async {
+      (List<int> data) async {
         try {
-          // 将接收到的数据转换为字符串
+          //TODO  如果是电流电压 需要进行判断拆分后返回
           String dataString = utf8.decode(data);
           print('接收到数据: $dataString');
+          //如果包含电压就进去
+          if (dataString.contains('voltage')) {
+            print('baby');
 
-          // 解析数据为 ProtocolPacket 实体
-          ProtocolPacket packet = ProtocolPacket.fromProtocolString(dataString);
-          print('解析后的数据: $packet');
+            // DataPacket packet = DataPacket(current: ., currentValue: currentValue, voltage: voltage, voltageValue: voltageValue)
+          } else {
+            // 将接收到的数据转换为字符串
+            // 解析数据为 ProtocolPacket 实体
+            ProtocolPacket packet =
+                ProtocolPacket.fromProtocolString(dataString);
+            print('解析后的数据: $packet');
 
-          // 将数据推送到数据流
-          // _dataStreamController.add('接收到数据: $dataString\n解析后的数据: $packet');
-          _dataStreamController.add('$dataString');
+            // 将数据推送到数据流
+            // _dataStreamController.add('接收到数据: $dataString\n解析后的数据: $packet');
+            _dataStreamController.add('$dataString');
 
-          // 处理完数据后返回给客户端响应
-          String response = '数据已接收并解析: ${packet.toProtocolString()}';
-          clientSocket.add(utf8.encode(response));
+            // 处理完数据后返回给客户端响应
+            String response = '数据已接收并解析: ${packet.toProtocolString()}';
+            clientSocket.add(utf8.encode(response));
+          }
         } catch (e) {
           print('数据处理错误: $e');
           clientSocket.add(utf8.encode('数据处理错误: $e'));
