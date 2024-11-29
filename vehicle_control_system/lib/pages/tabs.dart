@@ -41,7 +41,7 @@ class _TabsState extends State<Tabs> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Flutter App")),
+      appBar: AppBar(title: const Text("")),//const Text("Flutter App")
       drawer: Drawer(
         child: Column(
           children: [

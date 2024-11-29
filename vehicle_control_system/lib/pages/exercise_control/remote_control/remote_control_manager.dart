@@ -15,37 +15,37 @@ class _RemoteControlState extends State<RemoteControlManager> {
     TitleItem(
       id:1,
       title: '智行者标准款',
-      description: '这是描述1',
+      description: '智行者标准款',
       imageUrl: 'https://www.itying.com/images/flutter/1.png',
     ),
     TitleItem(
       id:2,
       title: '领航者标准款',
-      description: '这是描述2',
+      description: '领航者标准款',
       imageUrl: 'https://www.itying.com/images/flutter/1.png',
     ),
     TitleItem(
       id:3,
       title: '风行者升降款',
-      description: '这是描述3',
+      description: '风行者升降款',
       imageUrl: 'https://www.itying.com/images/flutter/1.png',
     ),
     TitleItem(
       id:4,
       title: '风行者标准款',
-      description: '这是描述3',
+      description: '风行者标准款',
       imageUrl: 'https://www.itying.com/images/flutter/1.png',
     ),
     TitleItem(
       id:5,
       title: '神行者标准款',
-      description: '这是描述3',
+      description: '神行者标准款',
       imageUrl: 'https://www.itying.com/images/flutter/1.png',
     ),
     TitleItem(
       id:6,
       title: '履行者标准款',
-      description: '这是描述3',
+      description: '履行者标准款',
       imageUrl: 'https://www.itying.com/images/flutter/1.png',
     ),
     // 可以添加更多项

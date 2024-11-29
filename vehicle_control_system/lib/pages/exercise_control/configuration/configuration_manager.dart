@@ -15,7 +15,7 @@ class _ConfigurationManagerState extends State<ConfigurationManager> {
     TitleItem(
       id:1,
       title: '焊接实时配置',
-      description: '这是描述1这是描述1这是描述1这是描述1这是描述1这是描述1这是描述1这是描述1这是描述1',
+      description: '用于实时配置焊接参数.',
       imageUrl: 'https://www.itying.com/images/flutter/1.png',
     ),
   ];

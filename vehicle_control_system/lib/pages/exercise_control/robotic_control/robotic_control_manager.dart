@@ -15,13 +15,13 @@ class _RemoteControlState extends State<RoboticControlManager> {
     TitleItem(
       id:1,
       title: '法拉科',
-      description: '这是描述1',
+      description: '法拉科',
       imageUrl: 'https://www.itying.com/images/flutter/1.png',
     ),
     TitleItem(
       id:2,
       title: '川崎',
-      description: '这是描述2',
+      description: '川崎',
       imageUrl: 'https://www.itying.com/images/flutter/1.png',
     ),
   ];
