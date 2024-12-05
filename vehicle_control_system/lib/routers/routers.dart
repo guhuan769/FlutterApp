@@ -14,6 +14,7 @@ import 'package:vehicle_control_system/pages/tabs/dark_setting.dart';
 import 'package:vehicle_control_system/pages/tabs/focus_on.dart';
 import 'package:vehicle_control_system/pages/tabs/language_settings.dart';
 import 'package:vehicle_control_system/pages/tabs/setting.dart';
+import 'package:vehicle_control_system/pages/user/register_page.dart';
 import '../pages/tabs.dart';
 import '../pages/shop.dart';
 import '../pages/user/login.dart';
@@ -29,7 +30,10 @@ class AppPage {
         name: "/shop",
         page: () => const ShopPage(),
         middlewares: [ShopMiddleWare()]),
-    GetPage(name: "/login", page: () => const LoginPage()),
+    GetPage(name: "/login", page: () =>  LoginPage()),
+    GetPage(name: "/register_page", page: () =>  RegisterPage()),
+
+
     GetPage(
         name: "/registerFirst",
         page: () => const RegisterFirstPage(),

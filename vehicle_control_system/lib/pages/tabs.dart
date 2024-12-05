@@ -30,12 +30,12 @@ class _TabsState extends State<Tabs> {
   }
 
   final List<Widget> _pages =  [
-    HomePage(),
+    // HomePage(),
     CategoryPage(),
     MessagePage(),
     FocusOn(),
     // SettingPage(),
-    UserPage()
+    // UserPage()
   ];
 
   @override
@@ -112,11 +112,11 @@ class _TabsState extends State<Tabs> {
             });
           },
           items:  [
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'FrontPage'.tr),
+            // BottomNavigationBarItem(icon: Icon(Icons.home), label: 'FrontPage'.tr),
             BottomNavigationBarItem(icon: Icon(Icons.functions), label: "Function".tr),
             BottomNavigationBarItem(icon: Icon(Icons.message), label: "Information".tr),
             BottomNavigationBarItem(icon: Icon(Icons.add_circle_outline), label: "FocusOn".tr),
-            BottomNavigationBarItem(icon: Icon(Icons.people), label: "Mine".tr)
+            // BottomNavigationBarItem(icon: Icon(Icons.people), label: "Mine".tr)
           ]),
       floatingActionButton: Container(
         height: 60,
