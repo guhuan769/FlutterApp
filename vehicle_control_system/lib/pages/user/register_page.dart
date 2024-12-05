@@ -206,6 +206,23 @@ class _RegisterPageState extends State<RegisterPage> {
                 Navigator.pop(context);
               }
             },
+            // 使用 controlsBuilder 修改按钮文本
+            controlsBuilder: (context, details) {
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  ElevatedButton(
+                    onPressed: details.onStepContinue,
+                    child: Text("下一步"),  // 自定义"继续"按钮文本
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: details.onStepCancel,
+                    child: Text("返回"),  // 自定义"取消"按钮文本
+                  ),
+                ],
+              );
+            },
             steps: [
               // 步骤1：基本信息
               Step(
