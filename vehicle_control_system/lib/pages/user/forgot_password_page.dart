@@ -213,12 +213,12 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               children: [
                 ElevatedButton(
                   onPressed: details.onStepContinue,
-                  child: Text("下一步"),  // 自定义"继续"按钮文本
+                  child: const Text("下一步"),  // 自定义"继续"按钮文本
                 ),
                 const SizedBox(width: 8),
                 TextButton(
                   onPressed: details.onStepCancel,
-                  child: Text("返回"),  // 自定义"取消"按钮文本
+                  child: const Text("返回"),  // 自定义"取消"按钮文本
                 ),
               ],
             );

@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 import './Utilities/language.dart';
 
 void main() {
-
   runApp(const MyApp());
 }
 
