@@ -29,7 +29,8 @@ class MyApp extends StatelessWidget {
           appBarTheme: const AppBarTheme(
             centerTitle: true,
           )),
-      initialRoute: "/login",
+      // initialRoute: "/login",
+      initialRoute: "/",
       // onGenerateRoute: onGenerateRoute,
       defaultTransition: Transition.rightToLeft,
       getPages:AppPage.routes,

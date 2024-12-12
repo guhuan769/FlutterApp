@@ -10,6 +10,8 @@ import 'package:vehicle_control_system/pages/exercise_control/remote_control/win
 import 'package:vehicle_control_system/pages/exercise_control/remote_control/wind_walker_standard.dart';
 import 'package:vehicle_control_system/pages/exercise_control/robotic_control/roboti_control_panel.dart';
 import 'package:vehicle_control_system/pages/exercise_control/robotic_control/robotic_control_manager.dart';
+import 'package:vehicle_control_system/pages/feedback/feedback_binding.dart';
+import 'package:vehicle_control_system/pages/feedback/feedback_page.dart';
 import 'package:vehicle_control_system/pages/tabs/dark_setting.dart';
 import 'package:vehicle_control_system/pages/tabs/focus_on.dart';
 import 'package:vehicle_control_system/pages/tabs/language_settings.dart';
@@ -25,6 +27,13 @@ import '../middlewares/shopMiddleware.dart';
 
 class AppPage {
   static final routes = [
+    //tabs
+    GetPage(
+      name: '/feedback',
+      page: () => const FeedbackPage(),
+      binding: FeedbackBinding(),
+    ),
+
     GetPage(name: "/", page: () => const Tabs()),
     GetPage(
         name: "/shop",

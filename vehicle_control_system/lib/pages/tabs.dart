@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:vehicle_control_system/pages/feedback/feedback_page.dart';
 import 'package:vehicle_control_system/pages/tabs/focus_on.dart';
 import './tabs/home.dart';
 import './tabs/category.dart';
@@ -32,7 +33,7 @@ class _TabsState extends State<Tabs> {
   final List<Widget> _pages =  [
     // HomePage(),
     CategoryPage(),
-    MessagePage(),
+    FeedbackPage(),
     FocusOn(),
     // SettingPage(),
     // UserPage()
@@ -134,7 +135,7 @@ class _TabsState extends State<Tabs> {
             child: const Icon(Icons.add),
             onPressed: () {
               setState(() {
-                _currentIndex = 2;
+                _currentIndex = 1;
               });
             }),
       ),
