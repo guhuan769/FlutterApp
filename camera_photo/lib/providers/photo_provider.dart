@@ -13,8 +13,32 @@ class PhotoProvider with ChangeNotifier {
   double _uploadProgress = 0;
   String _uploadStatus = '';
 
+  bool _isSelectMode = false; // 添加选择模式状态
+  bool get isSelectMode => _isSelectMode;
+
+  void toggleSelectMode() {
+    _isSelectMode = !_isSelectMode;
+    if (!_isSelectMode) {
+      _selectedPhotos.clear(); // 退出选择模式时清空选择
+    }
+    notifyListeners();
+  }
+
   PhotoProvider() {
     _initializeProvider();
+  }
+
+  Future<bool> deletePhoto(File photo) async {
+    try {
+      await photo.delete();
+      _photos.remove(photo);
+      _selectedPhotos.remove(photo);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      print('删除照片失败: $e');
+      return false;
+    }
   }
 
   Future<void> _initializeProvider() async {
@@ -55,6 +79,16 @@ class PhotoProvider with ChangeNotifier {
     }
   }
 
+  void selectAll() {
+    _selectedPhotos = Set.from(_photos);
+    notifyListeners();
+  }
+
+  void clearSelection() {
+    _selectedPhotos.clear();
+    notifyListeners();
+  }
+
   Future<void> deleteSelectedPhotos() async {
     try {
       for (var photo in _selectedPhotos) {
@@ -72,18 +106,18 @@ class PhotoProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> deletePhoto(File photo) async {
-    try {
-      await photo.delete();
-      _photos.remove(photo);
-      _selectedPhotos.remove(photo);
-      notifyListeners();
-      return true;
-    } catch (e) {
-      print('Error deleting single photo: $e');
-      return false;
-    }
-  }
+  // Future<bool> deletePhoto(File photo) async {
+  //   try {
+  //     await photo.delete();
+  //     _photos.remove(photo);
+  //     _selectedPhotos.remove(photo);
+  //     notifyListeners();
+  //     return true;
+  //   } catch (e) {
+  //     print('Error deleting single photo: $e');
+  //     return false;
+  //   }
+  // }
 
   void togglePhotoSelection(File photo) {
     if (_selectedPhotos.contains(photo)) {
