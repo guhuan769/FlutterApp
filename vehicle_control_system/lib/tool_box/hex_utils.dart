@@ -22,6 +22,6 @@ class HexUtils {
 //
 // void main() {
 //   int number = 1193046; // 例如，输入数字
-//   String hexWithSeparator = HexUtils.toHexWithSeparator(number);
+//   String hexWithSeparator = HexUtils.toHexWithSeparator(number¡™);
 //   print(hexWithSeparator); // 输出：0x12 0x34 0x56
 // }

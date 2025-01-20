@@ -64,36 +64,39 @@ class _PhotoPageState extends State<NewPhotoPage> {
               }
             },
           ),
-          if (isQRCodeDetected)
-            Center(
-              child: Container(
-                // 绘制二维码边框
-                width: 300,
-                height: 300,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.green, width: 8),
-                ),
-              ),
-            ),
-          if (!isQRCodeDetected)
-            Center(
-              child: Container(
-                // 绘制二维码边框
-                width: 300,
-                height: 300,
-                decoration: BoxDecoration(
-                  // border: Border.all(color: Colors.green, width: 8),
-                  border: Border.all(color: Colors.red, width: 8),
-                ),
-              ),
-            ),
+
+          // 二维码检测框去掉  gh
+          // if (isQRCodeDetected)
+          //   Center(
+          //     child: Container(
+          //       // 绘制二维码边框
+          //       width: 300,
+          //       height: 300,
+          //       decoration: BoxDecoration(
+          //         border: Border.all(color: Colors.green, width: 8),
+          //       ),
+          //     ),
+          //   ),
+          // if (!isQRCodeDetected)
+          //   Center(
+          //     child: Container(
+          //       // 绘制二维码边框
+          //       width: 300,
+          //       height: 300,
+          //       decoration: BoxDecoration(
+          //         // border: Border.all(color: Colors.green, width: 8),
+          //         border: Border.all(color: Colors.red, width: 8),
+          //       ),
+          //     ),
+          //   ),
           // 其他UI元素...
         ],
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: isQRCodeDetected ? Colors.green : Colors.white10,
         // onPressed: _captureImage, //
-        onPressed: isQRCodeDetected ? _captureImage : _captureMessage, //
+        // onPressed: isQRCodeDetected ? _captureImage : _captureMessage, //
+        onPressed: _captureImage, //
         child: const Icon(Icons.camera_alt_sharp),
       ),
     );
