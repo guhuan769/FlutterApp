@@ -1,26 +1,98 @@
-
 // lib/providers/photo_provider.dart
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PhotoProvider with ChangeNotifier {
   List<File> _photos = [];
   Set<File> _selectedPhotos = {};
-  String apiUrl = 'http://192.168.5.21:5000/upload'; // Change this to your server URL
-
-  List<File> get photos => _photos;
-  Set<File> get selectedPhotos => _selectedPhotos;
-
-  // 添加上传状态跟踪
+  String _apiUrl = 'http://your-server:5000/upload';
   bool _isUploading = false;
   double _uploadProgress = 0;
   String _uploadStatus = '';
 
-  bool get isUploading => _isUploading;
-  double get uploadProgress => _uploadProgress;
-  String get uploadStatus => _uploadStatus;
+  PhotoProvider() {
+    _initializeProvider();
+  }
+
+  Future<void> _initializeProvider() async {
+    await loadPhotos();
+    await _loadSavedUrl();
+  }
+
+  Future<void> setApiUrl(String url) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('api_url', url);
+      _apiUrl = url;
+      notifyListeners();
+      print('API URL updated successfully: $url');
+    } catch (e) {
+      print('Error setting API URL: $e');
+      throw Exception('Failed to save API URL');
+    }
+  }
+
+  Future<void> loadPhotos() async {
+    try {
+      final Directory appDir = await getApplicationDocumentsDirectory();
+      final List<FileSystemEntity> files = appDir.listSync();
+
+      // 只获取jpg文件
+      _photos = files
+          .whereType<File>()
+          .where((file) => file.path.toLowerCase().endsWith('.jpg'))
+          .toList();
+
+      // 按照修改时间排序，最新的在前面
+      _photos.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+
+      notifyListeners();
+    } catch (e) {
+      print('Error loading photos: $e');
+    }
+  }
+
+  Future<void> deleteSelectedPhotos() async {
+    try {
+      for (var photo in _selectedPhotos) {
+        try {
+          await photo.delete();
+          _photos.remove(photo);
+        } catch (e) {
+          print('Error deleting photo: ${photo.path}, error: $e');
+        }
+      }
+      _selectedPhotos.clear();
+      notifyListeners();
+    } catch (e) {
+      print('Error in deleteSelectedPhotos: $e');
+    }
+  }
+
+  Future<bool> deletePhoto(File photo) async {
+    try {
+      await photo.delete();
+      _photos.remove(photo);
+      _selectedPhotos.remove(photo);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      print('Error deleting single photo: $e');
+      return false;
+    }
+  }
+
+  void togglePhotoSelection(File photo) {
+    if (_selectedPhotos.contains(photo)) {
+      _selectedPhotos.remove(photo);
+    } else {
+      _selectedPhotos.add(photo);
+    }
+    notifyListeners();
+  }
 
   Future<void> uploadSelectedPhotos() async {
     if (_selectedPhotos.isEmpty) return;
@@ -29,6 +101,9 @@ class PhotoProvider with ChangeNotifier {
     _uploadProgress = 0;
     _uploadStatus = '准备上传...';
     notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    final savedUrl = prefs.getString('api_url') ?? _apiUrl;
 
     int total = _selectedPhotos.length;
     int completed = 0;
@@ -39,7 +114,7 @@ class PhotoProvider with ChangeNotifier {
         notifyListeners();
 
         try {
-          var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
+          var request = http.MultipartRequest('POST', Uri.parse(savedUrl));
           request.files.add(
             await http.MultipartFile.fromPath('file', photo.path),
           );
@@ -76,35 +151,16 @@ class PhotoProvider with ChangeNotifier {
     }
   }
 
-  Future<void> loadPhotos() async {
-    final Directory appDir = await getApplicationDocumentsDirectory();
-    final List<FileSystemEntity> files = appDir.listSync();
-    _photos = files
-        .whereType<File>()
-        .where((file) => file.path.endsWith('.jpg'))
-        .toList();
-    notifyListeners();
+  Future<void> _loadSavedUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    _apiUrl = prefs.getString('api_url') ?? _apiUrl;
   }
 
-  void togglePhotoSelection(File photo) {
-    if (_selectedPhotos.contains(photo)) {
-      _selectedPhotos.remove(photo);
-    } else {
-      _selectedPhotos.add(photo);
-    }
-    notifyListeners();
-  }
-
-  Future<void> deleteSelectedPhotos() async {
-    for (var photo in _selectedPhotos) {
-      await photo.delete();
-      _photos.remove(photo);
-    }
-    _selectedPhotos.clear();
-    notifyListeners();
-  }
-
-  void setApiUrl(String url) {
-    apiUrl = url;
-  }
+  // Getters
+  List<File> get photos => _photos;
+  Set<File> get selectedPhotos => _selectedPhotos;
+  bool get isUploading => _isUploading;
+  double get uploadProgress => _uploadProgress;
+  String get uploadStatus => _uploadStatus;
+  String get apiUrl => _apiUrl;
 }
