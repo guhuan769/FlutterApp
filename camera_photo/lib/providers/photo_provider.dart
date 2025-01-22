@@ -8,7 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 class PhotoProvider with ChangeNotifier {
   List<File> _photos = [];
   Set<File> _selectedPhotos = {};
-  String _apiUrl = 'http://your-server:5000/upload';
+  String _apiUrl = 'http://your-server:5000';
+  // String _apiUrl = 'http://your-server:5000/upload';
   bool _isUploading = false;
   double _uploadProgress = 0;
   String _uploadStatus = '';
@@ -135,9 +136,9 @@ class PhotoProvider with ChangeNotifier {
     _uploadProgress = 0;
     _uploadStatus = '准备上传...';
     notifyListeners();
-
+    //
     final prefs = await SharedPreferences.getInstance();
-    final savedUrl = prefs.getString('api_url') ?? _apiUrl;
+    final savedUrl = '${prefs.getString('api_url')}/upload' ?? _apiUrl;
 
     int total = _selectedPhotos.length;
     int completed = 0;
@@ -148,7 +149,7 @@ class PhotoProvider with ChangeNotifier {
         notifyListeners();
 
         try {
-          var request = http.MultipartRequest('POST', Uri.parse(savedUrl));
+          var request = http.MultipartRequest('POST', Uri.parse('${savedUrl}'));
           request.files.add(
             await http.MultipartFile.fromPath('file', photo.path),
           );

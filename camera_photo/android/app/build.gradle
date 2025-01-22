@@ -6,6 +6,15 @@ plugins {
 }
 
 android {
+    applicationVariants.all { variant ->
+        println "Configuring variant: ${variant.name}"
+        variant.outputs.all { output ->
+            println "Setting output filename for ${variant.name}"
+            outputFileName = "图像采集.apk"
+            println "New filename set to: ${outputFileName}"
+        }
+    }
+
     namespace = "com.example.camera_photo"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
@@ -37,7 +46,24 @@ android {
             signingConfig = signingConfigs.debug
         }
     }
+    buildTypes {
+        release {
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    // 添加这个部分进行重命名
+    android.applicationVariants.configureEach { variant ->
+        if (variant.buildType.name == 'release') {
+            variant.outputs.configureEach {
+                outputFileName = "图像采集.apk"
+            }
+        }
+    }
+
 }
+
+
 
 flutter {
     source = "../.."

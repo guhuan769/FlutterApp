@@ -61,7 +61,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     try {
       final url = _urlController.text;
-      final response = await http.get(Uri.parse(url.replaceAll('/upload', '/status')));
+      // final response = await http.get(Uri.parse(url.replaceAll('/upload', '/status')));
+      final response = await http.get(Uri.parse('${url}/status'));
 
       if (mounted) {
         if (response.statusCode == 200) {
