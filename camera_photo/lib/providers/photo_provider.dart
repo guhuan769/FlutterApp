@@ -4,29 +4,62 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http_parser/http_parser.dart';
+import 'package:mime/mime.dart';
 
 class PhotoProvider with ChangeNotifier {
   List<File> _photos = [];
   Set<File> _selectedPhotos = {};
   String _apiUrl = 'http://your-server:5000';
-  // String _apiUrl = 'http://your-server:5000/upload';
   bool _isUploading = false;
   double _uploadProgress = 0;
   String _uploadStatus = '';
+  bool _isSelectMode = false;
 
-  bool _isSelectMode = false; // 添加选择模式状态
   bool get isSelectMode => _isSelectMode;
-
-  void toggleSelectMode() {
-    _isSelectMode = !_isSelectMode;
-    if (!_isSelectMode) {
-      _selectedPhotos.clear(); // 退出选择模式时清空选择
-    }
-    notifyListeners();
-  }
+  List<File> get photos => _photos;
+  Set<File> get selectedPhotos => _selectedPhotos;
+  bool get isUploading => _isUploading;
+  double get uploadProgress => _uploadProgress;
+  String get uploadStatus => _uploadStatus;
+  String get apiUrl => _apiUrl;
 
   PhotoProvider() {
     _initializeProvider();
+  }
+
+  Future<void> _initializeProvider() async {
+    await loadPhotos();
+    await _loadSavedUrl();
+  }
+
+  Future<void> setApiUrl(String url) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('api_url', url);
+      _apiUrl = url;
+      notifyListeners();
+    } catch (e) {
+      print('Error setting API URL: $e');
+      throw Exception('Failed to save API URL');
+    }
+  }
+
+  Future<void> loadPhotos() async {
+    try {
+      final Directory appDir = await getApplicationDocumentsDirectory();
+      final List<FileSystemEntity> files = appDir.listSync();
+
+      _photos = files
+          .whereType<File>()
+          .where((file) => file.path.toLowerCase().endsWith('.jpg'))
+          .toList();
+
+      _photos.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+      notifyListeners();
+    } catch (e) {
+      print('Error loading photos: $e');
+    }
   }
 
   Future<bool> deletePhoto(File photo) async {
@@ -42,42 +75,12 @@ class PhotoProvider with ChangeNotifier {
     }
   }
 
-  Future<void> _initializeProvider() async {
-    await loadPhotos();
-    await _loadSavedUrl();
-  }
-
-  Future<void> setApiUrl(String url) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('api_url', url);
-      _apiUrl = url;
-      notifyListeners();
-      print('API URL updated successfully: $url');
-    } catch (e) {
-      print('Error setting API URL: $e');
-      throw Exception('Failed to save API URL');
+  void toggleSelectMode() {
+    _isSelectMode = !_isSelectMode;
+    if (!_isSelectMode) {
+      _selectedPhotos.clear();
     }
-  }
-
-  Future<void> loadPhotos() async {
-    try {
-      final Directory appDir = await getApplicationDocumentsDirectory();
-      final List<FileSystemEntity> files = appDir.listSync();
-
-      // 只获取jpg文件
-      _photos = files
-          .whereType<File>()
-          .where((file) => file.path.toLowerCase().endsWith('.jpg'))
-          .toList();
-
-      // 按照修改时间排序，最新的在前面
-      _photos.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
-
-      notifyListeners();
-    } catch (e) {
-      print('Error loading photos: $e');
-    }
+    notifyListeners();
   }
 
   void selectAll() {
@@ -87,6 +90,15 @@ class PhotoProvider with ChangeNotifier {
 
   void clearSelection() {
     _selectedPhotos.clear();
+    notifyListeners();
+  }
+
+  void togglePhotoSelection(File photo) {
+    if (_selectedPhotos.contains(photo)) {
+      _selectedPhotos.remove(photo);
+    } else {
+      _selectedPhotos.add(photo);
+    }
     notifyListeners();
   }
 
@@ -107,28 +119,6 @@ class PhotoProvider with ChangeNotifier {
     }
   }
 
-  // Future<bool> deletePhoto(File photo) async {
-  //   try {
-  //     await photo.delete();
-  //     _photos.remove(photo);
-  //     _selectedPhotos.remove(photo);
-  //     notifyListeners();
-  //     return true;
-  //   } catch (e) {
-  //     print('Error deleting single photo: $e');
-  //     return false;
-  //   }
-  // }
-
-  void togglePhotoSelection(File photo) {
-    if (_selectedPhotos.contains(photo)) {
-      _selectedPhotos.remove(photo);
-    } else {
-      _selectedPhotos.add(photo);
-    }
-    notifyListeners();
-  }
-
   Future<void> uploadSelectedPhotos() async {
     if (_selectedPhotos.isEmpty) return;
 
@@ -136,7 +126,7 @@ class PhotoProvider with ChangeNotifier {
     _uploadProgress = 0;
     _uploadStatus = '准备上传...';
     notifyListeners();
-    //
+
     final prefs = await SharedPreferences.getInstance();
     final savedUrl = '${prefs.getString('api_url')}/upload' ?? _apiUrl;
 
@@ -149,22 +139,43 @@ class PhotoProvider with ChangeNotifier {
         notifyListeners();
 
         try {
-          var request = http.MultipartRequest('POST', Uri.parse('${savedUrl}'));
-          request.files.add(
-            await http.MultipartFile.fromPath('file', photo.path),
+          // 创建multipart请求
+          var request = http.MultipartRequest('POST', Uri.parse(savedUrl));
+
+          // 获取文件MIME类型
+          final mimeType = lookupMimeType(photo.path) ?? 'image/jpeg';
+
+          // 添加文件，保持原始分辨率
+          var multipartFile = await http.MultipartFile.fromPath(
+            'file',
+            photo.path,
+            contentType: MediaType.parse(mimeType),
           );
 
-          var response = await request.send();
+          // 添加其他必要的头部信息
+          request.files.add(multipartFile);
+          request.headers.addAll({
+            'Accept': 'application/json',
+            'Content-Type': 'multipart/form-data',
+          });
+
+          // 发送请求
+          var streamedResponse = await request.send();
+          var response = await http.Response.fromStream(streamedResponse);
+
           if (response.statusCode == 200) {
             completed++;
             _uploadProgress = completed / total;
             notifyListeners();
           } else {
-            _uploadStatus = '上传失败: ${photo.path}';
+            print('Upload failed with status: ${response.statusCode}');
+            print('Response body: ${response.body}');
+            _uploadStatus = '上传失败: ${photo.path} (${response.statusCode})';
             notifyListeners();
             await Future.delayed(const Duration(seconds: 2));
           }
         } catch (e) {
+          print('Upload error: $e');
           _uploadStatus = '上传错误: $e';
           notifyListeners();
           await Future.delayed(const Duration(seconds: 2));
@@ -190,12 +201,4 @@ class PhotoProvider with ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     _apiUrl = prefs.getString('api_url') ?? _apiUrl;
   }
-
-  // Getters
-  List<File> get photos => _photos;
-  Set<File> get selectedPhotos => _selectedPhotos;
-  bool get isUploading => _isUploading;
-  double get uploadProgress => _uploadProgress;
-  String get uploadStatus => _uploadStatus;
-  String get apiUrl => _apiUrl;
 }

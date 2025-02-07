@@ -199,69 +199,6 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
   }
 
   // 裁剪框手势处理
-  void _handleCropBoxTapDown(TapDownDetails details) {
-    final Offset localPosition = details.localPosition;
-    final Rect cropBoxRect = Rect.fromLTWH(
-      _cropBoxPosition.dx,
-      _cropBoxPosition.dy,
-      _cropBoxSize,
-      _cropBoxSize,
-    );
-
-    // 右下角调整区域
-    final double handleSize = 44.0;
-    final Rect resizeHandle = Rect.fromLTWH(
-      cropBoxRect.right - handleSize,
-      cropBoxRect.bottom - handleSize,
-      handleSize,
-      handleSize,
-    );
-
-    // 检查是否是双击
-    final now = DateTime.now();
-    if (_lastTapTime != null &&
-        now.difference(_lastTapTime!) < _doubleTapDuration) {
-      // 双击边框区域进行放大/缩小
-      if (cropBoxRect.contains(localPosition)) {
-        if (_cropBoxSize < _maxCropBoxSize) {
-          setState(() {
-            final oldSize = _cropBoxSize;
-            _cropBoxSize = (_cropBoxSize * 1.5).clamp(_minCropBoxSize, _maxCropBoxSize);
-
-            // 保持点击位置相对位置不变
-            final scale = _cropBoxSize / oldSize;
-            final relativeX = (localPosition.dx - _cropBoxPosition.dx) / oldSize;
-            final relativeY = (localPosition.dy - _cropBoxPosition.dy) / oldSize;
-
-            _cropBoxPosition = Offset(
-              localPosition.dx - (_cropBoxSize * relativeX),
-              localPosition.dy - (_cropBoxSize * relativeY),
-            );
-          });
-        } else {
-          // 如果已经是最大尺寸，则缩小到初始尺寸
-          setState(() {
-            _cropBoxSize = 200.0;
-            // 居中显示
-            _cropBoxPosition = Offset(
-              (MediaQuery.of(context).size.width - _cropBoxSize) / 2,
-              (MediaQuery.of(context).size.height - _cropBoxSize) / 2,
-            );
-          });
-        }
-      }
-    } else if (resizeHandle.contains(localPosition)) {
-      // 单击右下角，开始拖拽调整大小
-      setState(() => _isResizingCropBox = true);
-    } else if (cropBoxRect.contains(localPosition)) {
-      // 单击框内，开始拖拽移动
-      setState(() => _isDraggingCropBox = true);
-    }
-
-    _lastTapTime = now;
-  }
-
-  // 裁剪框手势处理
   void _handleCropBoxPanStart(DragStartDetails details) {
     final Offset localPosition = details.localPosition;
     final Rect cropBoxRect = Rect.fromLTWH(
@@ -289,23 +226,15 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
 
   void _handleCropBoxPanUpdate(DragUpdateDetails details) {
     if (_isResizingCropBox) {
-      // 调整大小时更流畅的动画
+      // 调整大小
       setState(() {
-        final newSize = (_cropBoxSize + details.delta.dx).clamp(_minCropBoxSize, _maxCropBoxSize);
-        if (newSize != _cropBoxSize) {
-          _cropBoxSize = newSize;
-        }
+        _cropBoxSize = (_cropBoxSize + details.delta.dx)
+            .clamp(_minCropBoxSize, _maxCropBoxSize);
       });
     } else if (_isDraggingCropBox) {
-      // 移动位置时限制在屏幕范围内
+      // 移动位置
       setState(() {
-        final newPosition = _cropBoxPosition + details.delta;
-        final screenSize = MediaQuery.of(context).size;
-
-        _cropBoxPosition = Offset(
-          newPosition.dx.clamp(0, screenSize.width - _cropBoxSize),
-          newPosition.dy.clamp(0, screenSize.height - _cropBoxSize),
-        );
+        _cropBoxPosition += details.delta;
       });
     }
   }
