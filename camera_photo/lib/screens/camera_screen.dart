@@ -7,6 +7,7 @@ import 'package:path/path.dart' as path;
 import 'package:provider/provider.dart';
 import 'package:image/image.dart' as img;
 import '../providers/photo_provider.dart';
+import '../utils/settings_manager.dart';
 import 'gallery_screen.dart';
 import 'settings_screen.dart';
 
@@ -38,16 +39,21 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
   DateTime? _lastTapTime;
   final Duration _doubleTapDuration = const Duration(milliseconds: 300);
 
+  // 对焦点相关变量
   Offset? _focusPoint;
   bool _showFocusCircle = false;
   int _retryCount = 0;
   final int _maxRetries = 3;
 
+  // 新增设置相关变量
+  bool _cropEnabled = true;
+  ResolutionPreset _currentResolution = ResolutionPreset.max;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _loadCameras();
+    _initializeAll();
   }
 
   @override
@@ -63,10 +69,49 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     }
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final CameraController? cameraController = _controller;
+
+    if (cameraController == null || !cameraController.value.isInitialized) {
+      return;
+    }
+
+    if (state == AppLifecycleState.inactive) {
+      _disposeCamera();
+    } else if (state == AppLifecycleState.resumed) {
+      _initializeAll();
+    }
+  }
+
+  // 初始化所有内容
+  Future<void> _initializeAll() async {
+    await _loadSettings();
+    await _loadCameras();
+  }
+
+  // 加载设置
+  Future<void> _loadSettings() async {
+    try {
+      final cropEnabled = await SettingsManager.getCropEnabled();
+      final resolution = await SettingsManager.getResolutionPreset();
+
+      if (mounted) {
+        setState(() {
+          _cropEnabled = cropEnabled;
+          _currentResolution = resolution;
+        });
+      }
+    } catch (e) {
+      print('加载设置失败: $e');
+      _showError('加载设置失败');
+    }
+  }
+
   Future<void> _loadCameras() async {
     try {
       _cameras = await availableCameras();
-      _initializeCamera();
+      await _initializeCamera();
     } catch (e) {
       print('加载相机列表失败: $e');
       _showError('无法加载相机列表');
@@ -81,7 +126,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
 
       final CameraController cameraController = CameraController(
         _cameras[_currentCameraIndex],
-        ResolutionPreset.max, // 使用最高分辨率
+        _currentResolution,
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.jpeg,
       );
@@ -109,8 +154,46 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     }
   }
 
+  Future<void> _retryInitialize() async {
+    if (_retryCount < _maxRetries) {
+      _retryCount++;
+      print('尝试重新初始化相机: 第 $_retryCount 次');
+      await Future.delayed(Duration(milliseconds: 500 * _retryCount));
+      if (mounted) {
+        _initializeCamera();
+      }
+    } else {
+      if (mounted) {
+        _showError('无法初始化相机，请检查相机权限或重启应用');
+      }
+    }
+  }
+
+  Future<void> _disposeCamera() async {
+    try {
+      final CameraController? cameraController = _controller;
+      if (cameraController != null && cameraController.value.isInitialized) {
+        await cameraController.dispose();
+      }
+    } catch (e) {
+      print('相机释放错误: $e');
+    } finally {
+      _controller = null;
+      if (mounted) {
+        setState(() => _isInitialized = false);
+      }
+    }
+  }
+
+  // 图片处理相关方法
+  Future<File> _processImage(String imagePath) async {
+    if (!_cropEnabled) {
+      return File(imagePath);
+    }
+    return _cropImage(imagePath);
+  }
+
   Future<File> _cropImage(String imagePath) async {
-    // 读取原始图片
     final File imageFile = File(imagePath);
     final img.Image? originalImage = img.decodeImage(await imageFile.readAsBytes());
 
@@ -166,15 +249,14 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
       final String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
       final String filePath = path.join(appDir.path, '$timestamp.jpg');
 
-      // 保存原始图片
+      // 保存并处理图片
       final File originalImage = File(filePath);
       await originalImage.writeAsBytes(await File(photo.path).readAsBytes());
-
-      // 裁剪图片
-      final File croppedImage = await _cropImage(filePath);
+      final File processedImage = await _processImage(filePath);
 
       if (!mounted) return;
 
+      // 刷新相册
       Provider.of<PhotoProvider>(context, listen: false).loadPhotos();
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -198,251 +280,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     }
   }
 
-  // 裁剪框手势处理
-  void _handleCropBoxTapDown(TapDownDetails details) {
-    final Offset localPosition = details.localPosition;
-    final Rect cropBoxRect = Rect.fromLTWH(
-      _cropBoxPosition.dx,
-      _cropBoxPosition.dy,
-      _cropBoxSize,
-      _cropBoxSize,
-    );
-
-    // 右下角调整区域
-    final double handleSize = 44.0;
-    final Rect resizeHandle = Rect.fromLTWH(
-      cropBoxRect.right - handleSize,
-      cropBoxRect.bottom - handleSize,
-      handleSize,
-      handleSize,
-    );
-
-    // 检查是否是双击
-    final now = DateTime.now();
-    if (_lastTapTime != null &&
-        now.difference(_lastTapTime!) < _doubleTapDuration) {
-      // 双击边框区域进行放大/缩小
-      if (cropBoxRect.contains(localPosition)) {
-        if (_cropBoxSize < _maxCropBoxSize) {
-          setState(() {
-            final oldSize = _cropBoxSize;
-            _cropBoxSize = (_cropBoxSize * 1.5).clamp(_minCropBoxSize, _maxCropBoxSize);
-
-            // 保持点击位置相对位置不变
-            final scale = _cropBoxSize / oldSize;
-            final relativeX = (localPosition.dx - _cropBoxPosition.dx) / oldSize;
-            final relativeY = (localPosition.dy - _cropBoxPosition.dy) / oldSize;
-
-            _cropBoxPosition = Offset(
-              localPosition.dx - (_cropBoxSize * relativeX),
-              localPosition.dy - (_cropBoxSize * relativeY),
-            );
-          });
-        } else {
-          // 如果已经是最大尺寸，则缩小到初始尺寸
-          setState(() {
-            _cropBoxSize = 200.0;
-            // 居中显示
-            _cropBoxPosition = Offset(
-              (MediaQuery.of(context).size.width - _cropBoxSize) / 2,
-              (MediaQuery.of(context).size.height - _cropBoxSize) / 2,
-            );
-          });
-        }
-      }
-    } else if (resizeHandle.contains(localPosition)) {
-      // 单击右下角，开始拖拽调整大小
-      setState(() => _isResizingCropBox = true);
-    } else if (cropBoxRect.contains(localPosition)) {
-      // 单击框内，开始拖拽移动
-      setState(() => _isDraggingCropBox = true);
-    }
-
-    _lastTapTime = now;
-  }
-
-  // 裁剪框手势处理
-  void _handleCropBoxPanStart(DragStartDetails details) {
-    final Offset localPosition = details.localPosition;
-    final Rect cropBoxRect = Rect.fromLTWH(
-      _cropBoxPosition.dx,
-      _cropBoxPosition.dy,
-      _cropBoxSize,
-      _cropBoxSize,
-    );
-
-    // 检查是否在调整大小的区域
-    final double handleSize = 44.0; // 调整大小手柄的区域
-    final Rect resizeHandle = Rect.fromLTWH(
-      cropBoxRect.right - handleSize,
-      cropBoxRect.bottom - handleSize,
-      handleSize,
-      handleSize,
-    );
-
-    if (resizeHandle.contains(localPosition)) {
-      setState(() => _isResizingCropBox = true);
-    } else if (cropBoxRect.contains(localPosition)) {
-      setState(() => _isDraggingCropBox = true);
-    }
-  }
-
-  void _handleCropBoxPanUpdate(DragUpdateDetails details) {
-    if (_isResizingCropBox) {
-      // 调整大小时更流畅的动画
-      setState(() {
-        final newSize = (_cropBoxSize + details.delta.dx).clamp(_minCropBoxSize, _maxCropBoxSize);
-        if (newSize != _cropBoxSize) {
-          _cropBoxSize = newSize;
-        }
-      });
-    } else if (_isDraggingCropBox) {
-      // 移动位置时限制在屏幕范围内
-      setState(() {
-        final newPosition = _cropBoxPosition + details.delta;
-        final screenSize = MediaQuery.of(context).size;
-
-        _cropBoxPosition = Offset(
-          newPosition.dx.clamp(0, screenSize.width - _cropBoxSize),
-          newPosition.dy.clamp(0, screenSize.height - _cropBoxSize),
-        );
-      });
-    }
-  }
-
-  void _handleCropBoxPanEnd(DragEndDetails details) {
-    setState(() {
-      _isDraggingCropBox = false;
-      _isResizingCropBox = false;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        title: const Text('相机'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () => _navigateToScreen(const SettingsScreen()),
-          ),
-          IconButton(
-            icon: const Icon(Icons.photo_library),
-            onPressed: () => _navigateToScreen(const GalleryScreen()),
-          ),
-        ],
-      ),
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (_isInitialized && _controller != null)
-            GestureDetector(
-              onScaleStart: _handleScaleStart,
-              onScaleUpdate: _handleScaleUpdate,
-              onTapUp: _handleTapUp,
-              child: CameraPreview(_controller!),
-            )
-          else
-            const Center(
-              child: CircularProgressIndicator(color: Colors.white),
-            ),
-
-          // 裁剪框
-          if (_isInitialized)
-            Positioned.fill(
-              child: GestureDetector(
-                onPanStart: _handleCropBoxPanStart,
-                onPanUpdate: _handleCropBoxPanUpdate,
-                onPanEnd: _handleCropBoxPanEnd,
-                child: CustomPaint(
-                  painter: CropBoxPainter(
-                    cropBoxPosition: _cropBoxPosition,
-                    cropBoxSize: _cropBoxSize,
-                  ),
-                ),
-              ),
-            ),
-
-          // 相机控制按钮
-          if (_isInitialized)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 30,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildGalleryButton(),
-                    _buildCaptureButton(),
-                    _buildCameraSwitchButton(),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  void _showError(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        action: SnackBarAction(
-          label: '重试',
-          textColor: Colors.white,
-          onPressed: _initializeCamera,
-        ),
-      ),
-    );
-  }
-
-  Future<void> _disposeCamera() async {
-    try {
-      final CameraController? cameraController = _controller;
-      if (cameraController != null && cameraController.value.isInitialized) {
-        await cameraController.dispose();
-      }
-    } catch (e) {
-      print('相机释放错误: $e');
-    } finally {
-      _controller = null;
-      if (mounted) {
-        setState(() => _isInitialized = false);
-      }
-    }
-  }
-
-  Future<void> _retryInitialize() async {
-    if (_retryCount < _maxRetries) {
-      _retryCount++;
-      print('尝试重新初始化相机: 第 $_retryCount 次');
-      await Future.delayed(Duration(milliseconds: 500 * _retryCount));
-      if (mounted) {
-        _initializeCamera();
-      }
-    } else {
-      if (mounted) {
-        _showError('无法初始化相机，请检查相机权限或重启应用');
-      }
-    }
-  }
-
-  Future<void> _navigateToScreen(Widget screen) async {
-    await _disposeCamera();
-    if (!mounted) return;
-    await Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
-    _initializeCamera();
-  }
-
+  // 缩放相关方法
   void _handleScaleStart(ScaleStartDetails details) {
     _baseScale = _currentZoom;
   }
@@ -467,6 +305,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     }
   }
 
+  // 对焦相关方法
   Future<void> _handleTapUp(TapUpDetails details) async {
     if (!_isInitialized || _controller == null) return;
 
@@ -499,6 +338,163 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     });
   }
 
+  // 裁剪框相关方法
+  void _handleCropBoxTapDown(TapDownDetails details) {
+    final Offset localPosition = details.localPosition;
+    final Rect cropBoxRect = Rect.fromLTWH(
+      _cropBoxPosition.dx,
+      _cropBoxPosition.dy,
+      _cropBoxSize,
+      _cropBoxSize,
+    );
+
+    final double handleSize = 44.0;
+    final Rect resizeHandle = Rect.fromLTWH(
+      cropBoxRect.right - handleSize,
+      cropBoxRect.bottom - handleSize,
+      handleSize,
+      handleSize,
+    );
+
+    final now = DateTime.now();
+    if (_lastTapTime != null &&
+        now.difference(_lastTapTime!) < _doubleTapDuration) {
+      if (cropBoxRect.contains(localPosition)) {
+        if (_cropBoxSize < _maxCropBoxSize) {
+          setState(() {
+            final oldSize = _cropBoxSize;
+            _cropBoxSize = (_cropBoxSize * 1.5).clamp(_minCropBoxSize, _maxCropBoxSize);
+
+            final scale = _cropBoxSize / oldSize;
+            final relativeX = (localPosition.dx - _cropBoxPosition.dx) / oldSize;
+            final relativeY = (localPosition.dy - _cropBoxPosition.dy) / oldSize;
+
+            _cropBoxPosition = Offset(
+              localPosition.dx - (_cropBoxSize * relativeX),
+              localPosition.dy - (_cropBoxSize * relativeY),
+            );
+          });
+        } else {
+          setState(() {
+            _cropBoxSize = 200.0;
+            _cropBoxPosition = Offset(
+              (MediaQuery.of(context).size.width - _cropBoxSize) / 2,
+              (MediaQuery.of(context).size.height - _cropBoxSize) / 2,
+            );
+          });
+        }
+      }
+    } else if (resizeHandle.contains(localPosition)) {
+      setState(() => _isResizingCropBox = true);
+    } else if (cropBoxRect.contains(localPosition)) {
+      setState(() => _isDraggingCropBox = true);
+    }
+
+    _lastTapTime = now;
+  }
+
+  void _handleCropBoxPanStart(DragStartDetails details) {
+    final Offset localPosition = details.localPosition;
+    final Rect cropBoxRect = Rect.fromLTWH(
+      _cropBoxPosition.dx,
+      _cropBoxPosition.dy,
+      _cropBoxSize,
+      _cropBoxSize,
+    );
+
+    final double handleSize = 44.0;
+    final Rect resizeHandle = Rect.fromLTWH(
+      cropBoxRect.right - handleSize,
+      cropBoxRect.bottom - handleSize,
+      handleSize,
+      handleSize,
+    );
+
+    if (resizeHandle.contains(localPosition)) {
+      setState(() => _isResizingCropBox = true);
+    } else if (cropBoxRect.contains(localPosition)) {
+      setState(() => _isDraggingCropBox = true);
+    }
+  }
+
+  void _handleCropBoxPanUpdate(DragUpdateDetails details) {
+    if (_isResizingCropBox) {
+      setState(() {
+        final newSize = (_cropBoxSize + details.delta.dx).clamp(_minCropBoxSize, _maxCropBoxSize);
+        if (newSize != _cropBoxSize) {
+          _cropBoxSize = newSize;
+        }
+      });
+    } else if (_isDraggingCropBox) {
+      setState(() {
+        final newPosition = _cropBoxPosition + details.delta;
+        final screenSize = MediaQuery.of(context).size;
+
+        _cropBoxPosition = Offset(
+          newPosition.dx.clamp(0, screenSize.width - _cropBoxSize),
+          newPosition.dy.clamp(0, screenSize.height - _cropBoxSize),
+        );
+      });
+    }
+  }
+
+  void _handleCropBoxPanEnd(DragEndDetails details) {
+    setState(() {
+      _isDraggingCropBox = false;
+      _isResizingCropBox = false;
+    });
+  }
+
+  Future<void> _switchCamera() async {
+    if (_cameras.length <= 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('没有其他可用的相机'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isInitialized = false;
+      _currentCameraIndex = (_currentCameraIndex + 1) % _cameras.length;
+    });
+
+    try {
+      await _initializeCamera();
+    } catch (e) {
+      print('切换相机失败: $e');
+      _showError('切换相机失败');
+    }
+  }
+
+  Future<void> _navigateToScreen(Widget screen) async {
+    await _disposeCamera();
+    if (!mounted) return;
+
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+
+    // 重新加载设置并初始化相机
+    await _initializeAll();
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        action: SnackBarAction(
+          label: '重试',
+          textColor: Colors.white,
+          onPressed: _initializeCamera,
+        ),
+      ),
+    );
+  }
+
+  // UI构建方法
   Widget _buildGalleryButton() {
     return GestureDetector(
       onTap: () => _navigateToScreen(const GalleryScreen()),
@@ -587,31 +583,128 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     );
   }
 
-  Future<void> _switchCamera() async {
-    if (_cameras.length <= 1) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('没有其他可用的相机'),
-          duration: Duration(seconds: 2),
+  Widget _buildResolutionIndicator() {
+    return Positioned(
+      top: 16,
+      right: 16,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.black54,
+          borderRadius: BorderRadius.circular(4),
         ),
-      );
-      return;
-    }
+        child: Text(
+          SettingsManager.resolutionPresetToString(_currentResolution),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+          ),
+        ),
+      ),
+    );
+  }
 
-    setState(() {
-      _isInitialized = false;
-      _currentCameraIndex = (_currentCameraIndex + 1) % _cameras.length;
-    });
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: const Text('相机'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => _navigateToScreen(const SettingsScreen()),
+          ),
+          IconButton(
+            icon: const Icon(Icons.photo_library),
+            onPressed: () => _navigateToScreen(const GalleryScreen()),
+          ),
+        ],
+      ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (_isInitialized && _controller != null)
+            GestureDetector(
+              onScaleStart: _handleScaleStart,
+              onScaleUpdate: _handleScaleUpdate,
+              onTapUp: _handleTapUp,
+              child: CameraPreview(_controller!),
+            )
+          else
+            const Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            ),
 
-    try {
-      await _initializeCamera();
-    } catch (e) {
-      print('切换相机失败: $e');
-      _showError('切换相机失败');
-    }
-    // );
+          // 根据设置显示裁剪框
+          if (_isInitialized && _cropEnabled)
+            Positioned.fill(
+              child: GestureDetector(
+                onPanStart: _handleCropBoxPanStart,
+                onPanUpdate: _handleCropBoxPanUpdate,
+                onPanEnd: _handleCropBoxPanEnd,
+                onTapDown: _handleCropBoxTapDown,
+                child: CustomPaint(
+                  painter: CropBoxPainter(
+                    cropBoxPosition: _cropBoxPosition,
+                    cropBoxSize: _cropBoxSize,
+                  ),
+                ),
+              ),
+            ),
+
+          // 显示分辨率指示器
+          if (_isInitialized)
+            _buildResolutionIndicator(),
+
+          // 显示对焦点
+          if (_showFocusCircle && _focusPoint != null)
+            Positioned(
+              left: _focusPoint!.dx - 20,
+              top: _focusPoint!.dy - 20,
+              child: Container(
+                height: 40,
+                width: 40,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.white, width: 2),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+
+          // 相机控制按钮
+          if (_isInitialized)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 30,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildGalleryButton(),
+                    _buildCaptureButton(),
+                    _buildCameraSwitchButton(),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _disposeCamera();
+    super.dispose();
   }
 }
+
 
 // 裁剪框绘制器
 class CropBoxPainter extends CustomPainter {
