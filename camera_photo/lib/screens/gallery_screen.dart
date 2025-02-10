@@ -3,6 +3,7 @@ import 'package:camera_photo/screens/photo_view_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/photo_provider.dart';
+import '../widgets/upload_dialog.dart';
 
 // lib/screens/gallery_screen.dart
 class GalleryScreen extends StatefulWidget {
@@ -60,9 +61,26 @@ class _GalleryScreenState extends State<GalleryScreen> {
                     : '全选',
               ),
               // 上传按钮
+              // IconButton(
+              //   icon: const Icon(Icons.upload),
+              //   onPressed: provider.selectedPhotos.isEmpty ? null : provider.uploadSelectedPhotos,
+              //   tooltip: '上传选中照片',
+              // ),
+              // 修改上传按钮代码
               IconButton(
                 icon: const Icon(Icons.upload),
-                onPressed: provider.selectedPhotos.isEmpty ? null : provider.uploadSelectedPhotos,
+                onPressed: provider.selectedPhotos.isEmpty
+                    ? null
+                    : () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => UploadConfigDialog(
+                      onConfirm: (type, value) {
+                        provider.uploadPhotosWithConfig(type, value);
+                      },
+                    ),
+                  );
+                },
                 tooltip: '上传选中照片',
               ),
               // 删除按钮

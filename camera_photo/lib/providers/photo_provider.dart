@@ -1,5 +1,6 @@
 // lib/providers/photo_provider.dart
 import 'dart:io';
+import 'package:camera_photo/config/upload_options.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
@@ -160,6 +161,86 @@ class PhotoProvider with ChangeNotifier {
           });
 
           // 发送请求
+          var streamedResponse = await request.send();
+          var response = await http.Response.fromStream(streamedResponse);
+
+          if (response.statusCode == 200) {
+            completed++;
+            _uploadProgress = completed / total;
+            notifyListeners();
+          } else {
+            print('Upload failed with status: ${response.statusCode}');
+            print('Response body: ${response.body}');
+            _uploadStatus = '上传失败: ${photo.path} (${response.statusCode})';
+            notifyListeners();
+            await Future.delayed(const Duration(seconds: 2));
+          }
+        } catch (e) {
+          print('Upload error: $e');
+          _uploadStatus = '上传错误: $e';
+          notifyListeners();
+          await Future.delayed(const Duration(seconds: 2));
+        }
+      }
+
+      if (completed == total) {
+        _uploadStatus = '上传完成！';
+      } else {
+        _uploadStatus = '部分上传失败，完成: $completed/$total';
+      }
+    } finally {
+      await Future.delayed(const Duration(seconds: 2));
+      _isUploading = false;
+      _uploadProgress = 0;
+      _uploadStatus = '';
+      _selectedPhotos.clear();
+      notifyListeners();
+    }
+  }
+
+  // 在 PhotoProvider 类中添加以下方法:
+// 在 PhotoProvider 类中修改上传方法：
+
+  Future<void> uploadPhotosWithConfig(UploadType type, String value) async {
+    if (_selectedPhotos.isEmpty) return;
+
+    _isUploading = true;
+    _uploadProgress = 0;
+    _uploadStatus = '准备上传...';
+    notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    final savedUrl = '${prefs.getString('api_url')}/upload' ?? _apiUrl;
+
+    int total = _selectedPhotos.length;
+    int completed = 0;
+
+    try {
+      for (var photo in _selectedPhotos) {
+        _uploadStatus = '正在上传 ${completed + 1}/$total';
+        notifyListeners();
+
+        try {
+          var request = http.MultipartRequest('POST', Uri.parse(savedUrl));
+
+          final mimeType = lookupMimeType(photo.path) ?? 'image/jpeg';
+
+          var multipartFile = await http.MultipartFile.fromPath(
+            'file',
+            photo.path,
+            contentType: MediaType.parse(mimeType),
+          );
+
+          // 添加上传类型和值
+          request.fields['type'] = type.name;  // 'model' 或 'craft'
+          request.fields['value'] = value;     // 具体的值
+
+          request.files.add(multipartFile);
+          request.headers.addAll({
+            'Accept': 'application/json',
+            'Content-Type': 'multipart/form-data',
+          });
+
           var streamedResponse = await request.send();
           var response = await http.Response.fromStream(streamedResponse);
 
