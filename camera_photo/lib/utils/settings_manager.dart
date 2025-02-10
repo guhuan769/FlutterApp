@@ -1,4 +1,5 @@
 // lib/utils/settings_manager.dart
+
 import 'package:camera/camera.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -6,38 +7,46 @@ class SettingsManager {
   static const String _cropEnabledKey = 'crop_enabled';
   static const String _resolutionPresetKey = 'resolution_preset';
 
-  // Get crop enabled setting
+  // 定义可用的分辨率列表
+  static List<ResolutionPreset> get availableResolutions => [
+    ResolutionPreset.high,
+    ResolutionPreset.veryHigh,
+    ResolutionPreset.ultraHigh,
+    ResolutionPreset.max,
+  ];
+
   static Future<bool> getCropEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_cropEnabledKey) ?? true; // Default to true
+    return prefs.getBool(_cropEnabledKey) ?? true;
   }
 
-  // Set crop enabled setting
   static Future<void> setCropEnabled(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_cropEnabledKey, enabled);
   }
 
-  // Get resolution preset setting
   static Future<ResolutionPreset> getResolutionPreset() async {
     final prefs = await SharedPreferences.getInstance();
-    final presetIndex = prefs.getInt(_resolutionPresetKey) ?? 5; // Default to max
-    return ResolutionPreset.values[presetIndex];
+    final presetIndex = prefs.getInt(_resolutionPresetKey) ??
+        availableResolutions.length - 1; // 默认使用最高分辨率
+
+    // 确保索引在有效范围内
+    if (presetIndex < 0 || presetIndex >= availableResolutions.length) {
+      return availableResolutions.last;
+    }
+    return availableResolutions[presetIndex];
   }
 
-  // Set resolution preset setting
   static Future<void> setResolutionPreset(ResolutionPreset preset) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_resolutionPresetKey, preset.index);
+    final index = availableResolutions.indexOf(preset);
+    if (index != -1) {
+      await prefs.setInt(_resolutionPresetKey, index);
+    }
   }
 
-  // Helper method to convert ResolutionPreset to display string
   static String resolutionPresetToString(ResolutionPreset preset) {
     switch (preset) {
-      case ResolutionPreset.low:
-        return '低清晰度';
-      case ResolutionPreset.medium:
-        return '标清';
       case ResolutionPreset.high:
         return '高清';
       case ResolutionPreset.veryHigh:
@@ -46,6 +55,8 @@ class SettingsManager {
         return '蓝光';
       case ResolutionPreset.max:
         return '最高清晰度';
+      default:
+        return '高清';
     }
   }
 }

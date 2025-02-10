@@ -120,16 +120,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _showResolutionPicker(BuildContext context) async {
+
     final ResolutionPreset? result = await showDialog<ResolutionPreset>(
       context: context,
       builder: (BuildContext context) {
         return SimpleDialog(
           title: const Text('选择相机分辨率'),
-          children: ResolutionPreset.values.map((preset) {
+          children: SettingsManager.availableResolutions.map((preset) {
             return SimpleDialogOption(
-              onPressed: () {
-                Navigator.pop(context, preset);
-              },
+              onPressed: () => Navigator.pop(context, preset),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -143,6 +142,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
       },
     );
+
+    // final ResolutionPreset? result = await showDialog<ResolutionPreset>(
+    //   context: context,
+    //   builder: (BuildContext context) {
+    //     return SimpleDialog(
+    //       title: const Text('选择相机分辨率'),
+    //       children: ResolutionPreset.values.map((preset) {
+    //         return SimpleDialogOption(
+    //           onPressed: () {
+    //             Navigator.pop(context, preset);
+    //           },
+    //           child: Row(
+    //             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    //             children: [
+    //               Text(SettingsManager.resolutionPresetToString(preset)),
+    //               if (preset == _selectedResolution)
+    //                 const Icon(Icons.check, color: Colors.blue),
+    //             ],
+    //           ),
+    //         );
+    //       }).toList(),
+    //     );
+    //   },
+    // );
 
     if (result != null) {
       await SettingsManager.setResolutionPreset(result);
