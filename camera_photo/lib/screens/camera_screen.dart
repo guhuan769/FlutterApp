@@ -746,6 +746,28 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     });
   }
 
+
+  Widget _buildResolutionIndicator() {
+    return Positioned(
+      top: 16,
+      right: 16,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.black54,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          SettingsManager.resolutionPresetToString(_currentResolution),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -797,7 +819,9 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
                 ),
               ),
             ),
-
+          // 显示分辨率指示器
+          if (_isInitialized)
+            _buildResolutionIndicator(),
           // 中心点指示器
           if (_isInitialized && _showCenterPoint)
             const Positioned.fill(
