@@ -1,6 +1,7 @@
 // lib/providers/photo_provider.dart
 import 'dart:io';
 import 'package:camera_photo/config/upload_options.dart';
+import 'package:camera_photo/utils/photo_utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
@@ -46,17 +47,24 @@ class PhotoProvider with ChangeNotifier {
     }
   }
 
+  // 在 PhotoProvider 类中更新这个方法
   Future<void> loadPhotos() async {
     try {
       final Directory appDir = await getApplicationDocumentsDirectory();
       final List<FileSystemEntity> files = appDir.listSync();
 
+      // 筛选出所有jpg文件
       _photos = files
           .whereType<File>()
           .where((file) => file.path.toLowerCase().endsWith('.jpg'))
           .toList();
 
-      _photos.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+      // 确保所有照片的序号正确
+      await PhotoUtils.reorderPhotos(_photos);
+
+      // 重新加载排序后的照片
+      _photos = PhotoUtils.sortPhotos(_photos);
+
       notifyListeners();
     } catch (e) {
       print('Error loading photos: $e');
@@ -282,4 +290,49 @@ class PhotoProvider with ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     _apiUrl = prefs.getString('api_url') ?? _apiUrl;
   }
+
+  // 删除特定类型的照片
+  Future<void> deletePhotosByType(String photoType) async {
+    try {
+      List<File> photosToDelete = _photos.where(
+              (photo) => PhotoUtils.getPhotoType(photo.path) == photoType
+      ).toList();
+
+      for (var photo in photosToDelete) {
+        if (await photo.exists()) {
+          await photo.delete();
+          _photos.remove(photo);
+        }
+      }
+      notifyListeners();
+    } catch (e) {
+      print('删除照片失败: $e');
+      rethrow;
+    }
+  }
+
+  // 强制重新加载照片列表
+  Future<void> forceReloadPhotos() async {
+    try {
+      final Directory appDir = await getApplicationDocumentsDirectory();
+      final List<FileSystemEntity> files = appDir.listSync();
+
+      _photos = files
+          .whereType<File>()
+          .where((file) => file.path.toLowerCase().endsWith('.jpg'))
+          .toList();
+
+      // 确保照片按正确顺序排序
+      _photos = PhotoUtils.sortPhotos(_photos);
+
+      // 清除选择状态
+      _selectedPhotos.clear();
+
+      notifyListeners();
+    } catch (e) {
+      print('强制重新加载照片失败: $e');
+      rethrow;
+    }
+  }
+
 }

@@ -1,6 +1,7 @@
 // lib/screens/camera_screen.dart
 
 import 'dart:io';
+import 'package:camera_photo/utils/photo_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:path_provider/path_provider.dart';
@@ -230,96 +231,151 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
   }
 
   // ====== 照片处理方法 ======
-  Future<void> _handleStartPointPhoto(XFile photo, Directory appDir, String timestamp, List<File> photos) async {
-    final String filename = '${START_PHOTO}_$timestamp.jpg';
-    final String filePath = path.join(appDir.path, filename);
 
-    try {
-      // 找出所有起始点照片
-      final startPhotos = _findPhotosOfType(photos, START_PHOTO);
-
-      // 删除已存在的起始点照片
-      for (var startPhoto in startPhotos) {
-        await startPhoto.delete();
-      }
-
-      // 保存新的起始点照片
-      final File originalImage = File(filePath);
-      await originalImage.writeAsBytes(await File(photo.path).readAsBytes());
-      await _processImage(filePath);
-    } catch (e) {
-      print('处理起始点照片失败: $e');
-      rethrow;
-    }
-  }
-
+// 中间点照片处理保持不变
   Future<void> _handleMiddlePointPhoto(XFile photo, Directory appDir, String timestamp, List<File> photos) async {
-    final String filename = '${MIDDLE_PHOTO}_$timestamp.jpg';
+    final sequence = PhotoUtils.generateNewSequence(photos, PhotoUtils.MIDDLE_PHOTO);
+    final String filename = PhotoUtils.generateFileName(PhotoUtils.MIDDLE_PHOTO, sequence, timestamp);
     final String filePath = path.join(appDir.path, filename);
 
     try {
-      // 获取起始点和结束点照片
-      final startPhotos = _findPhotosOfType(photos, START_PHOTO);
-      final endPhotos = _findPhotosOfType(photos, END_PHOTO);
-
-      // 保存照片
+      // 保存中间点照片
       final File originalImage = File(filePath);
       await originalImage.writeAsBytes(await File(photo.path).readAsBytes());
       await _processImage(filePath);
+
+      // 刷新照片列表
+      final photoProvider = Provider.of<PhotoProvider>(context, listen: false);
+      await photoProvider.loadPhotos();
+
     } catch (e) {
       print('处理中间点照片失败: $e');
       rethrow;
     }
   }
 
+  // 模型点照片处理保持不变
   Future<void> _handleModelPointPhoto(XFile photo, Directory appDir, String timestamp, List<File> photos) async {
-    final String filename = '${MODEL_PHOTO}_$timestamp.jpg';
+    final sequence = PhotoUtils.generateNewSequence(photos, PhotoUtils.MODEL_PHOTO);
+    final String filename = PhotoUtils.generateFileName(PhotoUtils.MODEL_PHOTO, sequence, timestamp);
     final String filePath = path.join(appDir.path, filename);
 
     try {
-      // 获取起始点和结束点照片
-      final startPhotos = _findPhotosOfType(photos, START_PHOTO);
-      final endPhotos = _findPhotosOfType(photos, END_PHOTO);
-
-      // 保存照片
+      // 保存模型点照片
       final File originalImage = File(filePath);
       await originalImage.writeAsBytes(await File(photo.path).readAsBytes());
       await _processImage(filePath);
+
+      // 刷新照片列表
+      final photoProvider = Provider.of<PhotoProvider>(context, listen: false);
+      await photoProvider.loadPhotos();
+
     } catch (e) {
       print('处理模型点照片失败: $e');
       rethrow;
     }
   }
 
-  Future<void> _handleEndPointPhoto(XFile photo, Directory appDir, String timestamp, List<File> photos) async {
-    final String filename = '${END_PHOTO}_$timestamp.jpg';
-    final String filePath = path.join(appDir.path, filename);
+  // 在 CameraScreen 类中更新 _handleStartPointPhoto 方法
 
+
+  Future<void> _handleStartPointPhoto(XFile photo, Directory appDir, String timestamp, List<File> photos) async {
     try {
-      // 找出所有结束点照片
-      final endPhotos = _findPhotosOfType(photos, END_PHOTO);
+      final photoProvider = Provider.of<PhotoProvider>(context, listen: false);
 
-      // 删除已存在的结束点照片
-      for (var endPhoto in endPhotos) {
-        await endPhoto.delete();
+      // 1. 先删除所有现有的起始点照片
+      await photoProvider.deletePhotosByType(PhotoUtils.START_PHOTO);
+
+      // 2. 生成新的起始点照片
+      final String filename = PhotoUtils.generateFileName(PhotoUtils.START_PHOTO, 1, timestamp);
+      final String filePath = path.join(appDir.path, filename);
+
+      // 3. 保存新照片
+      final File newPhoto = File(filePath);
+      await newPhoto.writeAsBytes(await File(photo.path).readAsBytes());
+
+      // 4. 处理图片（如果需要裁剪）
+      if (_cropEnabled) {
+        await _processImage(filePath);
       }
 
-      // 保存新的结束点照片
-      final File originalImage = File(filePath);
-      await originalImage.writeAsBytes(await File(photo.path).readAsBytes());
-      await _processImage(filePath);
+      // 5. 强制重新加载照片列表
+      await photoProvider.forceReloadPhotos();
+
+      // 6. 显示成功消息
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('起始点照片已更新')),
+        );
+      }
     } catch (e) {
-      print('处理结束点照片失败: $e');
-      rethrow;
+      print('处理起始点照片失败: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('更新起始点照片失败: $e')),
+        );
+      }
     }
   }
 
-  // ====== 图片处理方法 ======
-  Future<File> _processImage(String imagePath) async {
-    if (!_cropEnabled) {
-      return File(imagePath);
+  Future<void> _handleEndPointPhoto(XFile photo, Directory appDir, String timestamp, List<File> photos) async {
+    try {
+      final photoProvider = Provider.of<PhotoProvider>(context, listen: false);
+
+      // 1. 先删除所有现有的结束点照片
+      await photoProvider.deletePhotosByType(PhotoUtils.END_PHOTO);
+
+      // 2. 生成新的结束点照片
+      final String filename = PhotoUtils.generateFileName(PhotoUtils.END_PHOTO, 999, timestamp);
+      final String filePath = path.join(appDir.path, filename);
+
+      // 3. 保存新照片
+      final File newPhoto = File(filePath);
+      await newPhoto.writeAsBytes(await File(photo.path).readAsBytes());
+
+      // 4. 处理图片（如果需要裁剪）
+      if (_cropEnabled) {
+        await _processImage(filePath);
+      }
+
+      // 5. 强制重新加载照片列表
+      await photoProvider.forceReloadPhotos();
+
+      // 6. 显示成功消息
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('结束点照片已更新')),
+        );
+      }
+    } catch (e) {
+      print('处理结束点照片失败: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('更新结束点照片失败: $e')),
+        );
+      }
     }
-    return _cropImage(imagePath);
+  }
+
+
+  // 处理图片的辅助方法
+  Future<void> _processImage(String imagePath) async {
+    if (!_cropEnabled) return;
+
+    try {
+      File imageFile = File(imagePath);
+      if (await imageFile.exists()) {
+        File croppedFile = await _cropImage(imagePath);
+        if (await croppedFile.exists()) {
+          // 如果裁剪成功，用裁剪后的图片替换原图
+          await imageFile.delete();
+          await croppedFile.copy(imagePath);
+          await croppedFile.delete();
+        }
+      }
+    } catch (e) {
+      print('处理图片失败: $e');
+    }
   }
 
   Future<File> _cropImage(String imagePath) async {
@@ -583,6 +639,113 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     });
   }
 
+  // 裁剪框相关方法
+  void _handleCropBoxTapDown(TapDownDetails details) {
+    final Offset localPosition = details.localPosition;
+    final Rect cropBoxRect = Rect.fromLTWH(
+      _cropBoxPosition.dx,
+      _cropBoxPosition.dy,
+      _cropBoxSize,
+      _cropBoxSize,
+    );
+
+    final double handleSize = 44.0;
+    final Rect resizeHandle = Rect.fromLTWH(
+      cropBoxRect.right - handleSize,
+      cropBoxRect.bottom - handleSize,
+      handleSize,
+      handleSize,
+    );
+
+    final now = DateTime.now();
+    if (_lastTapTime != null &&
+        now.difference(_lastTapTime!) < _doubleTapDuration) {
+      if (cropBoxRect.contains(localPosition)) {
+        if (_cropBoxSize < _maxCropBoxSize) {
+          setState(() {
+            final oldSize = _cropBoxSize;
+            _cropBoxSize = (_cropBoxSize * 1.5).clamp(_minCropBoxSize, _maxCropBoxSize);
+
+            final scale = _cropBoxSize / oldSize;
+            final relativeX = (localPosition.dx - _cropBoxPosition.dx) / oldSize;
+            final relativeY = (localPosition.dy - _cropBoxPosition.dy) / oldSize;
+
+            _cropBoxPosition = Offset(
+              localPosition.dx - (_cropBoxSize * relativeX),
+              localPosition.dy - (_cropBoxSize * relativeY),
+            );
+          });
+        } else {
+          setState(() {
+            _cropBoxSize = 200.0;
+            _cropBoxPosition = Offset(
+              (MediaQuery.of(context).size.width - _cropBoxSize) / 2,
+              (MediaQuery.of(context).size.height - _cropBoxSize) / 2,
+            );
+          });
+        }
+      }
+    } else if (resizeHandle.contains(localPosition)) {
+      setState(() => _isResizingCropBox = true);
+    } else if (cropBoxRect.contains(localPosition)) {
+      setState(() => _isDraggingCropBox = true);
+    }
+
+    _lastTapTime = now;
+  }
+
+  void _handleCropBoxPanStart(DragStartDetails details) {
+    final Offset localPosition = details.localPosition;
+    final Rect cropBoxRect = Rect.fromLTWH(
+      _cropBoxPosition.dx,
+      _cropBoxPosition.dy,
+      _cropBoxSize,
+      _cropBoxSize,
+    );
+
+    final double handleSize = 44.0;
+    final Rect resizeHandle = Rect.fromLTWH(
+      cropBoxRect.right - handleSize,
+      cropBoxRect.bottom - handleSize,
+      handleSize,
+      handleSize,
+    );
+
+    if (resizeHandle.contains(localPosition)) {
+      setState(() => _isResizingCropBox = true);
+    } else if (cropBoxRect.contains(localPosition)) {
+      setState(() => _isDraggingCropBox = true);
+    }
+  }
+
+  void _handleCropBoxPanUpdate(DragUpdateDetails details) {
+    if (_isResizingCropBox) {
+      setState(() {
+        final newSize = (_cropBoxSize + details.delta.dx).clamp(_minCropBoxSize, _maxCropBoxSize);
+        if (newSize != _cropBoxSize) {
+          _cropBoxSize = newSize;
+        }
+      });
+    } else if (_isDraggingCropBox) {
+      setState(() {
+        final newPosition = _cropBoxPosition + details.delta;
+        final screenSize = MediaQuery.of(context).size;
+
+        _cropBoxPosition = Offset(
+          newPosition.dx.clamp(0, screenSize.width - _cropBoxSize),
+          newPosition.dy.clamp(0, screenSize.height - _cropBoxSize),
+        );
+      });
+    }
+  }
+
+  void _handleCropBoxPanEnd(DragEndDetails details) {
+    setState(() {
+      _isDraggingCropBox = false;
+      _isResizingCropBox = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -616,6 +779,23 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
           else
             const Center(
               child: CircularProgressIndicator(color: Colors.white),
+            ),
+
+          // 根据设置显示裁剪框
+          if (_isInitialized && _cropEnabled)
+            Positioned.fill(
+              child: GestureDetector(
+                onPanStart: _handleCropBoxPanStart,
+                onPanUpdate: _handleCropBoxPanUpdate,
+                onPanEnd: _handleCropBoxPanEnd,
+                onTapDown: _handleCropBoxTapDown,
+                child: CustomPaint(
+                  painter: CropBoxPainter(
+                    cropBoxPosition: _cropBoxPosition,
+                    cropBoxSize: _cropBoxSize,
+                  ),
+                ),
+              ),
             ),
 
           // 中心点指示器
@@ -683,4 +863,87 @@ class CenterPointPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// 在 camera_screen.dart 文件底部添加此类
+
+class CropBoxPainter extends CustomPainter {
+  final Offset cropBoxPosition;
+  final double cropBoxSize;
+
+  CropBoxPainter({
+    required this.cropBoxPosition,
+    required this.cropBoxSize,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint paint = Paint()
+      ..color = Colors.white.withOpacity(0.5)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+
+    // 绘制裁剪框
+    final Rect cropRect = Rect.fromLTWH(
+      cropBoxPosition.dx,
+      cropBoxPosition.dy,
+      cropBoxSize,
+      cropBoxSize,
+    );
+    canvas.drawRect(cropRect, paint);
+
+    // 绘制中心点
+    final Paint centerPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+
+    canvas.drawCircle(
+      cropRect.center,
+      4.0,
+      centerPaint,
+    );
+
+    // 绘制调整大小的手柄
+    final Paint handlePaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+
+    canvas.drawCircle(
+      Offset(cropRect.right, cropRect.bottom),
+      10.0,
+      handlePaint,
+    );
+
+    // 绘制网格线
+    final Paint gridPaint = Paint()
+      ..color = Colors.white.withOpacity(0.3)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+
+    // 垂直线
+    for (int i = 1; i < 3; i++) {
+      final double x = cropRect.left + (cropRect.width / 3) * i;
+      canvas.drawLine(
+        Offset(x, cropRect.top),
+        Offset(x, cropRect.bottom),
+        gridPaint,
+      );
+    }
+
+    // 水平线
+    for (int i = 1; i < 3; i++) {
+      final double y = cropRect.top + (cropRect.height / 3) * i;
+      canvas.drawLine(
+        Offset(cropRect.left, y),
+        Offset(cropRect.right, y),
+        gridPaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(CropBoxPainter oldDelegate) {
+    return cropBoxPosition != oldDelegate.cropBoxPosition ||
+        cropBoxSize != oldDelegate.cropBoxSize;
+  }
 }
