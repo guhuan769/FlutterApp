@@ -1,11 +1,13 @@
 // lib/screens/settings_screen.dart
-
-import 'package:camera_photo/screens/camera_screen.dart';
-import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import '../utils/settings_manager.dart';
+import '../main.dart';
+import '../providers/photo_provider.dart';
+import 'camera_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -19,7 +21,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _urlController;
   bool _isTesting = false;
   bool _cropEnabled = true;
-  bool _showCenterPoint = true; // 新增
   ResolutionPreset _selectedResolution = ResolutionPreset.max;
 
   @override
@@ -30,18 +31,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadSettings() async {
-    final savedUrl =
-        (await SharedPreferences.getInstance()).getString('api_url') ??
-            'http://your-server:5000/upload';
+    final savedUrl = (await SharedPreferences.getInstance()).getString('api_url') ?? 'http://your-server:5000/upload';
     final cropEnabled = await SettingsManager.getCropEnabled();
     final resolution = await SettingsManager.getResolutionPreset();
-    final showCenterPoint = await SettingsManager.getShowCenterPoint();
 
     setState(() {
       _urlController.text = savedUrl;
       _cropEnabled = cropEnabled;
       _selectedResolution = resolution;
-      _showCenterPoint = showCenterPoint;
     });
   }
 
@@ -123,6 +120,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _showResolutionPicker(BuildContext context) async {
+
     final ResolutionPreset? result = await showDialog<ResolutionPreset>(
       context: context,
       builder: (BuildContext context) {
@@ -145,60 +143,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
       },
     );
 
+    // final ResolutionPreset? result = await showDialog<ResolutionPreset>(
+    //   context: context,
+    //   builder: (BuildContext context) {
+    //     return SimpleDialog(
+    //       title: const Text('选择相机分辨率'),
+    //       children: ResolutionPreset.values.map((preset) {
+    //         return SimpleDialogOption(
+    //           onPressed: () {
+    //             Navigator.pop(context, preset);
+    //           },
+    //           child: Row(
+    //             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    //             children: [
+    //               Text(SettingsManager.resolutionPresetToString(preset)),
+    //               if (preset == _selectedResolution)
+    //                 const Icon(Icons.check, color: Colors.blue),
+    //             ],
+    //           ),
+    //         );
+    //       }).toList(),
+    //     );
+    //   },
+    // );
+
     if (result != null) {
       await SettingsManager.setResolutionPreset(result);
       setState(() => _selectedResolution = result);
     }
   }
 
-  Widget _buildCameraSettingsCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '相机设置',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            // 裁剪开关
-            SwitchListTile(
-              title: const Text('启用图片裁剪'),
-              subtitle: const Text('拍照时显示裁剪框'),
-              value: _cropEnabled,
-              onChanged: (value) async {
-                await SettingsManager.setCropEnabled(value);
-                setState(() => _cropEnabled = value);
-              },
-            ),
-            // 中心点显示开关
-            SwitchListTile(
-              title: const Text('显示中心点'),
-              subtitle: const Text('在相机预览中显示中心标识'),
-              value: _showCenterPoint,
-              onChanged: (value) async {
-                await SettingsManager.setShowCenterPoint(value);
-                setState(() => _showCenterPoint = value);
-              },
-            ),
-            const Divider(),
-            // 分辨率选择
-            ListTile(
-              title: const Text('相机分辨率'),
-              subtitle: Text(SettingsManager.resolutionPresetToString(
-                  _selectedResolution)),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => _showResolutionPicker(context),
-            ),
-          ],
-        ),
-      ),
-    );
+  @override
+  void dispose() {
+    _urlController.dispose();
+    super.dispose();
   }
 
   @override
@@ -214,7 +192,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildCameraSettingsCard(),
+              // 相机设置卡片
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '相机设置',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SwitchListTile(
+                        title: const Text('启用图片裁剪'),
+                        subtitle: const Text('拍照时显示裁剪框'),
+                        value: _cropEnabled,
+                        onChanged: (value) async {
+                          await SettingsManager.setCropEnabled(value);
+                          setState(() => _cropEnabled = value);
+                        },
+                      ),
+                      const Divider(),
+                      ListTile(
+                        title: const Text('相机分辨率'),
+                        subtitle: Text(SettingsManager.resolutionPresetToString(_selectedResolution)),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => _showResolutionPicker(context),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               const SizedBox(height: 16),
               // 服务器设置卡片
               Card(
@@ -256,17 +268,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             children: [
                               Expanded(
                                 child: ElevatedButton.icon(
-                                  onPressed:
-                                      _isTesting ? null : _testApiConnection,
+                                  onPressed: _isTesting ? null : _testApiConnection,
                                   icon: _isTesting
                                       ? const SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Colors.white,
-                                          ),
-                                        )
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
                                       : const Icon(Icons.refresh),
                                   label: Text(_isTesting ? '测试中...' : '测试连接'),
                                   style: ElevatedButton.styleFrom(
@@ -278,14 +289,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               const SizedBox(width: 16),
                               Expanded(
                                 child: ElevatedButton.icon(
-                                  onPressed: _isTesting
-                                      ? null
-                                      : () {
-                                          if (_formKey.currentState!
-                                              .validate()) {
-                                            _saveUrl(_urlController.text);
-                                          }
-                                        },
+                                  onPressed: _isTesting ? null : () {
+                                    if (_formKey.currentState!.validate()) {
+                                      Provider.of<PhotoProvider>(context, listen: false)
+                                          .setApiUrl(_urlController.text);
+                                      _saveUrl(_urlController.text);
+                                    }
+                                  },
                                   icon: const Icon(Icons.save),
                                   label: const Text('保存设置'),
                                   style: ElevatedButton.styleFrom(
@@ -295,31 +305,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 16),
-                          ElevatedButton.icon(
-                            onPressed: _isTesting
-                                ? null
-                                : () {
-                                    Navigator.pushAndRemoveUntil(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            const CameraScreen(),
-                                      ),
-                                      (route) => false,
-                                    );
-                                  },
-                            icon: const Icon(Icons.refresh),
-                            label: const Text('重启应用'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange,
-                              padding: const EdgeInsets.all(12),
-                            ),
-                          )
+
                         ],
                       ),
                     ],
                   ),
+                ),
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: _isTesting ? null : () {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const CameraScreen(),
+                    ),
+                        (route) => false,
+                  );
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('重启应用'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  padding: const EdgeInsets.all(12),
                 ),
               ),
             ],
@@ -327,11 +335,5 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _urlController.dispose();
-    super.dispose();
   }
 }
