@@ -13,7 +13,7 @@ class SettingsManager {
     ResolutionPreset.high,       // 1080p
     ResolutionPreset.veryHigh,   // 2160p
     // ResolutionPreset.ultraHigh,  // 2880p
-    // ResolutionPreset.max,        // 设备支持的最高分辨率
+    ResolutionPreset.max,        // 设备支持的最高分辨率
   ];
 
   // 裁剪开关相关方法
@@ -98,7 +98,7 @@ class SettingsManager {
       case ResolutionPreset.ultraHigh:
         return '5120x2880';
       case ResolutionPreset.max:
-        return '设备最大支持';
+        return '最高清晰度';
       default:
         return '1920x1080';
     }
