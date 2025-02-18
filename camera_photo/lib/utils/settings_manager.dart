@@ -1,19 +1,18 @@
 // lib/utils/settings_manager.dart
-
 import 'package:camera/camera.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsManager {
   static const String _cropEnabledKey = 'crop_enabled';
   static const String _resolutionPresetKey = 'resolution_preset';
-  static const String _showCenterPointKey = 'show_center_point'; // 新增中心点显示键
+  static const String _showCenterPointKey = 'show_center_point';
 
-  // 定义可用的分辨率列表
+  // 定义可用的分辨率列表，确保按照从低到高的顺序排列
   static List<ResolutionPreset> get availableResolutions => [
-    ResolutionPreset.high,
-    ResolutionPreset.veryHigh,
-    ResolutionPreset.ultraHigh,
-    ResolutionPreset.max,
+    ResolutionPreset.high,       // 1080p
+    ResolutionPreset.veryHigh,   // 2160p
+    ResolutionPreset.ultraHigh,  // 2880p
+    ResolutionPreset.max,        // 设备支持的最高分辨率
   ];
 
   // 裁剪开关相关方法
@@ -27,14 +26,15 @@ class SettingsManager {
     await prefs.setBool(_cropEnabledKey, enabled);
   }
 
-  // 分辨率相关方法
+  // 分辨率相关方法 - 默认使用最高分辨率
   static Future<ResolutionPreset> getResolutionPreset() async {
     final prefs = await SharedPreferences.getInstance();
     final presetIndex = prefs.getInt(_resolutionPresetKey) ??
         availableResolutions.length - 1; // 默认使用最高分辨率
 
+    // 确保返回有效的分辨率预设
     if (presetIndex < 0 || presetIndex >= availableResolutions.length) {
-      return availableResolutions.last;
+      return ResolutionPreset.max; // 如果出现异常，返回最高分辨率
     }
     return availableResolutions[presetIndex];
   }
@@ -58,7 +58,7 @@ class SettingsManager {
     await prefs.setBool(_showCenterPointKey, show);
   }
 
-  // 分辨率显示文本转换
+  // 保持原有的分辨率显示文本
   static String resolutionPresetToString(ResolutionPreset preset) {
     switch (preset) {
       case ResolutionPreset.high:
