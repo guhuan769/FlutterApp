@@ -137,42 +137,16 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     try {
       await _disposeCamera();
 
-      // 获取保存的分辨率设置
-      final savedResolution = await SettingsManager.getResolutionPreset();
-      print('Initializing camera with resolution: ${savedResolution.toString()}');
-
-
-      CameraController cameraController = CameraController(
+      final CameraController cameraController = CameraController(
         _cameras[_currentCameraIndex],
         _currentResolution,
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.jpeg,
       );
-      //imageFormatGroup: ImageFormatGroup.jpeg,
-      // final CameraController cameraController = CameraController(
-      //   cameraDescription,
-      //   ResolutionPreset.max,
-      //   enableAudio: false,
-      // );
-
 
       _controller = cameraController;
 
       await cameraController.initialize();
-
-      // 打印当前相机配置
-      // 打印当前相机配置
-      print('Camera description: ${_cameras[_currentCameraIndex].toString()}');
-      print('Current resolution preset: ${savedResolution.toString()}');
-
-      if (cameraController.value.isInitialized) {
-        final size = cameraController.value.previewSize;
-        if (size != null) {
-          print('Preview size: ${size.width}x${size.height}');
-        }
-      }
-
-
       await cameraController.setFlashMode(FlashMode.off);
 
       _maxAvailableZoom = await cameraController.getMaxZoomLevel();
@@ -183,7 +157,6 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
           _isInitialized = true;
           _currentZoom = 1.0;
           _retryCount = 0;
-          _currentResolution = savedResolution;
         });
       }
     } catch (e) {
@@ -451,11 +424,6 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     setState(() => _isProcessing = true);
 
     try {
-      // 在拍照前打印当前分辨率
-      final previewSize = controller.value.previewSize;
-      print('Taking picture with preview size: ${previewSize?.width}x${previewSize?.height}');
-      print('Current resolution preset: ${_currentResolution.toString()}');
-
       final XFile photo = await controller.takePicture();
       final Directory appDir = await getApplicationDocumentsDirectory();
 

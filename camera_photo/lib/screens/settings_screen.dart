@@ -45,6 +45,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
+  // 添加相机信息获取方法
+  Future<Map<String, dynamic>> _getCameraInfo() async {
+    try {
+      final cameras = await availableCameras();
+      if (cameras.isEmpty) {
+        return {'error': '没有可用的相机'};
+      }
+
+      final camera = cameras[0]; // 通常使用第一个相机
+      return {
+        'name': camera.name,
+        'lensDirection': camera.lensDirection.toString(),
+        'sensorOrientation': camera.sensorOrientation,
+      };
+    } catch (e) {
+      return {'error': '获取相机信息失败: $e'};
+    }
+  }
+
   Future<void> _saveUrl(String url) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -122,35 +141,100 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+
+// 更新分辨率选择器
   Future<void> _showResolutionPicker(BuildContext context) async {
+    final cameraInfo = await _getCameraInfo();
+
     final ResolutionPreset? result = await showDialog<ResolutionPreset>(
       context: context,
       builder: (BuildContext context) {
-        return SimpleDialog(
+        return AlertDialog(
           title: const Text('选择相机分辨率'),
-          children: SettingsManager.availableResolutions.map((preset) {
-            return SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, preset),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(SettingsManager.resolutionPresetToString(preset)),
-                  if (preset == _selectedResolution)
-                    const Icon(Icons.check, color: Colors.blue),
-                ],
-              ),
-            );
-          }).toList(),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 显示相机信息
+              Text('相机信息:', style: Theme.of(context).textTheme.titleSmall),
+              if (cameraInfo.containsKey('error'))
+                Text(cameraInfo['error'], style: const TextStyle(color: Colors.red))
+              else ...[
+                Text('设备: ${cameraInfo['name']}'),
+                Text('方向: ${cameraInfo['lensDirection']}'),
+                Text('传感器方向: ${cameraInfo['sensorOrientation']}°'),
+              ],
+              const Divider(),
+              const Text('可用分辨率:'),
+              const SizedBox(height: 8),
+              // 分辨率列表
+              ...SettingsManager.availableResolutions.map((preset) {
+                final bool isCurrentSelection = preset == _selectedResolution;
+                return ListTile(
+                  title: Text(SettingsManager.resolutionPresetToString(preset)),
+                  subtitle: Text(SettingsManager.getResolutionDescription(preset)),
+                  selected: isCurrentSelection,
+                  leading: isCurrentSelection
+                      ? const Icon(Icons.check_circle, color: Colors.blue)
+                      : const Icon(Icons.circle_outlined),
+                  onTap: () => Navigator.pop(context, preset),
+                );
+              }).toList(),
+            ],
+          ),
         );
       },
     );
 
     if (result != null) {
-      await SettingsManager.setResolutionPreset(result);
-      setState(() => _selectedResolution = result);
+      try {
+        // 保存新的分辨率设置
+        await SettingsManager.setResolutionPreset(result);
+
+        // 验证设置是否保存成功
+        final savedPreset = await SettingsManager.getResolutionPreset();
+        print('Requested resolution: ${result.toString()}');
+        print('Saved resolution: ${savedPreset.toString()}');
+
+        if (mounted) {
+          setState(() => _selectedResolution = result);
+
+          // 显示更详细的提示
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('分辨率已更改为: ${SettingsManager.resolutionPresetToString(result)}'),
+                  Text('目标分辨率: ${SettingsManager.getResolutionDescription(result)}'),
+                  const Text('请重启应用以应用新设置'),
+                  if (result == ResolutionPreset.ultraHigh || result == ResolutionPreset.max)
+                    const Text(
+                      '注意：高分辨率可能受设备硬件限制',
+                      style: TextStyle(color: Colors.yellow),
+                    ),
+                ],
+              ),
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+      } catch (e) {
+        print('保存分辨率设置失败: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('保存设置失败: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     }
   }
 
+  // 更新相机设置卡片中的分辨率显示
   Widget _buildCameraSettingsCard() {
     return Card(
       child: Padding(
@@ -166,6 +250,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             const SizedBox(height: 16),
+
             // 裁剪开关
             SwitchListTile(
               title: const Text('启用图片裁剪'),
@@ -176,6 +261,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 setState(() => _cropEnabled = value);
               },
             ),
+
             // 中心点显示开关
             SwitchListTile(
               title: const Text('显示中心点'),
@@ -186,12 +272,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 setState(() => _showCenterPoint = value);
               },
             ),
+
             const Divider(),
+
             // 分辨率选择
             ListTile(
-              title: const Text('相机分辨率'),
-              subtitle: Text(SettingsManager.resolutionPresetToString(
-                  _selectedResolution)),
+              title: Row(
+                children: [
+                  const Text('相机分辨率'),
+                  const SizedBox(width: 8),
+                  if (_selectedResolution == ResolutionPreset.ultraHigh ||
+                      _selectedResolution == ResolutionPreset.max)
+                    const Tooltip(
+                      message: '高分辨率可能受设备硬件限制',
+                      child: Icon(Icons.info_outline, size: 16, color: Colors.orange),
+                    ),
+                ],
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(SettingsManager.resolutionPresetToString(_selectedResolution)),
+                  Text(
+                    SettingsManager.getResolutionDescription(_selectedResolution),
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => _showResolutionPicker(context),
             ),
