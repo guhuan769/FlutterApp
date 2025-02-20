@@ -8,6 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/project.dart';
 import 'package:http/http.dart' as http;
 
+// lib/models/upload_status.dart
+
 class UploadStatus {
   final String projectId;
   final String projectName;
@@ -15,7 +17,9 @@ class UploadStatus {
   String status;
   bool isComplete;
   bool isSuccess;
+  bool hasPlyFiles;
   String? error;
+  DateTime uploadTime;
 
   UploadStatus({
     required this.projectId,
@@ -24,8 +28,95 @@ class UploadStatus {
     this.status = '准备上传...',
     this.isComplete = false,
     this.isSuccess = false,
+    this.hasPlyFiles = false,
+    this.error,
+    DateTime? uploadTime,
+  }) : uploadTime = uploadTime ?? DateTime.now();
+
+  factory UploadStatus.fromJson(Map<String, dynamic> json) {
+    return UploadStatus(
+      projectId: json['projectId'] as String,
+      projectName: json['projectName'] as String,
+      progress: (json['progress'] as num).toDouble(),
+      status: json['status'] as String,
+      isComplete: json['isComplete'] as bool,
+      isSuccess: json['isSuccess'] as bool,
+      hasPlyFiles: json['hasPlyFiles'] as bool? ?? false,
+      error: json['error'] as String?,
+      uploadTime: DateTime.parse(json['uploadTime'] as String),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'projectId': projectId,
+    'projectName': projectName,
+    'progress': progress,
+    'status': status,
+    'isComplete': isComplete,
+    'isSuccess': isSuccess,
+    'hasPlyFiles': hasPlyFiles,
+    'error': error,
+    'uploadTime': uploadTime.toIso8601String(),
+  };
+
+  UploadStatus copyWith({
+    String? projectId,
+    String? projectName,
+    double? progress,
+    String? status,
+    bool? isComplete,
+    bool? isSuccess,
+    bool? hasPlyFiles,
+    String? error,
+    DateTime? uploadTime,
+  }) {
+    return UploadStatus(
+      projectId: projectId ?? this.projectId,
+      projectName: projectName ?? this.projectName,
+      progress: progress ?? this.progress,
+      status: status ?? this.status,
+      isComplete: isComplete ?? this.isComplete,
+      isSuccess: isSuccess ?? this.isSuccess,
+      hasPlyFiles: hasPlyFiles ?? this.hasPlyFiles,
+      error: error ?? this.error,
+      uploadTime: uploadTime ?? this.uploadTime,
+    );
+  }
+}
+
+
+class ProjectUploadStatus {
+  final String projectId;
+  final DateTime uploadTime;
+  final bool hasPlyFiles;
+  final bool isComplete;
+  final String? error;
+
+  ProjectUploadStatus({
+    required this.projectId,
+    required this.uploadTime,
+    this.hasPlyFiles = false,
+    this.isComplete = false,
     this.error,
   });
+
+  factory ProjectUploadStatus.fromJson(Map<String, dynamic> json) {
+    return ProjectUploadStatus(
+      projectId: json['projectId'],
+      uploadTime: DateTime.parse(json['uploadTime']),
+      hasPlyFiles: json['hasPlyFiles'] ?? false,
+      isComplete: json['isComplete'] ?? false,
+      error: json['error'],
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'projectId': projectId,
+    'uploadTime': uploadTime.toIso8601String(),
+    'hasPlyFiles': hasPlyFiles,
+    'isComplete': isComplete,
+    'error': error,
+  };
 }
 
 class ProjectProvider with ChangeNotifier {
@@ -39,8 +130,74 @@ class ProjectProvider with ChangeNotifier {
   Track? get currentTrack => _currentTrack;
   Map<String, UploadStatus> get uploadStatuses => _uploadStatuses;
 
+// 初始化方法 - 加载所有数据
   Future<void> initialize() async {
-    await loadProjects();
+    try {
+      // 1. 获取应用文档目录
+      final appDir = await getApplicationDocumentsDirectory();
+      final projectsDir = Directory(path.join(appDir.path, 'projects'));
+
+      // 2. 确保项目目录存在
+      if (!await projectsDir.exists()) {
+        await projectsDir.create();
+      }
+
+      // 3. 获取所有项目目录
+      final projectDirs = await projectsDir
+          .list()
+          .where((entity) => entity is Directory)
+          .toList();
+
+      // 4. 清空当前项目列表
+      _projects = [];
+
+      // 5. 遍历加载每个项目
+      for (var dir in projectDirs) {
+        final configFile = File(path.join(dir.path, 'project.json'));
+        if (await configFile.exists()) {
+          // 读取项目配置
+          final jsonData = json.decode(await configFile.readAsString());
+          final project = Project.fromJson(jsonData);
+
+          // 加载项目照片
+          project.photos = await _loadPhotosInDirectory(dir.path);
+
+          // 加载项目轨迹
+          final tracksDir = Directory(path.join(dir.path, 'tracks'));
+          if (await tracksDir.exists()) {
+            final trackDirs = await tracksDir
+                .list()
+                .where((entity) => entity is Directory)
+                .toList();
+
+            // 遍历加载每个轨迹
+            for (var trackDir in trackDirs) {
+              final trackConfigFile = File(
+                  path.join(trackDir.path, 'track.json'));
+              if (await trackConfigFile.exists()) {
+                final trackJson = json.decode(
+                    await trackConfigFile.readAsString());
+                final track = Track.fromJson(trackJson);
+
+                // 加载轨迹照片
+                track.photos = await _loadPhotosInDirectory(trackDir.path);
+                project.tracks.add(track);
+              }
+            }
+          }
+
+          _projects.add(project);
+        }
+      }
+
+      // 6. 加载上传状态
+      await loadUploadStatuses();
+
+      // 7. 通知监听器更新
+      notifyListeners();
+    } catch (e) {
+      print('Error initializing provider: $e');
+    }
   }
 
   Future<void> loadProjects() async {
@@ -92,6 +249,7 @@ class ProjectProvider with ChangeNotifier {
     }
   }
 
+  // 加载指定目录中的照片
   Future<List<File>> _loadPhotosInDirectory(String dirPath) async {
     final dir = Directory(dirPath);
     if (!await dir.exists()) return [];
@@ -100,8 +258,7 @@ class ProjectProvider with ChangeNotifier {
     await for (var entity in dir.list(recursive: false)) {
       if (entity is File &&
           entity.path.toLowerCase().endsWith('.jpg') &&
-          !entity.path.endsWith('project.json') &&
-          !entity.path.endsWith('track.json')) {
+          !path.basename(entity.path).startsWith('.')) {  // 排除隐藏文件
         photos.add(entity);
       }
     }
@@ -162,12 +319,13 @@ class ProjectProvider with ChangeNotifier {
     return track;
   }
 
+  // 设置当前项目
   void setCurrentProject(Project? project) {
     _currentProject = project;
-    _currentTrack = null;
     notifyListeners();
   }
 
+  // 设置当前轨迹
   void setCurrentTrack(Track? track) {
     _currentTrack = track;
     notifyListeners();
@@ -248,22 +406,92 @@ class ProjectProvider with ChangeNotifier {
     // TODO: Implement upload logic
   }
 
-  // 项目上传方法
+  // 清除所有已完成的上传状态
+  void clearCompletedUploads() {
+    _uploadStatuses.removeWhere((key, status) => status.isComplete);
+    notifyListeners();
+    _saveUploadStatuses();
+  }
+
+  // 获取项目的上传状态
+  UploadStatus? getProjectUploadStatus(String projectId) {
+    return _uploadStatuses[projectId];
+  }
+
+  // 清除指定项目的上传状态
+  void clearProjectUploadStatus(String projectId) {
+    _uploadStatuses.remove(projectId);
+    notifyListeners();
+    _saveUploadStatuses();
+  }
+
+  Future<void> loadUploadStatuses() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final statusesJson = prefs.getString('project_upload_statuses');
+
+      if (statusesJson != null) {
+        final Map<String, dynamic> statusesMap = json.decode(statusesJson);
+        _uploadStatuses.clear();
+
+        statusesMap.forEach((key, value) {
+          _uploadStatuses[key] = UploadStatus.fromJson(value);
+        });
+
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error loading upload statuses: $e');
+    }
+  }
+
+  Future<void> _saveUploadStatuses() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final statusesMap = _uploadStatuses.map(
+              (key, value) => MapEntry(key, value.toJson())
+      );
+
+      await prefs.setString(
+          'project_upload_statuses',
+          json.encode(statusesMap)
+      );
+    } catch (e) {
+      print('Error saving upload statuses: $e');
+    }
+  }
+
+  // Update project upload status
+  void updateUploadStatus(String projectId, UploadStatus status) {
+    _uploadStatuses[projectId] = status;
+    notifyListeners();
+    _saveUploadStatuses(); // 保存状态
+  }
+
+  // 批量上传项目
+  Future<void> uploadProjects(List<Project> projects) async {
+    for (var project in projects) {
+      await uploadProject(project);
+    }
+  }
+
   Future<void> uploadProject(Project project) async {
-    if (_uploadStatuses.containsKey(project.id)) {
-      // 已在上传中
+    if (_uploadStatuses.containsKey(project.id) &&
+        !_uploadStatuses[project.id]!.isComplete) {
+      // Already uploading
       return;
     }
 
-    _uploadStatuses[project.id] = UploadStatus(
+    var status = UploadStatus(
       projectId: project.id,
       projectName: project.name,
     );
+    _uploadStatuses[project.id] = status;
     notifyListeners();
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final apiUrl = '${prefs.getString('api_url') ?? 'http://your-server:5000'}/upload/project';
+      final apiUrl = '${prefs.getString('api_url') ?? 'http://localhost:5000'}/upload/project';
 
       // 创建multipart请求
       var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
@@ -291,14 +519,18 @@ class ProjectProvider with ChangeNotifier {
           );
 
           uploadedFiles++;
-          _uploadStatuses[project.id]!.progress = uploadedFiles / allFiles.length;
-          _uploadStatuses[project.id]!.status = '正在上传文件 $uploadedFiles/${allFiles.length}';
+          status = status.copyWith(
+              progress: uploadedFiles / allFiles.length,
+              status: '正在上传文件 $uploadedFiles/${allFiles.length}'
+          );
+          _uploadStatuses[project.id] = status;
           notifyListeners();
         }
       }
 
       // 发送请求
-      _uploadStatuses[project.id]!.status = '正在处理...';
+      status = status.copyWith(status: '正在处理...');
+      _uploadStatuses[project.id] = status;
       notifyListeners();
 
       final response = await request.send();
@@ -306,47 +538,27 @@ class ProjectProvider with ChangeNotifier {
       final jsonResponse = json.decode(responseData);
 
       if (response.statusCode == 200) {
-        _uploadStatuses[project.id]!.isComplete = true;
-        _uploadStatuses[project.id]!.isSuccess = true;
-        _uploadStatuses[project.id]!.status = '上传成功';
+        status = status.copyWith(
+          isComplete: true,
+          isSuccess: true,
+          status: '上传成功',
+          hasPlyFiles: jsonResponse['ply_files_found'] ?? false,
+        );
       } else {
         throw Exception(jsonResponse['message'] ?? '上传失败');
       }
     } catch (e) {
-      _uploadStatuses[project.id]!.isComplete = true;
-      _uploadStatuses[project.id]!.isSuccess = false;
-      _uploadStatuses[project.id]!.error = e.toString();
-      _uploadStatuses[project.id]!.status = '上传失败: ${e.toString()}';
+      status = status.copyWith(
+        isComplete: true,
+        isSuccess: false,
+        status: '上传失败',
+        error: e.toString(),
+      );
     } finally {
+      _uploadStatuses[project.id] = status;
       notifyListeners();
-      // 5秒后清除状态
-      await Future.delayed(const Duration(seconds: 5));
-      _uploadStatuses.remove(project.id);
-      notifyListeners();
+      _saveUploadStatuses();
     }
   }
 
-  // 清除所有已完成的上传状态
-  void clearCompletedUploads() {
-    _uploadStatuses.removeWhere((key, status) => status.isComplete);
-    notifyListeners();
-  }
-
-  // 获取项目的上传状态
-  UploadStatus? getProjectUploadStatus(String projectId) {
-    return _uploadStatuses[projectId];
-  }
-
-  // 清除指定项目的上传状态
-  void clearProjectUploadStatus(String projectId) {
-    _uploadStatuses.remove(projectId);
-    notifyListeners();
-  }
-
-  // 批量上传项目
-  Future<void> uploadProjects(List<Project> projects) async {
-    for (var project in projects) {
-      await uploadProject(project);
-    }
-  }
 }

@@ -39,6 +39,103 @@ class PhotoProvider with ChangeNotifier {
     await _loadSavedUrl();
   }
 
+
+  Future<void> handlePhoto(XFile photo, String savePath, String photoType) async {
+    final now = DateTime.now();
+    final timestamp = "${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}"
+        "${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}";
+
+    switch (photoType) {
+      case PhotoUtils.START_PHOTO:
+        await _handleStartPhoto(photo, savePath, timestamp);
+        break;
+      case PhotoUtils.MIDDLE_PHOTO:
+        await _handleMiddlePhoto(photo, savePath, timestamp);
+        break;
+      case PhotoUtils.END_PHOTO:
+        await _handleEndPhoto(photo, savePath, timestamp);
+        break;
+      case PhotoUtils.MODEL_PHOTO:
+        await _handleModelPhoto(photo, savePath, timestamp);
+        break;
+    }
+
+    await loadPhotosForProjectOrTrack(savePath);
+  }
+
+
+  Future<void> _handleStartPhoto(XFile photo, String savePath, String timestamp) async {
+    // Find existing start photos
+    final startPhotos = _photos.where(
+            (p) => PhotoUtils.getPhotoType(p.path) == PhotoUtils.START_PHOTO
+    ).toList();
+
+    if (startPhotos.isNotEmpty) {
+      // Replace existing start photo
+      for (var existingPhoto in startPhotos) {
+        await existingPhoto.delete();
+      }
+    }
+
+    // Save new start photo
+    final filename = PhotoUtils.generateFileName(PhotoUtils.START_PHOTO, 1, timestamp);
+    final newPath = path.join(savePath, filename);
+    await File(photo.path).copy(newPath);
+  }
+
+
+  Future<void> _handleMiddlePhoto(XFile photo, String savePath, String timestamp) async {
+    final sortedPhotos = PhotoUtils.sortPhotos(_photos);
+    int newSequence;
+
+    if (sortedPhotos.isEmpty) {
+      newSequence = 2;  // First middle photo
+    } else {
+      // Find last sequence before end photos
+      final nonEndPhotos = sortedPhotos.where(
+              (p) => PhotoUtils.getPhotoType(p.path) != PhotoUtils.END_PHOTO
+      ).toList();
+
+      if (nonEndPhotos.isEmpty) {
+        newSequence = 2;
+      } else {
+        final lastSeq = PhotoUtils.getPhotoSequence(nonEndPhotos.last.path);
+        newSequence = lastSeq + 1;
+      }
+    }
+
+    final filename = PhotoUtils.generateFileName(PhotoUtils.MIDDLE_PHOTO, newSequence, timestamp);
+    final newPath = path.join(savePath, filename);
+    await File(photo.path).copy(newPath);
+  }
+
+  Future<void> _handleEndPhoto(XFile photo, String savePath, String timestamp) async {
+    // Find existing end photos
+    final endPhotos = _photos.where(
+            (p) => PhotoUtils.getPhotoType(p.path) == PhotoUtils.END_PHOTO
+    ).toList();
+
+    if (endPhotos.isNotEmpty) {
+      // Replace existing end photo
+      for (var existingPhoto in endPhotos) {
+        await existingPhoto.delete();
+      }
+    }
+
+    // Save new end photo
+    final filename = PhotoUtils.generateFileName(PhotoUtils.END_PHOTO, 999, timestamp);
+    final newPath = path.join(savePath, filename);
+    await File(photo.path).copy(newPath);
+  }
+
+  Future<void> _handleModelPhoto(XFile photo, String savePath, String timestamp) async {
+    final sequence = PhotoUtils.generateNewSequence(_photos, PhotoUtils.MODEL_PHOTO);
+    final filename = PhotoUtils.generateFileName(PhotoUtils.MODEL_PHOTO, sequence, timestamp);
+    final newPath = path.join(savePath, filename);
+    await File(photo.path).copy(newPath);
+  }
+
+
   Future<void> setApiUrl(String url) async {
     try {
       final prefs = await SharedPreferences.getInstance();
