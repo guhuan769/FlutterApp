@@ -146,7 +146,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
         _cameras[_currentCameraIndex],
         _currentResolution,
         enableAudio: false,
-        imageFormatGroup: ImageFormatGroup.jpeg,
+        imageFormatGroup: ImageFormatGroup.bgra8888,
       );
       //imageFormatGroup: ImageFormatGroup.jpeg,
       // final CameraController cameraController = CameraController(
