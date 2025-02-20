@@ -6,7 +6,7 @@ class Project {
   String name;
   String path;
   DateTime createdAt;
-  List<Track> tracks;
+  List<Track> tracks; // 移除 const 关键字
   List<File> photos;
 
   Project({
@@ -14,9 +14,12 @@ class Project {
     required this.name,
     required this.path,
     required this.createdAt,
-    this.tracks = const [],
-    this.photos = const [],
-  });
+    List<Track>? tracks, // 使用可选参数
+    List<File>? photos, // 使用可选参数
+  }) :
+  // 初始化为空的可修改列表，而不是const列表
+        tracks = tracks ?? [],
+        photos = photos ?? [];
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -26,13 +29,15 @@ class Project {
     'tracks': tracks.map((track) => track.toJson()).toList(),
   };
 
-  static Project fromJson(Map<String, dynamic> json) => Project(
-    id: json['id'],
-    name: json['name'],
-    path: json['path'],
-    createdAt: DateTime.parse(json['createdAt']),
-    tracks: (json['tracks'] as List).map((e) => Track.fromJson(e)).toList(),
-  );
+  static Project fromJson(Map<String, dynamic> json) {
+    return Project(
+      id: json['id'],
+      name: json['name'],
+      path: json['path'],
+      createdAt: DateTime.parse(json['createdAt']),
+      tracks: (json['tracks'] as List?)?.map((e) => Track.fromJson(e)).toList() ?? [],
+    );
+  }
 }
 
 class Track {
@@ -49,8 +54,8 @@ class Track {
     required this.path,
     required this.createdAt,
     required this.projectId,
-    this.photos = const [],
-  });
+    List<File>? photos, // 使用可选参数
+  }) : photos = photos ?? []; // 初始化为空的可修改列表
 
   Map<String, dynamic> toJson() => {
     'id': id,

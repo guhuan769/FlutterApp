@@ -494,6 +494,9 @@ class _CameraScreenState extends State<CameraScreen>
       // 强制重新加载照片列表
       await photoProvider.forceReloadPhotos();
 
+      final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
+      await projectProvider.initialize(); // 重新加载项目数据
+
       // 显示提示
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

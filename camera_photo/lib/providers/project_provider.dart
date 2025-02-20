@@ -291,33 +291,72 @@ class ProjectProvider with ChangeNotifier {
     return project;
   }
 
+// 在 ProjectProvider 类中更新 createTrack 方法
   Future<Track> createTrack(String name, String projectId) async {
-    final project = _projects.firstWhere((p) => p.id == projectId);
-    final trackId = DateTime.now().millisecondsSinceEpoch.toString();
+    try {
+      // 查找项目
+      final project = _projects.firstWhere((p) => p.id == projectId);
+      final trackId = DateTime.now().millisecondsSinceEpoch.toString();
 
-    final tracksDir = Directory(path.join(project.path, 'tracks'));
-    if (!await tracksDir.exists()) {
-      await tracksDir.create();
+      // 创建轨迹目录
+      final tracksDir = Directory(path.join(project.path, 'tracks'));
+      if (!await tracksDir.exists()) {
+        await tracksDir.create();
+      }
+
+      // 创建轨迹文件夹
+      final trackDir = Directory(path.join(tracksDir.path, trackId));
+      await trackDir.create();
+
+      // 创建轨迹对象
+      final track = Track(
+        id: trackId,
+        name: name,
+        path: trackDir.path,
+        createdAt: DateTime.now(),
+        projectId: projectId,
+        photos: [], // 初始化为空列表
+      );
+
+      // 保存轨迹配置文件
+      final configFile = File(path.join(trackDir.path, 'track.json'));
+      await configFile.writeAsString(json.encode(track.toJson()));
+
+      // 更新项目中的轨迹列表
+      project.tracks.add(track);
+
+      // 重新加载项目数据以确保所有数据都是最新的
+      await _reloadProject(project);
+
+      // 通知监听器
+      notifyListeners();
+
+      return track;
+    } catch (e) {
+      print('Error creating track: $e');
+      rethrow;
     }
-
-    final trackDir = Directory(path.join(tracksDir.path, trackId));
-    await trackDir.create();
-
-    final track = Track(
-      id: trackId,
-      name: name,
-      path: trackDir.path,
-      createdAt: DateTime.now(),
-      projectId: projectId,
-    );
-
-    final configFile = File(path.join(trackDir.path, 'track.json'));
-    await configFile.writeAsString(json.encode(track.toJson()));
-
-    project.tracks.add(track);
-    notifyListeners();
-    return track;
   }
+
+
+// 添加新的辅助方法来重新加载项目数据
+  Future<void> _reloadProject(Project project) async {
+    try {
+      // 重新加载项目照片
+      project.photos = await _loadPhotosInDirectory(project.path);
+
+      // 重新加载每个轨迹的照片
+      for (var track in project.tracks) {
+        track.photos = await _loadPhotosInDirectory(track.path);
+      }
+
+      // 确保轨迹按照创建时间排序
+      project.tracks.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    } catch (e) {
+      print('Error reloading project: $e');
+    }
+  }
+
 
   // 设置当前项目
   void setCurrentProject(Project? project) {

@@ -1,6 +1,7 @@
 // lib/screens/settings_screen.dart
 
 import 'package:camera_photo/screens/camera_screen.dart';
+import 'package:camera_photo/screens/home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -411,7 +412,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       context,
                                       MaterialPageRoute(
                                         builder: (_) =>
-                                            const CameraScreen(),
+                                            const HomeScreen(),
                                       ),
                                       (route) => false,
                                     );
