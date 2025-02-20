@@ -1,13 +1,17 @@
 // lib/providers/photo_provider.dart
+import 'dart:convert';
 import 'dart:io';
 import 'package:camera_photo/config/upload_options.dart';
 import 'package:camera_photo/utils/photo_utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:mime/mime.dart';
+import 'package:path/path.dart' as path;
+import '../models/project.dart';
 
 class PhotoProvider with ChangeNotifier {
   List<File> _photos = [];
@@ -334,5 +338,127 @@ class PhotoProvider with ChangeNotifier {
       rethrow;
     }
   }
+
+
+
+
+  Future<void> loadPhotosForProjectOrTrack(String directoryPath) async {
+    try {
+      final dir = Directory(directoryPath);
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+
+      _photos = await _loadPhotosInDirectory(directoryPath);
+      _selectedPhotos.clear();
+      notifyListeners();
+    } catch (e) {
+      print('Error loading photos: $e');
+    }
+  }
+
+  Future<List<File>> _loadPhotosInDirectory(String dirPath) async {
+    final dir = Directory(dirPath);
+    if (!await dir.exists()) return [];
+
+    final List<File> photos = [];
+    await for (var entity in dir.list(recursive: false)) {
+      if (entity is File &&
+          entity.path.toLowerCase().endsWith('.jpg')) {
+        photos.add(entity);
+      }
+    }
+    return PhotoUtils.sortPhotos(photos);
+  }
+
+  Future<void> uploadProjectData(Project project) async {
+    if (_isUploading) return;
+
+    try {
+      _isUploading = true;
+      _uploadProgress = 0;
+      _uploadStatus = '准备上传项目...';
+      notifyListeners();
+
+      final prefs = await SharedPreferences.getInstance();
+      final apiUrl = '${prefs.getString('api_url') ?? _apiUrl}/upload/project';
+
+      // 创建multipart请求
+      var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
+
+      // 添加项目信息
+      request.fields['project_info'] = json.encode(project.toJson());
+
+      // 收集所有需要上传的文件
+      List<File> allFiles = [];
+      // 项目照片
+      allFiles.addAll(project.photos);
+      // 轨迹照片
+      for (var track in project.tracks) {
+        allFiles.addAll(track.photos);
+      }
+
+      // 添加所有文件
+      int fileCount = 0;
+      for (var file in allFiles) {
+        if (await file.exists()) {
+          // 计算文件的相对路径
+          String relativePath = path.relative(file.path, from: project.path);
+
+          // 添加文件
+          request.files.add(
+            await http.MultipartFile.fromPath(
+              'files[]',
+              file.path,
+              filename: relativePath,
+            ),
+          );
+
+          fileCount++;
+          _uploadProgress = fileCount / allFiles.length;
+          _uploadStatus = '正在准备文件 $fileCount/${allFiles.length}';
+          notifyListeners();
+        }
+      }
+
+      // 发送请求
+      _uploadStatus = '正在上传...';
+      notifyListeners();
+
+      var response = await request.send();
+      var responseData = await response.stream.bytesToString();
+
+      if (response.statusCode == 200) {
+        _uploadStatus = '上传成功！';
+      } else {
+        _uploadStatus = '上传失败: ${response.statusCode}';
+        print('Upload failed: $responseData');
+      }
+    } catch (e) {
+      _uploadStatus = '上传错误: $e';
+      print('Upload error: $e');
+    } finally {
+      await Future.delayed(const Duration(seconds: 2));
+      _isUploading = false;
+      _uploadProgress = 0;
+      _uploadStatus = '';
+      notifyListeners();
+    }
+  }
+
+  Future<bool> savePhoto(XFile photo, String savePath) async {
+    try {
+      final newPath = path.join(savePath, path.basename(photo.path));
+      await File(photo.path).copy(newPath);
+      await loadPhotosForProjectOrTrack(savePath);
+      return true;
+    } catch (e) {
+      print('Error saving photo: $e');
+      return false;
+    }
+  }
+
+
+
 
 }

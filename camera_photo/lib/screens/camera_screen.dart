@@ -1,6 +1,7 @@
 // lib/screens/camera_screen.dart
 
 import 'dart:io';
+import 'package:camera_photo/providers/project_provider.dart';
 import 'package:camera_photo/utils/photo_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
@@ -74,7 +75,39 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initializeAll();
+
+    // 加载当前项目或轨迹的照片
+    final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
+    final photoProvider = Provider.of<PhotoProvider>(context, listen: false);
+
+    if (projectProvider.currentTrack != null) {
+      photoProvider.loadPhotosForProjectOrTrack(projectProvider.currentTrack!.path);
+    } else if (projectProvider.currentProject != null) {
+      photoProvider.loadPhotosForProjectOrTrack(projectProvider.currentProject!.path);
+    }
   }
+
+  Future<void> _handlePhotoCapture(XFile photo) async {
+    final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
+    final photoProvider = Provider.of<PhotoProvider>(context, listen: false);
+
+    String savePath;
+    if (projectProvider.currentTrack != null) {
+      savePath = projectProvider.currentTrack!.path;
+    } else if (projectProvider.currentProject != null) {
+      savePath = projectProvider.currentProject!.path;
+    } else {
+      // 如果没有选择项目或轨迹，显示错误
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请先选择项目或轨迹')),
+      );
+      return;
+    }
+
+    // 保存照片到正确的目录
+    await photoProvider.savePhoto(photo, savePath);
+  }
+
 
   @override
   void dispose() {
@@ -442,7 +475,48 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
   }
 
   // ====== 主拍照方法 ======
+
+  // 修改原有的拍照方法
   Future<void> _takePicture(PhotoMode mode) async {
+    final CameraController? controller = _controller;
+    if (controller == null || !controller.value.isInitialized || _isProcessing) {
+      return;
+    }
+
+    setState(() => _isProcessing = true);
+
+    try {
+      final XFile photo = await controller.takePicture();
+
+      // 处理照片保存
+      await _handlePhotoCapture(photo);
+
+      if (!mounted) return;
+
+      // 显示提示
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${_getModePrefix(mode)}已保存'),
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.only(
+            bottom: MediaQuery.of(context).size.height - 100,
+            left: 20,
+            right: 20,
+          ),
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    } catch (e) {
+      print('拍照失败: $e');
+      _showError('拍照失败: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
+    }
+  }
+
+  Future<void> _takePicture1(PhotoMode mode) async {
     final CameraController? controller = _controller;
     if (controller == null || !controller.value.isInitialized || _isProcessing) {
       return;
