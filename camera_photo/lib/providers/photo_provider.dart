@@ -555,6 +555,103 @@ class PhotoProvider with ChangeNotifier {
     }
   }
 
+  Future<void> handleStartPointPhoto(XFile photo, String savePath, String timestamp, List<File> photos) async {
+    try {
+      // 查找现有的起始点照片
+      List<File> startPhotos = photos.where(
+              (p) => PhotoUtils.getPhotoType(p.path) == PhotoUtils.START_PHOTO
+      ).toList();
+
+      // 生成新文件名
+      final String filename = PhotoUtils.generateFileName(PhotoUtils.START_PHOTO, 1, timestamp);
+      final String newPath = path.join(savePath, filename);
+
+      // 如果有现有的起始点照片，删除它们
+      for (var existingPhoto in startPhotos) {
+        await existingPhoto.delete();
+      }
+
+      // 保存新照片
+      await File(photo.path).copy(newPath);
+      await forceReloadPhotos();
+    } catch (e) {
+      print('处理起始点照片失败: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> handleMiddlePointPhoto(XFile photo, String savePath, String timestamp, List<File> photos) async {
+    try {
+      // 获取所有照片并排序
+      List<File> sortedPhotos = PhotoUtils.sortPhotos(photos);
+
+      // 计算新的序号
+      int sequence;
+      if (sortedPhotos.isEmpty) {
+        sequence = 2;  // 如果是第一张照片
+      } else {
+        // 找到最后一个非结束点照片的序号
+        var nonEndPhotos = sortedPhotos.where(
+                (p) => PhotoUtils.getPhotoType(p.path) != PhotoUtils.END_PHOTO
+        ).toList();
+
+        if (nonEndPhotos.isEmpty) {
+          sequence = 2;
+        } else {
+          sequence = PhotoUtils.getPhotoSequence(nonEndPhotos.last.path) + 1;
+        }
+      }
+
+      // 生成新文件名并保存
+      final String filename = PhotoUtils.generateFileName(PhotoUtils.MIDDLE_PHOTO, sequence, timestamp);
+      final String newPath = path.join(savePath, filename);
+      await File(photo.path).copy(newPath);
+
+      await forceReloadPhotos();
+    } catch (e) {
+      print('处理中间点照片失败: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> handleEndPointPhoto(XFile photo, String savePath, String timestamp, List<File> photos) async {
+    try {
+      // 查找现有的结束点照片
+      List<File> endPhotos = photos.where(
+              (p) => PhotoUtils.getPhotoType(p.path) == PhotoUtils.END_PHOTO
+      ).toList();
+
+      // 生成新文件名
+      final String filename = PhotoUtils.generateFileName(PhotoUtils.END_PHOTO, 999, timestamp);
+      final String newPath = path.join(savePath, filename);
+
+      // 如果有现有的结束点照片，删除它们
+      for (var existingPhoto in endPhotos) {
+        await existingPhoto.delete();
+      }
+
+      // 保存新照片
+      await File(photo.path).copy(newPath);
+      await forceReloadPhotos();
+    } catch (e) {
+      print('处理结束点照片失败: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> handleModelPointPhoto(XFile photo, String savePath, String timestamp, List<File> photos) async {
+    try {
+      final sequence = PhotoUtils.generateNewSequence(photos, PhotoUtils.MODEL_PHOTO);
+      final String filename = PhotoUtils.generateFileName(PhotoUtils.MODEL_PHOTO, sequence, timestamp);
+      final String newPath = path.join(savePath, filename);
+      await File(photo.path).copy(newPath);
+      await forceReloadPhotos();
+    } catch (e) {
+      print('处理模型点照片失败: $e');
+      rethrow;
+    }
+  }
+
 
 
 
