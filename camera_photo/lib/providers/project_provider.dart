@@ -1,7 +1,9 @@
 // lib/providers/project_provider.dart
 import 'dart:convert';
 import 'dart:io';
+import 'package:camera_photo/config/upload_options.dart';
 import 'package:flutter/foundation.dart';
+import 'package:http_parser/http_parser.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -514,10 +516,10 @@ class ProjectProvider with ChangeNotifier {
     }
   }
 
-  Future<void> uploadProject(Project project) async {
+// 在 ProjectProvider 类中更新上传方法
+  Future<void> uploadProject(Project project, {UploadType? type, String? value}) async {
     if (_uploadStatuses.containsKey(project.id) &&
         !_uploadStatuses[project.id]!.isComplete) {
-      // Already uploading
       return;
     }
 
@@ -530,63 +532,124 @@ class ProjectProvider with ChangeNotifier {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final apiUrl = '${prefs.getString('api_url') ?? 'http://localhost:5000'}/upload/project';
-
-      // 创建multipart请求
-      var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
-
-      // 添加项目信息
-      request.fields['project_info'] = json.encode(project.toJson());
+      final apiUrl = '${prefs.getString('api_url') ?? 'http://localhost:5000'}/upload';
 
       // 收集所有需要上传的文件
-      List<File> allFiles = [];
-      allFiles.addAll(project.photos);
-      for (var track in project.tracks) {
-        allFiles.addAll(track.photos);
-      }
+      List<Map<String, dynamic>> allFiles = [];
 
-      int uploadedFiles = 0;
-      for (var file in allFiles) {
-        if (await file.exists()) {
-          String relativePath = path.relative(file.path, from: project.path);
-          request.files.add(
-            await http.MultipartFile.fromPath(
-              'files[]',
-              file.path,
-              filename: relativePath,
-            ),
-          );
-
-          uploadedFiles++;
-          status = status.copyWith(
-              progress: uploadedFiles / allFiles.length,
-              status: '正在上传文件 $uploadedFiles/${allFiles.length}'
-          );
-          _uploadStatuses[project.id] = status;
-          notifyListeners();
+      // 添加项目根目录下的照片
+      for (var photo in project.photos) {
+        if (await photo.exists()) {  // 检查文件是否存在
+          allFiles.add({
+            'file': photo,
+            'type': 'project',
+            'path': photo.path,
+            'relativePath': path.relative(photo.path, from: project.path)
+          });
         }
       }
 
-      // 发送请求
-      status = status.copyWith(status: '正在处理...');
-      _uploadStatuses[project.id] = status;
-      notifyListeners();
-
-      final response = await request.send();
-      final responseData = await response.stream.bytesToString();
-      final jsonResponse = json.decode(responseData);
-
-      if (response.statusCode == 200) {
-        status = status.copyWith(
-          isComplete: true,
-          isSuccess: true,
-          status: '上传成功',
-          hasPlyFiles: jsonResponse['ply_files_found'] ?? false,
-        );
-      } else {
-        throw Exception(jsonResponse['message'] ?? '上传失败');
+      // 添加所有轨迹中的照片
+      for (var track in project.tracks) {
+        for (var photo in track.photos) {
+          if (await photo.exists()) {  // 检查文件是否存在
+            allFiles.add({
+              'file': photo,
+              'type': 'track',
+              'trackId': track.id,
+              'trackName': track.name,
+              'path': photo.path,
+              'relativePath': 'tracks/${track.name}/${path.basename(photo.path)}'
+            });
+          }
+        }
       }
+
+      // 分批上传文件，每批最多5个文件
+      const int batchSize = 5;
+      int totalBatches = (allFiles.length / batchSize).ceil();
+      int totalSuccess = 0;
+
+      for (int i = 0; i < allFiles.length; i += batchSize) {
+        int end = (i + batchSize < allFiles.length) ? i + batchSize : allFiles.length;
+        var batchFiles = allFiles.sublist(i, end);
+        int currentBatch = (i ~/ batchSize) + 1;
+
+        // 创建新的请求
+        var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
+
+        // 添加基本信息
+        request.fields['type'] = type?.name ?? 'unknown';
+        request.fields['value'] = value ?? 'unknown';
+        request.fields['project_info'] = json.encode(project.toJson());
+        request.fields['batch_number'] = currentBatch.toString();
+        request.fields['total_batches'] = totalBatches.toString();
+
+        // 添加文件批次信息
+        for (int j = 0; j < batchFiles.length; j++) {
+          var fileInfo = batchFiles[j];
+
+          // 读取文件并验证
+          final file = fileInfo['file'] as File;
+          final fileBytes = await file.readAsBytes();
+          if (fileBytes.isEmpty) {
+            print('警告: 文件为空 ${fileInfo['path']}');
+            continue;
+          }
+
+          // 添加文件到请求
+          request.files.add(
+              http.MultipartFile.fromBytes(
+                  'files[]',
+                  fileBytes,
+                  filename: fileInfo['relativePath'],
+                  contentType: MediaType('image', 'jpeg')
+              )
+          );
+
+          // 添加文件信息
+          request.fields['file_info_$j'] = json.encode({
+            'type': fileInfo['type'],
+            'trackId': fileInfo['trackId'] ?? '',
+            'trackName': fileInfo['trackName'] ?? '',
+            'relativePath': fileInfo['relativePath']
+          });
+        }
+
+        // 更新状态
+        status = status.copyWith(
+            progress: i / allFiles.length,
+            status: '正在上传批次 $currentBatch/$totalBatches\n'
+                '已上传: $totalSuccess/${allFiles.length}'
+        );
+        _uploadStatuses[project.id] = status;
+        notifyListeners();
+
+        try {
+          // 发送请求
+          final response = await request.send();
+          final responseData = await response.stream.bytesToString();
+          final jsonResponse = json.decode(responseData);
+
+          if (response.statusCode == 200) {
+            totalSuccess += batchFiles.length;
+          } else {
+            print('批次 $currentBatch 上传失败: ${jsonResponse['message']}');
+          }
+        } catch (e) {
+          print('批次 $currentBatch 上传错误: $e');
+        }
+      }
+
+      // 最终状态更新
+      status = status.copyWith(
+        isComplete: true,
+        isSuccess: totalSuccess == allFiles.length,
+        status: '上传完成\n'
+            '成功: $totalSuccess/${allFiles.length}张照片',
+      );
     } catch (e) {
+      print('上传过程错误: $e');
       status = status.copyWith(
         isComplete: true,
         isSuccess: false,
@@ -599,5 +662,4 @@ class ProjectProvider with ChangeNotifier {
       _saveUploadStatuses();
     }
   }
-
 }

@@ -1,4 +1,5 @@
 // lib/screens/home_screen.dart
+import 'package:camera_photo/config/upload_options.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/project_provider.dart';
@@ -85,44 +86,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // 上传项目确认对话框
-  Future<void> _showUploadConfirmation(Project project) async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('确认上传'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('项目名称: ${project.name}'),
-            const SizedBox(height: 8),
-            Text('照片数量: ${project.photos.length}'),
-            Text('轨迹数量: ${project.tracks.length}'),
-            const SizedBox(height: 16),
-            const Text('确定要上传该项目吗？'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('上传'),
-          ),
-        ],
-      ),
-    );
-
-    if (result == true) {
-      if (!mounted) return;
-      final provider = Provider.of<ProjectProvider>(context, listen: false);
-      await provider.uploadProject(project);
-    }
-  }
-
   // 在 HomeScreen 中更新创建轨迹的方法
   void _showCreateTrackDialog(Project project) {
     showDialog(
@@ -178,6 +141,84 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  Future<void> _showUploadConfirmation(Project project) async {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('确认上传'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('项目名称: ${project.name}'),
+            const SizedBox(height: 8),
+            Text('照片数量: ${project.photos.length}'),
+            Text('轨迹数量: ${project.tracks.length}'),
+            const SizedBox(height: 16),
+            // 添加类型选择
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _showTypeSelectionDialog(project, UploadType.model);
+                  },
+                  child: const Text('模型上传'),
+                ),
+                const SizedBox(width: 16),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _showTypeSelectionDialog(project, UploadType.craft);
+                  },
+                  child: const Text('工艺上传'),
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 添加类型选择对话框
+  void _showTypeSelectionDialog(Project project, UploadType type) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(type == UploadType.model ? '选择模型' : '选择工艺'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: (type == UploadType.model ? UploadOptions.models : UploadOptions.crafts)
+                .map((value) => ListTile(
+              title: Text(value),
+              onTap: () {
+                Navigator.pop(context);
+                final provider = Provider.of<ProjectProvider>(context, listen: false);
+                provider.uploadProject(project, type: type, value: value);
+              },
+            ))
+                .toList(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+        ],
+      ),
+    );
+  }
+
 
   Widget _buildProjectItem(BuildContext context, Project project) {
     return Card(

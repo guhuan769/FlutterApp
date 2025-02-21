@@ -12,8 +12,6 @@ import 'package:provider/provider.dart';
 import 'package:image/image.dart' as img;
 import '../utils/settings_manager.dart';
 import '../providers/photo_provider.dart';
-import 'gallery_screen.dart';
-import 'settings_screen.dart';
 
 // 拍照模式枚举
 enum PhotoMode {

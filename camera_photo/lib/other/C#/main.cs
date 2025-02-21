@@ -1,200 +1,214 @@
 using MQTTnet;
 using MQTTnet.Client;
-using MQTTnet.Protocol;
 using System.Text;
 using System.Text.Json;
 
-namespace PLYProcessor
+namespace PlyFileProcessor
 {
-public class MqttPlyClient : IAsyncDisposable
-{
-private readonly IMqttClient _mqttClient;
-private readonly string _brokerAddress;
-private readonly int _brokerPort;
-private readonly string _topic;
-private readonly string _clientId;
+    public class MqttPlyClient : IDisposable
+    {
+        private readonly IMqttClient _mqttClient;
+        private readonly MqttClientOptions _options;
+        private readonly string _saveDirectory;
+        private readonly ILogger<MqttPlyClient> _logger;
 
-public event EventHandler<PlyDataReceivedEventArgs>? PlyDataReceived;
+        public MqttPlyClient(ILogger<MqttPlyClient> logger, string brokerAddress, string saveDirectory)
+        {
+            _logger = logger;
+            _saveDirectory = saveDirectory;
 
-public MqttPlyClient(string brokerAddress = "localhost", int brokerPort = 1883)
-{
-_brokerAddress = brokerAddress;
-_brokerPort = brokerPort;
-_topic = "ply/files";
-_clientId = $"csharp-client-{Guid.NewGuid()}";
+            var factory = new MqttFactory();
+            _mqttClient = factory.CreateMqttClient();
 
-var factory = new MqttFactory();
-_mqttClient = factory.CreateMqttClient();
-}
+            _options = new MqttClientOptionsBuilder()
+                .WithTcpServer(brokerAddress)
+                .WithProtocolVersion(MQTTnet.Formatter.MqttProtocolVersion.V500)
+                .WithClientId($"ply-processor-{Guid.NewGuid()}")
+                .Build();
 
-public async Task ConnectAsync()
-{
-var options = new MqttClientOptionsBuilder()
-    .WithTcpServer(_brokerAddress, _brokerPort)
-    .WithProtocolVersion(MqttProtocolVersion.V500)
-    .WithClientId(_clientId)
-    .Build();
+            ConfigureClient();
+        }
 
-_mqttClient.ApplicationMessageReceivedAsync += HandleMessageReceived;
+        private void ConfigureClient()
+        {
+            _mqttClient.ApplicationMessageReceivedAsync += HandleMessageAsync;
+            _mqttClient.DisconnectedAsync += HandleDisconnectAsync;
+        }
 
-await _mqttClient.ConnectAsync(options);
-await SubscribeToTopics();
-}
+        public async Task StartAsync()
+        {
+            try
+            {
+                await _mqttClient.ConnectAsync(_options);
 
-private async Task SubscribeToTopics()
-{
-var topicFilter = new MqttTopicFilterBuilder()
-    .WithTopic(_topic)
-    .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.ExactlyOnce)
-    .Build();
+                var topicFilter = new MqttTopicFilterBuilder()
+                    .WithTopic("ply/files")
+                    .Build();
 
-await _mqttClient.SubscribeAsync(topicFilter);
-}
+                await _mqttClient.SubscribeAsync(topicFilter);
 
-private async Task HandleMessageReceived(MqttApplicationMessageReceivedEventArgs args)
-{
-try
-{
-var payload = Encoding.UTF8.GetString(args.ApplicationMessage.PayloadSegment);
-var message = JsonSerializer.Deserialize<PlyMessage>(payload);
+                _logger.LogInformation("已连接到MQTT服务器并订阅主题");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "连接MQTT服务器失败");
+                throw;
+            }
+        }
 
-if (message == null) return;
+        private async Task HandleMessageAsync(MqttApplicationMessageReceivedEventArgs args)
+        {
+            try
+            {
+                var payload = Encoding.UTF8.GetString(args.ApplicationMessage.PayloadSegment);
+                var message = JsonSerializer.Deserialize<MqttMessage>(payload);
 
-switch (message.Type?.ToLower())
-{
-case "ply_data" when !string.IsNullOrEmpty(message.FileData):
-await ProcessPlyData(message);
-break;
+                switch (message.Type)
+                {
+                    case "ply_files":
+                        await ProcessPlyFilesAsync(message);
+                        break;
+                    case "no_ply_files":
+                        _logger.LogWarning($"任务 {message.TaskId} 未找到PLY文件");
+                        break;
+                    case "error":
+                        _logger.LogError($"任务 {message.TaskId} 发生错误: {message.Error}");
+                        break;
+                }
 
-case "ply_data" when message.ProjectInfo?.Status == "no_ply_files":
-Console.WriteLine($"No PLY files found for project {message.ProjectId}");
-break;
-}
+                // 发送确认消息
+                await SendAcknowledgementAsync(message.TaskId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "处理MQTT消息失败");
+            }
+        }
 
-// Send acknowledgment
-await SendAcknowledgment(message.ProjectId);
-}
-catch (Exception ex)
-{
-Console.WriteLine($"Error processing message: {ex.Message}");
-}
-}
+        private async Task ProcessPlyFilesAsync(MqttMessage message)
+        {
+            try
+            {
+                _logger.LogInformation($"接收到PLY文件包 - 任务ID: {message.TaskId}");
 
-private async Task ProcessPlyData(PlyMessage message)
-{
-try
-{
-var fileData = Convert.FromBase64String(message.FileData!);
+                // 确保保存目录存在
+                var taskDirectory = Path.Combine(_saveDirectory, message.TaskId);
+                Directory.CreateDirectory(taskDirectory);
 
-// Create output directory
-var outputDir = Path.Combine(
-AppDomain.CurrentDomain.BaseDirectory,
-"received_files",
-message.ProjectId ?? "unknown_project"
-);
-Directory.CreateDirectory(outputDir);
+                // 解码并保存ZIP文件
+                var zipPath = Path.Combine(taskDirectory, message.FileName);
+                var zipData = Convert.FromBase64String(message.FileData);
+                await File.WriteAllBytesAsync(zipPath, zipData);
 
-// Save the zip file
-var zipPath = Path.Combine(outputDir, message.FileName ?? $"{DateTime.Now:yyyyMMddHHmmss}.zip");
-await File.WriteAllBytesAsync(zipPath, fileData);
+                // 解压ZIP文件
+                var extractPath = Path.Combine(taskDirectory, "extracted");
+                Directory.CreateDirectory(extractPath);
+                System.IO.Compression.ZipFile.ExtractToDirectory(zipPath, extractPath, true);
 
-// Extract the zip file
-var extractPath = Path.Combine(outputDir, "extracted");
-Directory.CreateDirectory(extractPath);
-System.IO.Compression.ZipFile.ExtractToDirectory(zipPath, extractPath, overwriteFiles: true);
+                _logger.LogInformation($"任务 {message.TaskId} 的PLY文件已成功处理和保存");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"处理PLY文件失败 - 任务ID: {message.TaskId}");
+                throw;
+            }
+        }
 
-// Raise event
-PlyDataReceived?.Invoke(this, new PlyDataReceivedEventArgs(
-message.ProjectId!,
-zipPath,
-extractPath,
-message.ProjectInfo
-));
-}
-catch (Exception ex)
-{
-Console.WriteLine($"Error processing PLY data: {ex.Message}");
-}
-}
+        private async Task SendAcknowledgementAsync(string taskId)
+        {
+            try
+            {
+                var ackMessage = new
+                {
+                    type = "acknowledgement",
+                    taskId = taskId,
+                    timestamp = DateTime.UtcNow
+                };
 
-private async Task SendAcknowledgment(string? projectId)
-{
-if (string.IsNullOrEmpty(projectId)) return;
+                var payload = JsonSerializer.Serialize(ackMessage);
+                var message = new MqttApplicationMessageBuilder()
+                    .WithTopic("ply/acknowledgement")
+                    .WithPayload(payload)
+                    .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
+                    .Build();
 
-var ackMessage = new
-{
-type = "ack",
-projectId = projectId,
-timestamp = DateTime.UtcNow,
-clientId = _clientId
-};
+                await _mqttClient.PublishAsync(message);
+                _logger.LogInformation($"已发送确认消息 - 任务ID: {taskId}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"发送确认消息失败 - 任务ID: {taskId}");
+            }
+        }
 
-var message = new MqttApplicationMessageBuilder()
-    .WithTopic($"{_topic}/ack/{projectId}")
-    .WithPayload(JsonSerializer.Serialize(ackMessage))
-    .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce)
-    .WithRetainFlag(false)
-    .Build();
+        private async Task HandleDisconnectAsync(MqttClientDisconnectedEventArgs args)
+        {
+            try
+            {
+                // 自动重连
+                await Task.Delay(TimeSpan.FromSeconds(5));
+                await _mqttClient.ConnectAsync(_options);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "重新连接失败");
+            }
+        }
 
-await _mqttClient.PublishAsync(message);
-}
+        public async Task StopAsync()
+        {
+            if (_mqttClient.IsConnected)
+            {
+                await _mqttClient.DisconnectAsync();
+            }
+        }
 
-public async ValueTask DisposeAsync()
-{
-if (_mqttClient.IsConnected)
-{
-await _mqttClient.DisconnectAsync();
-}
-await _mqttClient.DisposeAsync();
-}
-}
+        public void Dispose()
+        {
+            _mqttClient?.Dispose();
+        }
+    }
 
-public class PlyDataReceivedEventArgs : EventArgs
-{
-public string ProjectId { get; }
-public string ZipPath { get; }
-public string ExtractPath { get; }
-public Dictionary<string, object>? ProjectInfo { get; }
+    public class MqttMessage
+    {
+        public string Type { get; set; }
+        public string TaskId { get; set; }
+        public string FileName { get; set; }
+        public string FileData { get; set; }
+        public string Error { get; set; }
+        public DateTime Timestamp { get; set; }
+    }
 
-public PlyDataReceivedEventArgs(
-string projectId,
-string zipPath,
-string extractPath,
-Dictionary<string, object>? projectInfo)
-{
-ProjectId = projectId;
-ZipPath = zipPath;
-ExtractPath = extractPath;
-ProjectInfo = projectInfo;
-}
-}
+    // Program.cs 示例
+    public class Program
+    {
+        public static async Task Main(string[] args)
+        {
+            var builder = WebApplication.CreateBuilder(args);
 
-public class PlyMessage
-{
-public string? Type { get; set; }
-public string? ProjectId { get; set; }
-public string? FileName { get; set; }
-public string? FileData { get; set; }
-public string? Timestamp { get; set; }
-public Dictionary<string, object>? ProjectInfo { get; set; }
-}
+            // 添加日志
+            builder.Logging.AddConsole();
 
-// Example usage
-public class Program
-{
-public static async Task Main(string[] args)
-{
-var client = new MqttPlyClient();
-client.PlyDataReceived += (sender, e) =>
-{
-Console.WriteLine($"Received PLY data for project {e.ProjectId}");
-Console.WriteLine($"Files extracted to: {e.ExtractPath}");
-};
+            // 注册MqttPlyClient服务
+            builder.Services.AddSingleton<MqttPlyClient>(sp =>
+            {
+                var logger = sp.GetRequiredService<ILogger<MqttPlyClient>>();
+                var config = sp.GetRequiredService<IConfiguration>();
 
-await client.ConnectAsync();
-Console.WriteLine("Connected to MQTT broker. Press any key to exit.");
-Console.ReadKey();
-await client.DisposeAsync();
-}
-}
+                return new MqttPlyClient(
+                    logger,
+                    config["Mqtt:BrokerAddress"] ?? "localhost",
+                    config["Mqtt:SaveDirectory"] ?? "ply_files"
+                );
+            });
+
+            var app = builder.Build();
+
+            // 获取MqttPlyClient服务并启动
+            var mqttClient = app.Services.GetRequiredService<MqttPlyClient>();
+            await mqttClient.StartAsync();
+
+            await app.RunAsync();
+        }
+    }
 }
