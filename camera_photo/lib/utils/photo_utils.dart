@@ -6,7 +6,7 @@ class PhotoUtils {
   static const String START_PHOTO = '起始点拍照';
   static const String MIDDLE_PHOTO = '中间点拍照';
   static const String MODEL_PHOTO = '模型点拍照';
-  static const String END_PHOTO = '结束点拍照';
+  static const String END_PHOTO = '2';
 
   // 获取照片类型
   static String getPhotoType(String filePath) {
