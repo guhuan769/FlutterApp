@@ -82,7 +82,8 @@ class _CameraScreenState extends State<CameraScreen>
     // 使用 Future.microtask 来确保在构建完成后初始化
     Future.microtask(() {
       // 获取当前项目和轨迹状态
-      final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
+      final projectProvider =
+          Provider.of<ProjectProvider>(context, listen: false);
       setState(() {
         currentProject = projectProvider.currentProject;
         currentTrack = projectProvider.currentTrack;
@@ -90,7 +91,8 @@ class _CameraScreenState extends State<CameraScreen>
 
       // 加载照片
       if (currentProject != null) {
-        final photoProvider = Provider.of<PhotoProvider>(context, listen: false);
+        final photoProvider =
+            Provider.of<PhotoProvider>(context, listen: false);
         final path = currentTrack?.path ?? currentProject!.path;
         photoProvider.loadPhotosForProjectOrTrack(path);
       }
@@ -99,7 +101,6 @@ class _CameraScreenState extends State<CameraScreen>
       _initializeAll();
     });
   }
-
 
   @override
   void dispose() {
@@ -492,7 +493,8 @@ class _CameraScreenState extends State<CameraScreen>
       // 强制重新加载照片列表
       await photoProvider.forceReloadPhotos();
 
-      final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
+      final projectProvider =
+          Provider.of<ProjectProvider>(context, listen: false);
       await projectProvider.initialize(); // 重新加载项目数据
 
       // 显示提示
@@ -585,22 +587,24 @@ class _CameraScreenState extends State<CameraScreen>
             child: FloatingActionButton(
               backgroundColor: Colors.white.withOpacity(0.2),
               elevation: 0,
-              onPressed: (_isProcessing || !isEnabled) ? null : () => _takePicture(mode),
+              onPressed: (_isProcessing || !isEnabled)
+                  ? null
+                  : () => _takePicture(mode),
               child: _isProcessing
                   ? const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                ),
-              )
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                      ),
+                    )
                   : Container(
-                margin: const EdgeInsets.all(2),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
-              ),
+                      margin: const EdgeInsets.all(2),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
             ),
           ),
           const SizedBox(height: 4),
@@ -831,7 +835,6 @@ class _CameraScreenState extends State<CameraScreen>
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -858,21 +861,22 @@ class _CameraScreenState extends State<CameraScreen>
             ),
 
           // 根据设置显示裁剪框
-          if (_isInitialized && _cropEnabled)
-            Positioned.fill(
-              child: GestureDetector(
-                onPanStart: _handleCropBoxPanStart,
-                onPanUpdate: _handleCropBoxPanUpdate,
-                onPanEnd: _handleCropBoxPanEnd,
-                onTapDown: _handleCropBoxTapDown,
-                child: CustomPaint(
-                  painter: CropBoxPainter(
-                    cropBoxPosition: _cropBoxPosition,
-                    cropBoxSize: _cropBoxSize,
+          if (false)
+            if (_isInitialized && _cropEnabled)
+              Positioned.fill(
+                child: GestureDetector(
+                  onPanStart: _handleCropBoxPanStart,
+                  onPanUpdate: _handleCropBoxPanUpdate,
+                  onPanEnd: _handleCropBoxPanEnd,
+                  onTapDown: _handleCropBoxTapDown,
+                  child: CustomPaint(
+                    painter: CropBoxPainter(
+                      cropBoxPosition: _cropBoxPosition,
+                      cropBoxSize: _cropBoxSize,
+                    ),
                   ),
                 ),
               ),
-            ),
           // 显示分辨率指示器
           if (_isInitialized) _buildResolutionIndicator(),
           // 中心点指示器

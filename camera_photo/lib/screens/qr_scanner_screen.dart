@@ -229,6 +229,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> with WidgetsBindingOb
         code = barcode.rawValue;
       }
 
+      // 确保代码不为空且不为空字符串
       if (code == null || code.isEmpty) continue;
 
       // 防止多次处理同一个码

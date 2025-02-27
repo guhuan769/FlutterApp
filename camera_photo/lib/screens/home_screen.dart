@@ -118,10 +118,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   Navigator.pop(context);
                   _showCreateDialog(
                     title: '新建项目',
-                    onConfirm: (name) => Provider.of<ProjectProvider>(
-                      context,
-                      listen: false,
-                    ).createProject(name),
+                    onConfirm:  (name) => _createProjectWithErrorHandling(name),
+                    // onConfirm: (name) => Provider.of<ProjectProvider>(
+                    //   context,
+                    //   listen: false,
+                    // ).createProject(name),
                   );
                 },
               ),
@@ -133,15 +134,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   _navigateToQRScanner();
                 },
               ),
-              ListTile(
-                leading: const Icon(Icons.qr_code_2),
-                title: const Text('批量扫描二维码'),
-                subtitle: const Text('连续扫描多个二维码创建多个项目'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _navigateToBatchQRScanner();
-                },
-              ),
+              // ListTile(
+              //   leading: const Icon(Icons.qr_code_2),
+              //   title: const Text('批量扫描二维码'),
+              //   subtitle: const Text('连续扫描多个二维码创建多个项目'),
+              //   onTap: () {
+              //     Navigator.pop(context);
+              //     _navigateToBatchQRScanner();
+              //   },
+              // ),
               // 仅在开发阶段显示测试选项
               if (true) // 发布时改为 false
                 ListTile(
@@ -558,12 +559,17 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // 1. 修复 _showCreateDialog 方法
   void _showCreateDialog({
     required String title,
     required Function(String) onConfirm,
   }) {
+    // 确保每次打开对话框时都重置文本控制器
+    _nameController.clear();
+
     showDialog(
       context: context,
+      barrierDismissible: false, // 防止用户点击外部关闭对话框
       builder: (context) => AlertDialog(
         title: Text(title),
         content: TextField(
@@ -571,20 +577,42 @@ class _HomeScreenState extends State<HomeScreen> {
           decoration: const InputDecoration(
             labelText: '名称',
             border: OutlineInputBorder(),
+            // 添加更明确的提示
+            hintText: '请输入项目名称',
           ),
           autofocus: true,
+          // 添加提交功能
+          onSubmitted: (value) {
+            if (value.isNotEmpty) {
+              onConfirm(value);
+              Navigator.pop(context);
+              _nameController.clear();
+            }
+          },
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              _nameController.clear();
+              Navigator.pop(context);
+            },
             child: const Text('取消'),
           ),
           ElevatedButton(
             onPressed: () {
-              if (_nameController.text.isNotEmpty) {
-                onConfirm(_nameController.text);
+              // 确保名称不为空
+              if (_nameController.text.trim().isNotEmpty) {
+                onConfirm(_nameController.text.trim());
                 Navigator.pop(context);
                 _nameController.clear();
+              } else {
+                // 显示错误提示
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('项目名称不能为空'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
               }
             },
             child: const Text('确认'),
@@ -593,6 +621,32 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+
+// 2. 使用 try-catch 包装项目创建过程，以捕获并显示任何错误
+  void _createProjectWithErrorHandling(String name) async {
+    try {
+      final provider = Provider.of<ProjectProvider>(context, listen: false);
+      await provider.createProject(name);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('项目 "$name" 创建成功')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('创建项目失败: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      print('创建项目错误: $e');
+    }
+  }
+
 
   Widget _buildTracksList(Project project) {
     return Column(
@@ -720,12 +774,6 @@ class _HomeScreenState extends State<HomeScreen> {
           appBar: AppBar(
             title: const Text('项目管理'),
             actions: [
-              IconButton(
-                icon: const Icon(Icons.settings),
-                onPressed: () {
-                  Navigator.pushNamed(context, '/settings');
-                },
-              ),
               // 添加扫描按钮
               IconButton(
                 icon: const Icon(Icons.qr_code_scanner),
