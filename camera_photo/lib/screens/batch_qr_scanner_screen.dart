@@ -1,4 +1,5 @@
 // lib/screens/batch_qr_scanner_screen.dart
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -12,12 +13,12 @@ class BatchQRScannerScreen extends StatefulWidget {
   State<BatchQRScannerScreen> createState() => _BatchQRScannerScreenState();
 }
 
-class _BatchQRScannerScreenState extends State<BatchQRScannerScreen> with TickerProviderStateMixin {
+class _BatchQRScannerScreenState extends State<BatchQRScannerScreen> with TickerProviderStateMixin, WidgetsBindingObserver {
   MobileScannerController? controller;
   bool isProcessing = false;
   String? lastScanned;
   final List<Map<String, dynamic>> scannedProjects = [];
-  final Set<String> scannedQRCodes = {};
+  final Set<String?> scannedQRCodes = {};
 
   // 添加动画控制器用于扫描线效果
   late AnimationController _animationController;
@@ -25,11 +26,13 @@ class _BatchQRScannerScreenState extends State<BatchQRScannerScreen> with Ticker
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+
     // 使用较低的分辨率可以提高扫描性能
     controller = MobileScannerController(
       detectionSpeed: DetectionSpeed.noDuplicates,
       facing: CameraFacing.back,
-      formats: const [BarcodeFormat.qrCode, BarcodeFormat.ean13],
+      formats: const [BarcodeFormat.qrCode], // 专注于QR码识别，提高准确性
     );
 
     // 初始化动画控制器
@@ -39,12 +42,21 @@ class _BatchQRScannerScreenState extends State<BatchQRScannerScreen> with Ticker
     );
     _animationController.repeat(reverse: true);
 
-    // 确保相机在页面初始化后启动
+    // 确保相机在页面初始化吃                                                                                                                                                        后启动
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         controller?.start();
       }
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // 应用回到前台时重新启动扫描
+    if (state == AppLifecycleState.resumed) {
+      controller?.start();
+    }
   }
 
   @override
@@ -281,7 +293,7 @@ class _BatchQRScannerScreenState extends State<BatchQRScannerScreen> with Ticker
     );
   }
 
-  // 处理扫描结果
+  // 优化的扫描处理方法，支持UTF-8编码的二维码
   void _onDetect(BarcodeCapture capture) async {
     if (isProcessing) return;
 
@@ -289,7 +301,22 @@ class _BatchQRScannerScreenState extends State<BatchQRScannerScreen> with Ticker
     if (barcodes.isEmpty) return;
 
     for (final barcode in barcodes) {
-      final String? code = barcode.rawValue;
+      String? code;
+
+      // 优先尝试使用UTF-8解码原始字节数据
+      if (barcode.rawBytes != null) {
+        try {
+          code = utf8.decode(barcode.rawBytes!);
+          debugPrint('UTF-8解码: $code');
+        } catch (e) {
+          debugPrint('UTF-8解码失败，尝试使用rawValue: $e');
+        }
+      }
+
+      // 如果UTF-8解码失败，回退到使用rawValue
+      if (code == null || code.isEmpty) {
+        code = barcode.rawValue;
+      }
 
       if (code == null || code.isEmpty) continue;
 
@@ -383,22 +410,43 @@ class _BatchQRScannerScreenState extends State<BatchQRScannerScreen> with Ticker
 
       setState(() {
         scannedProjects.add(projectData);
-        scannedQRCodes.add(projectData['rawData']!);
+        if (projectData['rawData'] != null) {
+          scannedQRCodes.add(projectData['rawData']!);
+        }
+
       });
     }
   }
 
-  // 继续 lib/screens/batch_qr_scanner_screen.dart
-
-  // 解析二维码数据
+  // 优化的二维码数据解析，更好地处理中文和格式
   Map<String, dynamic> _parseQRData(String qrData) {
     try {
-      // 尝试解析格式为 "名称:附加信息" 的数据
-      final parts = qrData.split(':');
-      return {
-        'name': parts.isNotEmpty ? parts[0].trim() : qrData.trim(),
-        'info': parts.length > 1 ? parts[1].trim() : '',
-      };
+      // 尝试解析多种常见格式
+
+      // 1. 尝试解析格式为 "名称:附加信息" 的数据
+      if (qrData.contains(':')) {
+        final parts = qrData.split(':');
+        return {
+          'name': parts[0].trim(),
+          'info': parts.length > 1 ? parts.sublist(1).join(':').trim() : '',
+        };
+      }
+
+      // 2. 尝试解析其他常见分隔符
+      for (var separator in ['|', '-', '_', '，', ',', '/', '\\']) {
+        if (qrData.contains(separator)) {
+          final parts = qrData.split(separator);
+          if (parts.length > 1) {
+            return {
+              'name': parts[0].trim(),
+              'info': parts.sublist(1).join(separator).trim(),
+            };
+          }
+        }
+      }
+
+      // 3. 没有识别到分隔符，使用整个字符串作为名称
+      return {'name': qrData.trim(), 'info': ''};
     } catch (e) {
       debugPrint('解析二维码数据失败: $e');
       return {'name': qrData.trim()};
@@ -511,6 +559,7 @@ class _BatchQRScannerScreenState extends State<BatchQRScannerScreen> with Ticker
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _animationController.dispose();
     controller?.dispose();
     super.dispose();

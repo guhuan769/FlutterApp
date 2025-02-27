@@ -1,8 +1,5 @@
-// 1. 首先，在 pubspec.yaml 中添加依赖
-// dependencies:
-//   barcode_scan2: ^4.2.4
-
 // lib/screens/reliable_qr_scanner.dart
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:barcode_scan2/barcode_scan2.dart';
@@ -59,7 +56,7 @@ class _ReliableQRScannerScreenState extends State<ReliableQRScannerScreen> {
         });
 
         // 使用扫描结果创建项目
-        _processQRData(result.rawContent);
+        await _processQRData(result.rawContent);
       } else {
         // 用户取消了扫描，返回上一页
         if (mounted) {
@@ -89,6 +86,19 @@ class _ReliableQRScannerScreenState extends State<ReliableQRScannerScreen> {
   Future<void> _processQRData(String qrData) async {
     try {
       debugPrint('扫描到二维码: $qrData');
+
+      // 尝试UTF-8解码
+      Uint8List? bytes;
+      try {
+        // 将扫描结果转换为字节
+        bytes = Uint8List.fromList(qrData.codeUnits);
+        final utf8Decoded = utf8.decode(bytes, allowMalformed: true);
+        debugPrint('UTF-8解码结果: $utf8Decoded');
+        qrData = utf8Decoded; // 使用解码后的数据
+      } catch (e) {
+        debugPrint('UTF-8解码失败: $e');
+        // 继续使用原始数据
+      }
 
       // 提取项目名称
       String projectName = _extractProjectName(qrData);
@@ -263,5 +273,3 @@ class _ReliableQRScannerScreenState extends State<ReliableQRScannerScreen> {
     }
   }
 }
-
-// 批量扫描页面也需要类似修改，使用 barcode_scan2 替换 mobile_scanner

@@ -1,4 +1,5 @@
 // lib/screens/qr_scanner_screen.dart
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -12,7 +13,7 @@ class QRScannerScreen extends StatefulWidget {
   State<QRScannerScreen> createState() => _QRScannerScreenState();
 }
 
-class _QRScannerScreenState extends State<QRScannerScreen> {
+class _QRScannerScreenState extends State<QRScannerScreen> with WidgetsBindingObserver {
   MobileScannerController? controller;
   bool isProcessing = false;
   String? lastScanned;
@@ -20,14 +21,14 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
   @override
   void initState() {
     super.initState();
-    // 使用较低的分辨率可以提高扫描性能
+    WidgetsBinding.instance.addObserver(this);
+
+    // 优化扫描配置，提高中文识别成功率
     controller = MobileScannerController(
-      // 降低扫描速度以提高准确性
       detectionSpeed: DetectionSpeed.normal,
-      // 启用所有格式支持
-      formats: BarcodeFormat.values,
-      // 提高扫描灵敏度
-      detectionTimeoutMs: 1000, // 增加检测超时时间
+      formats: const [BarcodeFormat.qrCode], // 专注于QR码识别
+      facing: CameraFacing.back,
+      torchEnabled: false,
     );
 
     // 确保相机在页面初始化后启动
@@ -38,9 +39,11 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     });
   }
 
-  // 这个函数会在应用切换到前台时自动调用，确保相机重新初始化
+  // 当应用生命周期变化时调用
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // 应用回到前台时重新启动扫描
     if (state == AppLifecycleState.resumed) {
       controller?.start();
     }
@@ -133,7 +136,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '支持普通二维码和条形码',
+                  '支持中文二维码',
                   style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                   textAlign: TextAlign.center,
                 ),
@@ -186,9 +189,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     }
   }
 
-  // 处理扫描结果
-
-// 修改 _onDetect 方法，使其更宽容地处理结果
+  // 处理扫描结果 - 优化版本，处理UTF-8编码
   void _onDetect(BarcodeCapture capture) async {
     if (isProcessing) return;
 
@@ -197,47 +198,75 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
 
     // 打印所有识别到的条码信息，便于调试
     for (final barcode in barcodes) {
-      debugPrint('检测到条码: 类型=${barcode.format}, 值=${barcode.rawValue}');
+      debugPrint('检测到条码: 类型=${barcode.format}, 原始值=${barcode.rawValue}');
+
+      // 尝试UTF-8解码
+      if (barcode.rawBytes != null) {
+        try {
+          final utf8Decoded = utf8.decode(barcode.rawBytes!);
+          debugPrint('UTF-8解码结果: $utf8Decoded');
+        } catch (e) {
+          debugPrint('UTF-8解码失败: $e');
+        }
+      }
     }
 
     // 处理第一个有效码
     for (final barcode in barcodes) {
-      final String? code = barcode.rawValue;
+      String? code;
+
+      // 优先尝试从原始字节使用UTF-8解码
+      if (barcode.rawBytes != null) {
+        try {
+          code = utf8.decode(barcode.rawBytes!);
+        } catch (e) {
+          debugPrint('UTF-8解码失败: $e');
+        }
+      }
+
+      // 回退到使用rawValue
+      if (code == null || code.isEmpty) {
+        code = barcode.rawValue;
+      }
 
       if (code == null || code.isEmpty) continue;
+
+      // 防止多次处理同一个码
+      if (code == lastScanned) continue;
+      lastScanned = code;
 
       // 设置处理状态
       setState(() {
         isProcessing = true;
       });
 
+      // 振动反馈
+      HapticFeedback.mediumImpact();
+
       // 打印详细日志
       debugPrint('正在处理二维码: $code');
 
       // 不过滤内容，直接尝试创建项目
       try {
-        final provider = Provider.of<ProjectProvider>(context, listen: false);
-        await provider.createProject(code.trim());
+        final projectName = _extractProjectName(code);
+        debugPrint('提取的项目名称: $projectName');
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('项目 "$code" 创建成功')),
-          );
-          Navigator.pop(context, true);
-        }
+        await _createProject(projectName);
       } catch (e) {
         _showError('创建项目失败: $e');
-        setState(() {
-          isProcessing = false;
-        });
-        controller?.start();
+      } finally {
+        if (mounted) {
+          setState(() {
+            isProcessing = false;
+          });
+        }
       }
 
       break;
     }
   }
 
-  // 从二维码内容提取项目名称
+  // 从二维码内容提取项目名称 - 优化版本
   String _extractProjectName(String qrData) {
     try {
       // 首先尝试按照"名称:其他信息"的格式解析
@@ -272,7 +301,6 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
         setState(() {
           isProcessing = false;
         });
-        controller?.start();
       }
     }
   }
@@ -291,6 +319,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     controller?.dispose();
     super.dispose();
   }
@@ -372,12 +401,13 @@ class ScannerOverlayPainter extends CustomPainter {
       cornerPaint,
     );
 
-    // 添加激光线动画效果（这里简单示例，实际中可以使用动画控制器）
+    // 添加激光线动画效果
     final laserPaint = Paint()
       ..color = borderColor.withOpacity(0.7)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
 
+    // 使用更简单的静态线，之后可以添加动画
     canvas.drawLine(
       Offset(scanWindow.left, scanWindow.top + scanWindow.height / 2),
       Offset(scanWindow.right, scanWindow.top + scanWindow.height / 2),
