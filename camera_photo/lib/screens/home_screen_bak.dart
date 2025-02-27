@@ -7,13 +7,9 @@ import '../models/project.dart';
 import '../widgets/upload_status_widget.dart';
 import 'camera_screen.dart';
 import 'project_photos_screen.dart';
-import 'qr_scanner_screen.dart';
-import 'batch_qr_scanner_screen.dart';
-import 'qr_generator_screen.dart';
-// 1. 在文件头部添加导入
-import 'qr_scanner_screen.dart';
-import 'batch_qr_scanner_screen.dart';
-import 'qr_test_page.dart'; // 仅在开发测试时使用
+import 'reliable_qr_scanner.dart';
+import 'reliable_batch_scanner.dart';
+import 'qr_test_page.dart'; // 仅开发阶段使用
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -24,6 +20,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _nameController = TextEditingController();
+
   // 添加滚动控制器用于上传状态面板
   final ScrollController _statusScrollController = ScrollController();
 
@@ -40,12 +37,11 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-
 // 跳转到二维码扫描页面
   void _navigateToQRScanner() async {
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const QRScannerScreen()),
+      MaterialPageRoute(builder: (context) => const ReliableQRScannerScreen()),
     );
 
     if (result == true) {
@@ -54,12 +50,12 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-
 // 跳转到批量扫描页面
   void _navigateToBatchQRScanner() async {
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const BatchQRScannerScreen()),
+      MaterialPageRoute(
+          builder: (context) => const ReliableBatchScannerScreen()),
     );
 
     if (result == true) {
@@ -67,99 +63,6 @@ class _HomeScreenState extends State<HomeScreen> {
       Provider.of<ProjectProvider>(context, listen: false).initialize();
     }
   }
-
-
-// 跳转到测试页面（仅在开发阶段使用）
-  void _navigateToTestPage() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const QRTestPage()),
-    );
-  }
-
-// 跳转到二维码生成页面
-  void _navigateToQRGenerator(Project project) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => QRGeneratorScreen(project: project),
-      ),
-    );
-  }
-
-
-// 显示创建项目的选项
-  void _showCreateOptions() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 20.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Padding(
-                padding: EdgeInsets.only(bottom: 16.0),
-                child: Text(
-                  '创建新项目',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              ListTile(
-                leading: const Icon(Icons.edit),
-                title: const Text('手动输入项目名称'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showCreateDialog(
-                    title: '新建项目',
-                    onConfirm: (name) => Provider.of<ProjectProvider>(
-                      context,
-                      listen: false,
-                    ).createProject(name),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.qr_code_scanner),
-                title: const Text('扫描二维码创建项目'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _navigateToQRScanner();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.qr_code_2),
-                title: const Text('批量扫描二维码'),
-                subtitle: const Text('连续扫描多个二维码创建多个项目'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _navigateToBatchQRScanner();
-                },
-              ),
-              // 仅在开发阶段显示测试选项
-              if (true) // 发布时改为 false
-                ListTile(
-                  leading: const Icon(Icons.bug_report),
-                  title: const Text('测试二维码生成器'),
-                  subtitle: const Text('用于测试扫码功能'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _navigateToTestPage();
-                  },
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
 
   // 上传状态面板
   Widget _buildUploadStatusPanel(ProjectProvider provider) {
@@ -203,7 +106,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 return UploadStatusWidget(
                   status: status,
                   onDismiss: status.isComplete
-                      ? () => provider.clearProjectUploadStatus(status.projectId)
+                      ? () =>
+                          provider.clearProjectUploadStatus(status.projectId)
                       : null,
                 );
               },
@@ -240,7 +144,8 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () async {
               if (_nameController.text.isNotEmpty) {
                 try {
-                  final provider = Provider.of<ProjectProvider>(context, listen: false);
+                  final provider =
+                      Provider.of<ProjectProvider>(context, listen: false);
                   await provider.createTrack(_nameController.text, project.id);
 
                   // 确保显示新创建的轨迹
@@ -248,7 +153,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('轨迹 "${_nameController.text}" 创建成功')),
+                      SnackBar(
+                          content: Text('轨迹 "${_nameController.text}" 创建成功')),
                     );
                     Navigator.pop(context);
                   }
@@ -325,15 +231,19 @@ class _HomeScreenState extends State<HomeScreen> {
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: (type == UploadType.model ? UploadOptions.models : UploadOptions.crafts)
+            children: (type == UploadType.model
+                    ? UploadOptions.models
+                    : UploadOptions.crafts)
                 .map((value) => ListTile(
-              title: Text(value),
-              onTap: () {
-                Navigator.pop(context);
-                final provider = Provider.of<ProjectProvider>(context, listen: false);
-                provider.uploadProject(project, type: type, value: value);
-              },
-            ))
+                      title: Text(value),
+                      onTap: () {
+                        Navigator.pop(context);
+                        final provider = Provider.of<ProjectProvider>(context,
+                            listen: false);
+                        provider.uploadProject(project,
+                            type: type, value: value);
+                      },
+                    ))
                 .toList(),
           ),
         ),
@@ -346,7 +256,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
 
   Widget _buildProjectItem(BuildContext context, Project project) {
     return Card(
@@ -374,7 +283,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 4),
                       // 项目信息行
                       DefaultTextStyle(
-                        style: Theme.of(context).textTheme.bodySmall ?? const TextStyle(),
+                        style: Theme.of(context).textTheme.bodySmall ??
+                            const TextStyle(),
                         child: Row(
                           children: [
                             // 照片数量
@@ -398,8 +308,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             const SizedBox(width: 8),
                             // 上传状态图标
-                            if (Provider.of<ProjectProvider>(context).getProjectUploadStatus(project.id) != null)
-                              const Icon(Icons.sync, size: 14, color: Colors.blue),
+                            if (Provider.of<ProjectProvider>(context)
+                                    .getProjectUploadStatus(project.id) !=
+                                null)
+                              const Icon(Icons.sync,
+                                  size: 14, color: Colors.blue),
                           ],
                         ),
                       ),
@@ -435,12 +348,15 @@ class _HomeScreenState extends State<HomeScreen> {
                           padding: EdgeInsets.zero,
                           icon: const Icon(Icons.camera_alt, size: 20),
                           onPressed: () {
-                            final provider = Provider.of<ProjectProvider>(context, listen: false);
+                            final provider = Provider.of<ProjectProvider>(
+                                context,
+                                listen: false);
                             provider.setCurrentProject(project);
                             provider.setCurrentTrack(null);
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (_) => const CameraScreen()),
+                              MaterialPageRoute(
+                                  builder: (_) => const CameraScreen()),
                             );
                           },
                           tooltip: '拍照',
@@ -492,8 +408,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             // 删除选项
                             PopupMenuItem(
                               child: ListTile(
-                                leading: const Icon(Icons.delete, color: Colors.red),
-                                title: const Text('删除', style: TextStyle(color: Colors.red)),
+                                leading:
+                                    const Icon(Icons.delete, color: Colors.red),
+                                title: const Text('删除',
+                                    style: TextStyle(color: Colors.red)),
                                 contentPadding: EdgeInsets.zero,
                                 dense: true,
                                 onTap: () {
@@ -503,11 +421,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                       context: context,
                                       builder: (context) => AlertDialog(
                                         title: const Text('确认删除'),
-                                        content: Text('确定要删除项目 "${project.name}" 吗？\n'
+                                        content: Text(
+                                            '确定要删除项目 "${project.name}" 吗？\n'
                                             '该操作将删除项目下的所有照片和轨迹数据。'),
                                         actions: [
                                           TextButton(
-                                            onPressed: () => Navigator.pop(context),
+                                            onPressed: () =>
+                                                Navigator.pop(context),
                                             child: const Text('取消'),
                                           ),
                                           TextButton(
@@ -520,7 +440,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                             },
                                             child: const Text(
                                               '删除',
-                                              style: TextStyle(color: Colors.red),
+                                              style:
+                                                  TextStyle(color: Colors.red),
                                             ),
                                           ),
                                         ],
@@ -544,7 +465,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
 
   void _showPhotos(BuildContext context, String path, String title) {
     Navigator.push(
@@ -598,92 +518,92 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(
       children: [
         ...project.tracks.map((track) => ListTile(
-          leading: const Icon(Icons.timeline),
-          title: Text(track.name),
-          subtitle: Text('${track.photos.length} 张照片'),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.photo_library),
-                onPressed: () => _showPhotos(
-                  context,
-                  track.path,
-                  '${project.name} - ${track.name}的照片',
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.camera_alt),
-                onPressed: () {
-                  final provider = Provider.of<ProjectProvider>(
-                    context,
-                    listen: false,
-                  );
-                  provider.setCurrentProject(project);
-                  provider.setCurrentTrack(track);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const CameraScreen()),
-                  );
-                },
-              ),
-              PopupMenuButton(
-                itemBuilder: (context) => [
-                  PopupMenuItem(
-                    child: const Text('重命名'),
-                    onTap: () {
-                      Future.microtask(() {
-                        _nameController.text = track.name;
-                        _showCreateDialog(
-                          title: '重命名轨迹',
-                          onConfirm: (name) {
-                            Provider.of<ProjectProvider>(
-                              context,
-                              listen: false,
-                            ).renameTrack(project.id, track.id, name);
-                          },
-                        );
-                      });
+              leading: const Icon(Icons.timeline),
+              title: Text(track.name),
+              subtitle: Text('${track.photos.length} 张照片'),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.photo_library),
+                    onPressed: () => _showPhotos(
+                      context,
+                      track.path,
+                      '${project.name} - ${track.name}的照片',
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.camera_alt),
+                    onPressed: () {
+                      final provider = Provider.of<ProjectProvider>(
+                        context,
+                        listen: false,
+                      );
+                      provider.setCurrentProject(project);
+                      provider.setCurrentTrack(track);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const CameraScreen()),
+                      );
                     },
                   ),
-                  PopupMenuItem(
-                    child: const Text('删除'),
-                    onTap: () {
-                      Future.microtask(() {
-                        showDialog(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: const Text('确认删除'),
-                            content: Text('确定要删除轨迹 "${track.name}" 吗？'),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: const Text('取消'),
+                  PopupMenuButton(
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        child: const Text('重命名'),
+                        onTap: () {
+                          Future.microtask(() {
+                            _nameController.text = track.name;
+                            _showCreateDialog(
+                              title: '重命名轨迹',
+                              onConfirm: (name) {
+                                Provider.of<ProjectProvider>(
+                                  context,
+                                  listen: false,
+                                ).renameTrack(project.id, track.id, name);
+                              },
+                            );
+                          });
+                        },
+                      ),
+                      PopupMenuItem(
+                        child: const Text('删除'),
+                        onTap: () {
+                          Future.microtask(() {
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('确认删除'),
+                                content: Text('确定要删除轨迹 "${track.name}" 吗？'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text('取消'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () {
+                                      Provider.of<ProjectProvider>(
+                                        context,
+                                        listen: false,
+                                      ).deleteTrack(project.id, track.id);
+                                      Navigator.pop(context);
+                                    },
+                                    child: const Text(
+                                      '删除',
+                                      style: TextStyle(color: Colors.red),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              TextButton(
-                                onPressed: () {
-                                  Provider.of<ProjectProvider>(
-                                    context,
-                                    listen: false,
-                                  ).deleteTrack(project.id, track.id);
-                                  Navigator.pop(context);
-                                },
-                                child: const Text(
-                                  '删除',
-                                  style: TextStyle(color: Colors.red),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      });
-                    },
+                            );
+                          });
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
-        )),
+            )),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           child: ElevatedButton.icon(
@@ -712,6 +632,82 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+// 4. 在 _showCreateOptions 方法中使用新的扫描页面
+  void _showCreateOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(bottom: 16.0),
+                child: Text(
+                  '创建新项目',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.edit),
+                title: const Text('手动输入项目名称'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showCreateDialog(
+                    title: '新建项目',
+                    onConfirm: (name) => Provider.of<ProjectProvider>(
+                      context,
+                      listen: false,
+                    ).createProject(name),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.qr_code_scanner),
+                title: const Text('扫描二维码创建项目'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _navigateToQRScanner();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.qr_code_2),
+                title: const Text('批量扫描二维码'),
+                subtitle: const Text('连续扫描多个二维码创建多个项目'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _navigateToBatchQRScanner();
+                },
+              ),
+              // 仅在开发阶段显示测试选项
+              if (true) // 发布前改为 false
+                ListTile(
+                  leading: const Icon(Icons.bug_report),
+                  title: const Text('测试二维码生成器'),
+                  subtitle: const Text('用于测试扫码功能'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const QRTestPage()),
+                    );
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<ProjectProvider>(
@@ -726,17 +722,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   Navigator.pushNamed(context, '/settings');
                 },
               ),
-              // 添加扫描按钮
               IconButton(
                 icon: const Icon(Icons.qr_code_scanner),
                 tooltip: '扫描二维码添加项目',
                 onPressed: _navigateToQRScanner,
-              ),
-              IconButton(
-                icon: const Icon(Icons.settings),
-                onPressed: () {
-                  Navigator.pushNamed(context, '/settings');
-                },
               ),
             ],
           ),
@@ -748,34 +737,36 @@ class _HomeScreenState extends State<HomeScreen> {
               Expanded(
                 child: provider.projects.isEmpty
                     ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text('暂无项目'),
-                      const SizedBox(height: 16),
-                      ElevatedButton.icon(
-                        onPressed: () => _showCreateDialog(
-                          title: '新建项目',
-                          onConfirm: (name) => provider.createProject(name),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text('暂无项目'),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: () => _showCreateDialog(
+                                title: '新建项目',
+                                onConfirm: (name) =>
+                                    provider.createProject(name),
+                              ),
+                              icon: const Icon(Icons.add),
+                              label: const Text('创建第一个项目'),
+                            ),
+                          ],
                         ),
-                        icon: const Icon(Icons.add),
-                        label: const Text('创建第一个项目'),
-                      ),
-                    ],
-                  ),
-                )
+                      )
                     : ListView.builder(
-                  itemCount: provider.projects.length,
-                  itemBuilder: (context, index) => _buildProjectItem(
-                    context,
-                    provider.projects[index],
-                  ),
-                ),
+                        itemCount: provider.projects.length,
+                        itemBuilder: (context, index) => _buildProjectItem(
+                          context,
+                          provider.projects[index],
+                        ),
+                      ),
               ),
             ],
           ),
+          // 在 build 方法中设置 FloatingActionButton
           floatingActionButton: FloatingActionButton(
-            onPressed: _showCreateOptions,
+            onPressed: _showCreateOptions,  // 点击时调用此方法
             child: const Icon(Icons.add),
           ),
           // floatingActionButton: FloatingActionButton(
