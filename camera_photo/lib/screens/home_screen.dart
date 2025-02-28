@@ -215,8 +215,71 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // 在 HomeScreen 中更新创建轨迹的方法
+  // 在 HomeScreen 中更新创建轨迹的方法 - 自动根据现有轨迹数量生成序号名称
   void _showCreateTrackDialog(Project project) {
+    // 自动生成序号名称 (基于已有轨迹数量 + 1)
+    final nextTrackNumber = project.tracks.length + 1;
+    final autoTrackName = nextTrackNumber.toString();
+
+    // 预设轨迹名称为数字序号
+    _nameController.text = autoTrackName;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('新建轨迹'),
+        content: TextField(
+          controller: _nameController,
+          decoration: const InputDecoration(
+            labelText: '轨迹名称',
+            border: OutlineInputBorder(),
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              _nameController.clear();
+              Navigator.pop(context);
+            },
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (_nameController.text.isNotEmpty) {
+                try {
+                  final provider = Provider.of<ProjectProvider>(context, listen: false);
+                  await provider.createTrack(_nameController.text, project.id);
+
+                  // 确保显示新创建的轨迹
+                  await provider.initialize();
+
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('轨迹 "${_nameController.text}" 创建成功')),
+                    );
+                    Navigator.pop(context);
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('创建轨迹失败: $e')),
+                    );
+                  }
+                } finally {
+                  _nameController.clear();
+                }
+              }
+            },
+            child: const Text('创建'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 在 HomeScreen 中更新创建轨迹的方法
+  void _showCreateTrackDialog1(Project project) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
