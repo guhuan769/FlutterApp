@@ -65,7 +65,7 @@ class UploadStatusWidget extends StatelessWidget {
                   value: status.progress,
                   backgroundColor: Colors.grey[200],
                   valueColor: AlwaysStoppedAnimation<Color>(
-                    status.isComplete
+                status.isComplete
                         ? (status.isSuccess ? Colors.green : Colors.red)
                         : Colors.blue,
                   ),

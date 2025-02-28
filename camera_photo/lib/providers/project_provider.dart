@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
+import 'package:pool/pool.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/project.dart';
 import 'package:http/http.dart' as http;
@@ -516,7 +517,7 @@ class ProjectProvider with ChangeNotifier {
     }
   }
 
-// 在 ProjectProvider 类中更新上传方法
+  // 在 ProjectProvider 类中更新上传方法
   Future<void> uploadProject(Project project, {UploadType? type, String? value}) async {
     if (_uploadStatuses.containsKey(project.id) &&
         !_uploadStatuses[project.id]!.isComplete) {
@@ -534,120 +535,48 @@ class ProjectProvider with ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final apiUrl = '${prefs.getString('api_url') ?? 'http://localhost:5000'}/upload';
 
-      // 收集所有需要上传的文件
-      List<Map<String, dynamic>> allFiles = [];
-
-      // 添加项目根目录下的照片
-      for (var photo in project.photos) {
-        if (await photo.exists()) {  // 检查文件是否存在
-          allFiles.add({
-            'file': photo,
-            'type': 'project',
-            'path': photo.path,
-            'relativePath': path.relative(photo.path, from: project.path)
-          });
-        }
+      // 收集并预处理所有文件
+      final allFiles = await _prepareFilesForUpload(project);
+      if (allFiles.isEmpty) {
+        throw Exception('No valid files to upload');
       }
 
-      // 添加所有轨迹中的照片
-      for (var track in project.tracks) {
-        for (var photo in track.photos) {
-          if (await photo.exists()) {  // 检查文件是否存在
-            allFiles.add({
-              'file': photo,
-              'type': 'track',
-              'trackId': track.id,
-              'trackName': track.name,
-              'path': photo.path,
-              'relativePath': 'tracks/${track.name}/${path.basename(photo.path)}'
-            });
-          }
-        }
-      }
-
-      // 分批上传文件，每批最多5个文件
-      const int batchSize = 5;
-      int totalBatches = (allFiles.length / batchSize).ceil();
+      // 使用多个并发上传来提高速度
+      final batches = _createUploadBatches(allFiles);
+      final totalFiles = allFiles.length;
       int totalSuccess = 0;
 
-      for (int i = 0; i < allFiles.length; i += batchSize) {
-        int end = (i + batchSize < allFiles.length) ? i + batchSize : allFiles.length;
-        var batchFiles = allFiles.sublist(i, end);
-        int currentBatch = (i ~/ batchSize) + 1;
-
-        // 创建新的请求
-        var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
-
-        // 添加基本信息
-        request.fields['type'] = type?.name ?? 'unknown';
-        request.fields['value'] = value ?? 'unknown';
-        request.fields['project_info'] = json.encode(project.toJson());
-        request.fields['batch_number'] = currentBatch.toString();
-        request.fields['total_batches'] = totalBatches.toString();
-
-        // 添加文件批次信息
-        for (int j = 0; j < batchFiles.length; j++) {
-          var fileInfo = batchFiles[j];
-
-          // 读取文件并验证
-          final file = fileInfo['file'] as File;
-          final fileBytes = await file.readAsBytes();
-          if (fileBytes.isEmpty) {
-            print('警告: 文件为空 ${fileInfo['path']}');
-            continue;
+      // 并发上传所有批次，但限制并发数
+      final batchResults = await _uploadBatchesConcurrently(
+          batches: batches,
+          apiUrl: apiUrl,
+          project: project,
+          type: type,
+          value: value,
+          onProgress: (completed, total) {
+            status = status.copyWith(
+              progress: completed / total,
+              status: '正在上传: $completed/$total',
+            );
+            _uploadStatuses[project.id] = status;
+            notifyListeners();
           }
+      );
 
-          // 添加文件到请求
-          request.files.add(
-              http.MultipartFile.fromBytes(
-                  'files[]',
-                  fileBytes,
-                  filename: fileInfo['relativePath'],
-                  contentType: MediaType('image', 'jpeg')
-              )
-          );
-
-          // 添加文件信息
-          request.fields['file_info_$j'] = json.encode({
-            'type': fileInfo['type'],
-            'trackId': fileInfo['trackId'] ?? '',
-            'trackName': fileInfo['trackName'] ?? '',
-            'relativePath': fileInfo['relativePath']
-          });
-        }
-
-        // 更新状态
-        status = status.copyWith(
-            progress: i / allFiles.length,
-            status: '正在上传批次 $currentBatch/$totalBatches\n'
-                '已上传: $totalSuccess/${allFiles.length}'
-        );
-        _uploadStatuses[project.id] = status;
-        notifyListeners();
-
-        try {
-          // 发送请求
-          final response = await request.send();
-          final responseData = await response.stream.bytesToString();
-          final jsonResponse = json.decode(responseData);
-
-          if (response.statusCode == 200) {
-            totalSuccess += batchFiles.length;
-          } else {
-            print('批次 $currentBatch 上传失败: ${jsonResponse['message']}');
-          }
-        } catch (e) {
-          print('批次 $currentBatch 上传错误: $e');
+      // 处理上传结果
+      for (var result in batchResults) {
+        if (result.success) {
+          totalSuccess += result.filesCount;
         }
       }
 
-      // 最终状态更新
+      // 更新最终状态
       status = status.copyWith(
         isComplete: true,
-        isSuccess: totalSuccess == allFiles.length,
-        status: '上传完成\n'
-            '成功: $totalSuccess/${allFiles.length}张照片',
+        isSuccess: totalSuccess == totalFiles,
+        status: '上传完成\n成功: $totalSuccess/$totalFiles张照片',
       );
+
     } catch (e) {
       print('上传过程错误: $e');
       status = status.copyWith(
@@ -659,7 +588,200 @@ class ProjectProvider with ChangeNotifier {
     } finally {
       _uploadStatuses[project.id] = status;
       notifyListeners();
-      _saveUploadStatuses();
+      await _saveUploadStatuses();
     }
   }
+
+// 预处理文件方法
+  Future<List<Map<String, dynamic>>> _prepareFilesForUpload(Project project) async {
+    List<Map<String, dynamic>> allFiles = [];
+
+    // 使用并发处理来加速文件预处理
+    await Future.wait([
+      // 处理项目照片
+      Future(() async {
+        for (var photo in project.photos) {
+          if (await photo.exists()) {
+            final bytes = await photo.readAsBytes();
+            if (bytes.isNotEmpty) {
+              allFiles.add({
+                'file': photo,
+                'bytes': bytes,
+                'type': 'project',
+                'path': photo.path,
+                'relativePath': path.relative(photo.path, from: project.path)
+              });
+            }
+          }
+        }
+      }),
+
+      // 处理轨迹照片
+      Future(() async {
+        for (var track in project.tracks) {
+          await Future.forEach(track.photos, (photo) async {
+            if (await photo.exists()) {
+              final bytes = await photo.readAsBytes();
+              if (bytes.isNotEmpty) {
+                allFiles.add({
+                  'file': photo,
+                  'bytes': bytes,
+                  'type': 'track',
+                  'trackId': track.id,
+                  'trackName': track.name,
+                  'path': photo.path,
+                  'relativePath': 'tracks/${track.name}/${path.basename(photo.path)}'
+                });
+              }
+            }
+          });
+        }
+      })
+    ]);
+
+    return allFiles;
+  }
+
+// 创建上传批次
+  List<List<Map<String, dynamic>>> _createUploadBatches(List<Map<String, dynamic>> files) {
+    const int batchSize = 5;
+    final List<List<Map<String, dynamic>>> batches = [];
+
+    for (var i = 0; i < files.length; i += batchSize) {
+      final end = (i + batchSize < files.length) ? i + batchSize : files.length;
+      batches.add(files.sublist(i, end));
+    }
+
+    return batches;
+  }
+
+// 修改并发上传方法以确保批次序号正确
+  Future<List<BatchUploadResult>> _uploadBatchesConcurrently({
+    required List<List<Map<String, dynamic>>> batches,
+    required String apiUrl,
+    required Project project,
+    required UploadType? type,
+    required String? value,
+    required void Function(int completed, int total) onProgress,
+  }) async {
+    final results = <BatchUploadResult>[];
+    final total = batches.length;
+    var completed = 0;
+
+    // 限制并发数为3
+    final pool = Pool(3);
+
+    try {
+      final futures = batches.asMap().entries.map((entry) {
+        final batchIndex = entry.key;
+        final batch = entry.value;
+
+        return pool.withResource(() async {
+          final result = await _uploadBatch(
+            batch: batch,
+            batchNumber: batchIndex + 1,  // 批次号从1开始
+            totalBatches: batches.length,
+            apiUrl: apiUrl,
+            project: project,
+            type: type,
+            value: value,
+          );
+
+          completed++;
+          onProgress(completed, total);
+          return result;
+        });
+      });
+
+      results.addAll(await Future.wait(futures));
+    } catch (e) {
+      print('Concurrent upload error: $e');
+    }
+
+    return results;
+  }
+
+
+
+
+  Future<BatchUploadResult> _uploadBatch({
+    required List<Map<String, dynamic>> batch,
+    required int batchNumber,
+    required int totalBatches,
+    required String apiUrl,
+    required Project project,
+    required UploadType? type,
+    required String? value,
+  }) async {
+    var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
+
+    // 确保批次信息作为字符串发送
+    request.fields.addAll({
+      'type': type?.name ?? 'unknown',
+      'value': value ?? 'unknown',
+      'project_info': json.encode(project.toJson()),
+      'batch_number': batchNumber.toString(),  // 确保转换为字符串
+      'total_batches': totalBatches.toString(),  // 确保转换为字符串
+    });
+
+    print('Uploading batch ${batchNumber}/${totalBatches}');  // 调试信息
+
+    // 添加文件
+    for (int i = 0; i < batch.length; i++) {
+      final fileInfo = batch[i];
+      final bytes = fileInfo['bytes'] as Uint8List;
+      final fileName = path.basename(fileInfo['path'] as String);
+
+      request.files.add(
+          http.MultipartFile.fromBytes(
+              'files[]',
+              bytes,
+              filename: fileName,
+              contentType: MediaType('image', 'jpeg')
+          )
+      );
+
+      // 添加文件信息
+      request.fields['file_info_$i'] = json.encode({
+        'type': fileInfo['type'],
+        'trackId': fileInfo['trackId'] ?? '',
+        'trackName': fileInfo['trackName'] ?? '',
+        'relativePath': fileInfo['relativePath']
+      });
+    }
+
+    try {
+      final response = await request.send();
+      final responseData = await response.stream.bytesToString();
+      print('Batch upload response: $responseData');  // 调试信息
+
+      if (response.statusCode == 200) {
+        return BatchUploadResult(success: true, filesCount: batch.length);
+      } else {
+        print('Batch upload failed: ${response.statusCode}, $responseData');
+        return BatchUploadResult(success: false, filesCount: batch.length);
+      }
+    } catch (e) {
+      print('Batch upload error: $e');
+      return BatchUploadResult(success: false, filesCount: batch.length);
+    }
+  }
+
+
+
+
+
+}
+
+
+
+// 批次上传结果类
+class BatchUploadResult {
+  final bool success;
+  final int filesCount;
+
+  BatchUploadResult({
+    required this.success,
+    required this.filesCount,
+  });
 }
