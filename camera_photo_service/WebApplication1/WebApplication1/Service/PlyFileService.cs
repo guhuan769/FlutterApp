@@ -1,4 +1,6 @@
-﻿using System.IO.Compression;
+﻿using PlyFileProcessor.Helper;
+using System.Diagnostics.Eventing.Reader;
+using System.IO.Compression;
 using System.Text.Json;
 
 namespace PlyFileProcessor.Services.Implementation
@@ -70,8 +72,32 @@ namespace PlyFileProcessor.Services.Implementation
                 _logger.LogInformation("开始检查PLY文件 - TaskID: {TaskId}, 项目: {ProjectName}", taskId, projectName);
                 _logger.LogInformation("PLY检查路径: {PlyCheckPath}", _plyCheckPath);
 
+                //# 根据返回值处理逻辑
+                //                if 1 == 1:
+                //        print("错误：输入文件夹中没有图片文件。")
+                //    elif 2 == 2:
+                //        print("错误：输出文件夹中没有点云文件。")
+                //    elif 3 == 3:
+                //        print("处理完成，输出目录中包含图片。")
+                //    else:
+                //        print("发生未知错误。")
+
                 // 根据python 文件获取他的状态 文件路径 1 成功 2 失败
-                 
+                // 调用Python脚本并获取结果
+                (int statusCode, string resultMessage) = Common.RunPythonScript("main.py");
+
+                if (statusCode == 1)
+                {
+                    // 成功不给予理会
+                }
+                else if (statusCode == 2)
+                {
+                    return false;
+                }
+                else if (statusCode == 3)
+                {
+                    return false;
+                }
 
 
                 var plyFiles = Directory.GetFiles(_plyCheckPath, "*.ply");
