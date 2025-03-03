@@ -19,6 +19,15 @@ android {
             outputFileName = "图像采集.apk"
             println "New filename set to: ${outputFileName}"
         }
+
+        // Your existing config...
+
+//        applicationVariants.all { variant ->
+//            variant.outputs.all {
+//                // Use a simple ASCII name for the output file
+//                outputFileName = "camera_photo_app.apk"
+//            }
+//        }
     }
 
     namespace = "com.example.camera_photo"

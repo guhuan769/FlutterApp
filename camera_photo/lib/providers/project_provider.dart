@@ -518,7 +518,7 @@ class ProjectProvider with ChangeNotifier {
   }
 
   // 在 ProjectProvider 类中更新上传方法
-  Future<void> uploadProject(Project project, {UploadType? type, String? value}) async {
+  Future<void> uploadProject1(Project project, {UploadType? type, String? value}) async {
     if (_uploadStatuses.containsKey(project.id) &&
         !_uploadStatuses[project.id]!.isComplete) {
       return;
@@ -592,59 +592,147 @@ class ProjectProvider with ChangeNotifier {
     }
   }
 
-// 预处理文件方法
+  // 在 ProjectProvider 类中更新上传方法
+
+  Future<void> uploadProject(Project project, {UploadType? type, String? value}) async {
+    if (_uploadStatuses.containsKey(project.id) &&
+        !_uploadStatuses[project.id]!.isComplete) {
+      return;
+    }
+
+    var status = UploadStatus(
+      projectId: project.id,
+      projectName: project.name,
+    );
+    _uploadStatuses[project.id] = status;
+    notifyListeners();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final apiUrl = '${prefs.getString('api_url') ?? 'http://localhost:5000'}/upload';
+
+      // 收集并预处理所有文件 - 包括项目和轨迹的照片
+      final allFiles = await _prepareFilesForUpload(project);
+      if (allFiles.isEmpty) {
+        throw Exception('No valid files to upload');
+      }
+
+      // 更新状态显示
+      status = status.copyWith(
+        status: '准备上传 ${allFiles.length} 张照片',
+      );
+      _uploadStatuses[project.id] = status;
+      notifyListeners();
+
+      // 使用多个并发上传来提高速度
+      final batches = _createUploadBatches(allFiles);
+      final totalFiles = allFiles.length;
+      int totalSuccess = 0;
+
+      // 并发上传所有批次，但限制并发数
+      final batchResults = await _uploadBatchesConcurrently(
+          batches: batches,
+          apiUrl: apiUrl,
+          project: project,
+          type: type,
+          value: value,
+          onProgress: (completed, total) {
+            status = status.copyWith(
+              progress: completed / total,
+              status: '正在上传: $completed/$total',
+            );
+            _uploadStatuses[project.id] = status;
+            notifyListeners();
+          }
+      );
+
+      // 处理上传结果
+      for (var result in batchResults) {
+        if (result.success) {
+          totalSuccess += result.filesCount;
+        }
+      }
+
+      // 更新最终状态
+      status = status.copyWith(
+        isComplete: true,
+        isSuccess: totalSuccess == totalFiles,
+        status: '上传完成\n成功: $totalSuccess/$totalFiles张照片',
+      );
+
+    } catch (e) {
+      print('上传过程错误: $e');
+      status = status.copyWith(
+        isComplete: true,
+        isSuccess: false,
+        status: '上传失败',
+        error: e.toString(),
+      );
+    } finally {
+      _uploadStatuses[project.id] = status;
+      notifyListeners();
+      await _saveUploadStatuses();
+    }
+  }
+
+
+
+// 预处理文件方法 - 确保收集所有项目和轨迹的照片
   Future<List<Map<String, dynamic>>> _prepareFilesForUpload(Project project) async {
     List<Map<String, dynamic>> allFiles = [];
 
-    // 使用并发处理来加速文件预处理
-    await Future.wait([
-      // 处理项目照片
-      Future(() async {
-        for (var photo in project.photos) {
-          if (await photo.exists()) {
+    // 处理项目照片
+    for (var photo in project.photos) {
+      if (await photo.exists()) {
+        try {
+          final bytes = await photo.readAsBytes();
+          if (bytes.isNotEmpty) {
+            allFiles.add({
+              'file': photo,
+              'bytes': bytes,
+              'type': 'project',
+              'path': photo.path,
+              'relativePath': path.basename(photo.path)
+            });
+          }
+        } catch (e) {
+          print('读取项目照片错误: $e');
+        }
+      }
+    }
+
+    // 处理轨迹照片
+    for (var track in project.tracks) {
+      for (var photo in track.photos) {
+        if (await photo.exists()) {
+          try {
             final bytes = await photo.readAsBytes();
             if (bytes.isNotEmpty) {
               allFiles.add({
                 'file': photo,
                 'bytes': bytes,
-                'type': 'project',
+                'type': 'track',
+                'trackId': track.id,
+                'trackName': track.name,
                 'path': photo.path,
-                'relativePath': path.relative(photo.path, from: project.path)
+                'relativePath': 'tracks/${track.id}/${path.basename(photo.path)}'
               });
             }
+          } catch (e) {
+            print('读取轨迹照片错误: $e');
           }
         }
-      }),
-
-      // 处理轨迹照片
-      Future(() async {
-        for (var track in project.tracks) {
-          await Future.forEach(track.photos, (photo) async {
-            if (await photo.exists()) {
-              final bytes = await photo.readAsBytes();
-              if (bytes.isNotEmpty) {
-                allFiles.add({
-                  'file': photo,
-                  'bytes': bytes,
-                  'type': 'track',
-                  'trackId': track.id,
-                  'trackName': track.name,
-                  'path': photo.path,
-                  'relativePath': 'tracks/${track.name}/${path.basename(photo.path)}'
-                });
-              }
-            }
-          });
-        }
-      })
-    ]);
+      }
+    }
 
     return allFiles;
   }
 
+
+
 // 创建上传批次
   List<List<Map<String, dynamic>>> _createUploadBatches(List<Map<String, dynamic>> files) {
-    const int batchSize = 5;
+    const int batchSize = 5; // 每批5张照片
     final List<List<Map<String, dynamic>>> batches = [];
 
     for (var i = 0; i < files.length; i += batchSize) {
