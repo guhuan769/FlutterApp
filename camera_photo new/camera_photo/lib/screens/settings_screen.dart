@@ -1,6 +1,7 @@
 // lib/screens/settings_screen.dart
 
 import 'package:camera_photo/screens/camera_screen.dart';
+import 'package:camera_photo/screens/home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,7 +19,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _urlController;
   bool _isTesting = false;
-  bool _cropEnabled = true;
+  bool _cropEnabled = false;
   bool _showCenterPoint = true; // 新增
   ResolutionPreset _selectedResolution = ResolutionPreset.max;
 
@@ -33,7 +34,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final savedUrl =
         (await SharedPreferences.getInstance()).getString('api_url') ??
             'http://your-server:5000/upload';
-    final cropEnabled = await SettingsManager.getCropEnabled();
+    final cropEnabled =  false;//await SettingsManager.getCropEnabled();
     final resolution = await SettingsManager.getResolutionPreset();
     final showCenterPoint = await SettingsManager.getShowCenterPoint();
 
@@ -251,16 +252,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 16),
 
-            // 裁剪开关
-            SwitchListTile(
-              title: const Text('启用图片裁剪'),
-              subtitle: const Text('拍照时显示裁剪框'),
-              value: _cropEnabled,
-              onChanged: (value) async {
-                await SettingsManager.setCropEnabled(value);
-                setState(() => _cropEnabled = value);
-              },
-            ),
+            //裁剪开关
+            // SwitchListTile(
+            //   title: const Text('启用图片裁剪'),
+            //   subtitle: const Text('拍照时显示裁剪框'),
+            //   value: _cropEnabled,
+            //   onChanged: (value) async {
+            //     await SettingsManager.setCropEnabled(value);
+            //     setState(() => _cropEnabled = value);
+            //   },
+            // ),
 
             // 中心点显示开关
             SwitchListTile(
@@ -411,7 +412,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       context,
                                       MaterialPageRoute(
                                         builder: (_) =>
-                                            const CameraScreen(),
+                                            const HomeScreen(),
                                       ),
                                       (route) => false,
                                     );

@@ -82,9 +82,11 @@ namespace PlyFileProcessor.Services.Implementation
                 //    else:
                 //        print("发生未知错误。")
 
-                // 根据python 文件获取他的状态 文件路径 1 成功 2 失败
-                // 调用Python脚本并获取结果
-                (int statusCode, string resultMessage) = Common.RunPythonScript("main.py");
+                string param1 = "success"; // 尝试将此改为其他值以测试失败情况
+                string param2 = "测试参数";
+
+                // 调用Python脚本并传递参数 1 成功 2 失败
+                (int statusCode, string resultMessage) = Common.RunPythonScript("main.py", param1, param2);
 
                 if (statusCode == 1)
                 {
@@ -97,6 +99,9 @@ namespace PlyFileProcessor.Services.Implementation
                 else if (statusCode == 3)
                 {
                     return false;
+                }
+                else { 
+                
                 }
 
 

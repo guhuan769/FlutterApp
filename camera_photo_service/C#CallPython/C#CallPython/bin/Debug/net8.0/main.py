@@ -1,26 +1,54 @@
 import sys
 import json
 
-def some_function():
-    # 这里放置业务逻辑
-    status_code = 1  # 1表示成功，2表示失败
-    result_str = "操作成功完成"  # 返回的字符串信息
-    
-    return status_code, result_str
+def some_function(param1, param2):
+    """
+    执行某些操作并返回状态码和结果字符串
+    param1: 第一个参数
+    param2: 第二个参数
+    """
+    try:
+        # 这里放置业务逻辑，使用传入的参数
+        print(f"接收到参数: param1={param1}, param2={param2}", file=sys.stderr)
+        
+        # 示例逻辑：如果param1等于"success"则返回成功，否则返回失败
+        if param1 == "success":
+            status_code = 1
+            result_str = f"操作成功完成，参数值: {param1}, {param2}"
+        else:
+            status_code = 2
+            result_str = f"操作失败，参数值: {param1}, {param2}"
+        
+        return status_code, result_str
+    except Exception as e:
+        # 异常处理
+        return 2, f"发生错误: {str(e)}"
 
 if __name__ == "__main__":
-    # 当脚本直接运行时执行
-    status_code, result_str = some_function()
+    # 获取命令行参数
+    # sys.argv[0]是脚本名称，sys.argv[1]开始是传入的参数
     
-    # 创建包含状态码和结果字符串的字典
+    # 设置默认参数值
+    param1 = "default1"
+    param2 = "default2"
+    
+    # 检查是否有足够的参数
+    if len(sys.argv) > 1:
+        param1 = sys.argv[1]
+    if len(sys.argv) > 2:
+        param2 = sys.argv[2]
+    
+    # 调用函数，传入参数
+    status_code, result_str = some_function(param1, param2)
+    
+    # 创建结果字典
     result = {
-        "status_code": status_code,
+        "status_code": param1,
         "message": result_str
     }
     
-    # 将结果转换为JSON字符串并打印
-    # C#将捕获这个JSON字符串并解析它
+    # 输出JSON结果
     print(json.dumps(result, ensure_ascii=False))
     
-    # 同时设置退出码
+    # 设置退出码
     sys.exit(status_code)

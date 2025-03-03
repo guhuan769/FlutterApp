@@ -1,13 +1,17 @@
 // lib/providers/photo_provider.dart
+import 'dart:convert';
 import 'dart:io';
 import 'package:camera_photo/config/upload_options.dart';
 import 'package:camera_photo/utils/photo_utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:mime/mime.dart';
+import 'package:path/path.dart' as path;
+import '../models/project.dart';
 
 class PhotoProvider with ChangeNotifier {
   List<File> _photos = [];
@@ -34,6 +38,103 @@ class PhotoProvider with ChangeNotifier {
     await loadPhotos();
     await _loadSavedUrl();
   }
+
+
+  Future<void> handlePhoto(XFile photo, String savePath, String photoType) async {
+    final now = DateTime.now();
+    final timestamp = "${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}"
+        "${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}";
+
+    switch (photoType) {
+      case PhotoUtils.START_PHOTO:
+        await _handleStartPhoto(photo, savePath, timestamp);
+        break;
+      case PhotoUtils.MIDDLE_PHOTO:
+        await _handleMiddlePhoto(photo, savePath, timestamp);
+        break;
+      case PhotoUtils.END_PHOTO:
+        await _handleEndPhoto(photo, savePath, timestamp);
+        break;
+      case PhotoUtils.MODEL_PHOTO:
+        await _handleModelPhoto(photo, savePath, timestamp);
+        break;
+    }
+
+    await loadPhotosForProjectOrTrack(savePath);
+  }
+
+
+  Future<void> _handleStartPhoto(XFile photo, String savePath, String timestamp) async {
+    // Find existing start photos
+    final startPhotos = _photos.where(
+            (p) => PhotoUtils.getPhotoType(p.path) == PhotoUtils.START_PHOTO
+    ).toList();
+
+    if (startPhotos.isNotEmpty) {
+      // Replace existing start photo
+      for (var existingPhoto in startPhotos) {
+        await existingPhoto.delete();
+      }
+    }
+
+    // Save new start photo
+    final filename = PhotoUtils.generateFileName(PhotoUtils.START_PHOTO, 1, timestamp);
+    final newPath = path.join(savePath, filename);
+    await File(photo.path).copy(newPath);
+  }
+
+
+  Future<void> _handleMiddlePhoto(XFile photo, String savePath, String timestamp) async {
+    final sortedPhotos = PhotoUtils.sortPhotos(_photos);
+    int newSequence;
+
+    if (sortedPhotos.isEmpty) {
+      newSequence = 2;  // First middle photo
+    } else {
+      // Find last sequence before end photos
+      final nonEndPhotos = sortedPhotos.where(
+              (p) => PhotoUtils.getPhotoType(p.path) != PhotoUtils.END_PHOTO
+      ).toList();
+
+      if (nonEndPhotos.isEmpty) {
+        newSequence = 2;
+      } else {
+        final lastSeq = PhotoUtils.getPhotoSequence(nonEndPhotos.last.path);
+        newSequence = lastSeq + 1;
+      }
+    }
+
+    final filename = PhotoUtils.generateFileName(PhotoUtils.MIDDLE_PHOTO, newSequence, timestamp);
+    final newPath = path.join(savePath, filename);
+    await File(photo.path).copy(newPath);
+  }
+
+  Future<void> _handleEndPhoto(XFile photo, String savePath, String timestamp) async {
+    // Find existing end photos
+    final endPhotos = _photos.where(
+            (p) => PhotoUtils.getPhotoType(p.path) == PhotoUtils.END_PHOTO
+    ).toList();
+
+    if (endPhotos.isNotEmpty) {
+      // Replace existing end photo
+      for (var existingPhoto in endPhotos) {
+        await existingPhoto.delete();
+      }
+    }
+
+    // Save new end photo
+    final filename = PhotoUtils.generateFileName(PhotoUtils.END_PHOTO, 999, timestamp);
+    final newPath = path.join(savePath, filename);
+    await File(photo.path).copy(newPath);
+  }
+
+  Future<void> _handleModelPhoto(XFile photo, String savePath, String timestamp) async {
+    final sequence = PhotoUtils.generateNewSequence(_photos, PhotoUtils.MODEL_PHOTO);
+    final filename = PhotoUtils.generateFileName(PhotoUtils.MODEL_PHOTO, sequence, timestamp);
+    final newPath = path.join(savePath, filename);
+    await File(photo.path).copy(newPath);
+  }
+
 
   Future<void> setApiUrl(String url) async {
     try {
@@ -334,5 +435,224 @@ class PhotoProvider with ChangeNotifier {
       rethrow;
     }
   }
+
+
+
+
+  Future<void> loadPhotosForProjectOrTrack(String directoryPath) async {
+    try {
+      final dir = Directory(directoryPath);
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+
+      _photos = await _loadPhotosInDirectory(directoryPath);
+      _selectedPhotos.clear();
+      notifyListeners();
+    } catch (e) {
+      print('Error loading photos: $e');
+    }
+  }
+
+  Future<List<File>> _loadPhotosInDirectory(String dirPath) async {
+    final dir = Directory(dirPath);
+    if (!await dir.exists()) return [];
+
+    final List<File> photos = [];
+    await for (var entity in dir.list(recursive: false)) {
+      if (entity is File &&
+          entity.path.toLowerCase().endsWith('.jpg')) {
+        photos.add(entity);
+      }
+    }
+    return PhotoUtils.sortPhotos(photos);
+  }
+
+  Future<void> uploadProjectData(Project project) async {
+    if (_isUploading) return;
+
+    try {
+      _isUploading = true;
+      _uploadProgress = 0;
+      _uploadStatus = '准备上传项目...';
+      notifyListeners();
+
+      final prefs = await SharedPreferences.getInstance();
+      final apiUrl = '${prefs.getString('api_url') ?? _apiUrl}/upload/project';
+
+      // 创建multipart请求
+      var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
+
+      // 添加项目信息
+      request.fields['project_info'] = json.encode(project.toJson());
+
+      // 收集所有需要上传的文件
+      List<File> allFiles = [];
+      // 项目照片
+      allFiles.addAll(project.photos);
+      // 轨迹照片
+      for (var track in project.tracks) {
+        allFiles.addAll(track.photos);
+      }
+
+      // 添加所有文件
+      int fileCount = 0;
+      for (var file in allFiles) {
+        if (await file.exists()) {
+          // 计算文件的相对路径
+          String relativePath = path.relative(file.path, from: project.path);
+
+          // 添加文件
+          request.files.add(
+            await http.MultipartFile.fromPath(
+              'files[]',
+              file.path,
+              filename: relativePath,
+            ),
+          );
+
+          fileCount++;
+          _uploadProgress = fileCount / allFiles.length;
+          _uploadStatus = '正在准备文件 $fileCount/${allFiles.length}';
+          notifyListeners();
+        }
+      }
+
+      // 发送请求
+      _uploadStatus = '正在上传...';
+      notifyListeners();
+
+      var response = await request.send();
+      var responseData = await response.stream.bytesToString();
+
+      if (response.statusCode == 200) {
+        _uploadStatus = '上传成功！';
+      } else {
+        _uploadStatus = '上传失败: ${response.statusCode}';
+        print('Upload failed: $responseData');
+      }
+    } catch (e) {
+      _uploadStatus = '上传错误: $e';
+      print('Upload error: $e');
+    } finally {
+      await Future.delayed(const Duration(seconds: 2));
+      _isUploading = false;
+      _uploadProgress = 0;
+      _uploadStatus = '';
+      notifyListeners();
+    }
+  }
+
+  Future<bool> savePhoto(XFile photo, String savePath) async {
+    try {
+      final newPath = path.join(savePath, path.basename(photo.path));
+      await File(photo.path).copy(newPath);
+      await loadPhotosForProjectOrTrack(savePath);
+      return true;
+    } catch (e) {
+      print('Error saving photo: $e');
+      return false;
+    }
+  }
+
+  Future<void> handleStartPointPhoto(XFile photo, String savePath, String timestamp, List<File> photos) async {
+    try {
+      // 查找现有的起始点照片
+      List<File> startPhotos = photos.where(
+              (p) => PhotoUtils.getPhotoType(p.path) == PhotoUtils.START_PHOTO
+      ).toList();
+
+      // 生成新文件名
+      final String filename = PhotoUtils.generateFileName(PhotoUtils.START_PHOTO, 1, timestamp);
+      final String newPath = path.join(savePath, filename);
+
+      // 如果有现有的起始点照片，删除它们
+      for (var existingPhoto in startPhotos) {
+        await existingPhoto.delete();
+      }
+
+      // 保存新照片
+      await File(photo.path).copy(newPath);
+      await forceReloadPhotos();
+    } catch (e) {
+      print('处理起始点照片失败: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> handleMiddlePointPhoto(XFile photo, String savePath, String timestamp, List<File> photos) async {
+    try {
+      // 获取所有照片并排序
+      List<File> sortedPhotos = PhotoUtils.sortPhotos(photos);
+
+      // 计算新的序号
+      int sequence;
+      if (sortedPhotos.isEmpty) {
+        sequence = 2;  // 如果是第一张照片
+      } else {
+        // 找到最后一个非结束点照片的序号
+        var nonEndPhotos = sortedPhotos.where(
+                (p) => PhotoUtils.getPhotoType(p.path) != PhotoUtils.END_PHOTO
+        ).toList();
+
+        if (nonEndPhotos.isEmpty) {
+          sequence = 2;
+        } else {
+          sequence = PhotoUtils.getPhotoSequence(nonEndPhotos.last.path) + 1;
+        }
+      }
+
+      // 生成新文件名并保存
+      final String filename = PhotoUtils.generateFileName(PhotoUtils.MIDDLE_PHOTO, sequence, timestamp);
+      final String newPath = path.join(savePath, filename);
+      await File(photo.path).copy(newPath);
+
+      await forceReloadPhotos();
+    } catch (e) {
+      print('处理中间点照片失败: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> handleEndPointPhoto(XFile photo, String savePath, String timestamp, List<File> photos) async {
+    try {
+      // 查找现有的结束点照片
+      List<File> endPhotos = photos.where(
+              (p) => PhotoUtils.getPhotoType(p.path) == PhotoUtils.END_PHOTO
+      ).toList();
+
+      // 生成新文件名
+      final String filename = PhotoUtils.generateFileName(PhotoUtils.END_PHOTO, 999, timestamp);
+      final String newPath = path.join(savePath, filename);
+
+      // 如果有现有的结束点照片，删除它们
+      for (var existingPhoto in endPhotos) {
+        await existingPhoto.delete();
+      }
+
+      // 保存新照片
+      await File(photo.path).copy(newPath);
+      await forceReloadPhotos();
+    } catch (e) {
+      print('处理结束点照片失败: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> handleModelPointPhoto(XFile photo, String savePath, String timestamp, List<File> photos) async {
+    try {
+      final sequence = PhotoUtils.generateNewSequence(photos, PhotoUtils.MODEL_PHOTO);
+      final String filename = PhotoUtils.generateFileName(PhotoUtils.MODEL_PHOTO, sequence, timestamp);
+      final String newPath = path.join(savePath, filename);
+      await File(photo.path).copy(newPath);
+      await forceReloadPhotos();
+    } catch (e) {
+      print('处理模型点照片失败: $e');
+      rethrow;
+    }
+  }
+
+
+
 
 }
