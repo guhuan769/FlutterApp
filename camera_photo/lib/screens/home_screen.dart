@@ -1,5 +1,6 @@
 // lib/screens/home_screen.dart
 import 'package:camera_photo/config/upload_options.dart';
+import 'package:camera_photo/providers/bluetooth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/project_provider.dart';
@@ -849,10 +850,107 @@ class _HomeScreenState extends State<HomeScreen> {
                   Navigator.pushNamed(context, '/settings');
                 },
               ),
+              // 添加蓝牙按钮
+              Consumer<BluetoothProvider>(
+                builder: (context, bluetoothProvider, _) {
+                  final connected = bluetoothProvider.connectionState ==
+                      BtConnectionState.connected;
+
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      IconButton(
+                        icon: Icon(
+                          connected
+                              ? Icons.bluetooth_connected
+                              : Icons.bluetooth,
+                          color: connected ? Colors.blue : null,
+                        ),
+                        tooltip: connected
+                            ? '已连接: ${bluetoothProvider.connectedDevice?.name}'
+                            : '连接蓝牙设备',
+                        onPressed: () {
+                          Navigator.pushNamed(context, '/bluetooth');
+                        },
+                      ),
+                      if (connected)
+                        Positioned(
+                          right: 10,
+                          top: 10,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: Colors.blue,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+
+              IconButton(
+                icon: const Icon(Icons.qr_code_scanner),
+                tooltip: '扫描二维码添加项目',
+                onPressed: _navigateToQRScanner,
+              ),
+
+              IconButton(
+                icon: const Icon(Icons.settings),
+                onPressed: () {
+                  Navigator.pushNamed(context, '/settings');
+                },
+              ),
+
+
+
             ],
           ),
           body: Column(
             children: [
+              // 蓝牙连接状态栏
+              Consumer<BluetoothProvider>(
+                builder: (context, bluetoothProvider, _) {
+                  if (bluetoothProvider.connectionState ==
+                      BtConnectionState.connected) {
+                    return Container(
+                      color: Colors.blue.withOpacity(0.1),
+                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.bluetooth_connected,
+                              color: Colors.blue,
+                              size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '已连接蓝牙设备: ${bluetoothProvider.connectedDevice?.name ?? "未知设备"}',
+                              style: const TextStyle(
+                                color: Colors.blue,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pushNamed(context, '/bluetooth');
+                            },
+                            child: const Text('管理'),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              minimumSize: const Size(0, 30),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
               // 上传状态面板
               _buildUploadStatusPanel(provider),
               // 项目列表
@@ -883,6 +981,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
+
             ],
           ),
           floatingActionButton: FloatingActionButton(

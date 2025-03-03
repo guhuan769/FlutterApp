@@ -1,4 +1,6 @@
 // lib/main.dart
+import 'package:camera_photo/providers/bluetooth_provider.dart';
+import 'package:camera_photo/screens/bluetooth_scan_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/photo_provider.dart';
@@ -12,6 +14,7 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (_) => PhotoProvider()),
         ChangeNotifierProvider(create: (_) => ProjectProvider()),
+        ChangeNotifierProvider(create: (_) => BluetoothProvider()),
       ],
       child: const MyApp(),
     ),
@@ -33,6 +36,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/': (context) => const HomeScreen(),
         '/settings': (context) => const SettingsScreen(),
+        '/bluetooth': (context) => const BluetoothScanScreen(),
       },
     );
   }
