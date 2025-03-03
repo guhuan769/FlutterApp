@@ -6,6 +6,7 @@ import 'package:camera_photo/providers/project_provider.dart';
 import 'package:camera_photo/utils/photo_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:provider/provider.dart';
@@ -81,85 +82,227 @@ class _CameraScreenState extends State<CameraScreen>
   PhotoMode _selectedPhotoMode = PhotoMode.model;
 
 
+
+// 1. 在类变量声明部分添加
+  bool _disposed = false;  // 标记组件是否已销毁
+
+// 2. 修改initState方法
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    // 使用 Future.microtask 来确保在构建完成后初始化
-    Future.microtask(() {
-      // 获取当前项目和轨迹状态
-      final projectProvider =
-          Provider.of<ProjectProvider>(context, listen: false);
-      setState(() {
-        currentProject = projectProvider.currentProject;
-        currentTrack = projectProvider.currentTrack;
-      });
+    // 使用Future.microtask改为同步初始化关键组件
+    _initializeComponents();
+  }
 
-      // 默认选择当前可用的模式
-      _initializePhotoMode();
+// 3. 添加新的初始化方法
+  void _initializeComponents() {
+    if (_disposed) return;  // 安全检查
 
-      // 加载照片
-      if (currentProject != null) {
-        final photoProvider =
-            Provider.of<PhotoProvider>(context, listen: false);
-        final path = currentTrack?.path ?? currentProject!.path;
-        photoProvider.loadPhotosForProjectOrTrack(path);
-      }
-
-      // 初始化相机
-      _initializeAll();
-
-      // 设置蓝牙监听
-      final bluetoothProvider = Provider.of<BluetoothProvider>(context, listen: false);
-      bluetoothProvider.addListener(_handleBluetoothTrigger);
+    // 获取当前项目和轨迹状态
+    final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
+    setState(() {
+      currentProject = projectProvider.currentProject;
+      currentTrack = projectProvider.currentTrack;
     });
+
+    // 默认选择当前可用的模式
+    _initializePhotoMode();
+
+    // 加载照片
+    if (currentProject != null) {
+      final photoProvider = Provider.of<PhotoProvider>(context, listen: false);
+      final path = currentTrack?.path ?? currentProject!.path;
+      photoProvider.loadPhotosForProjectOrTrack(path);
+    }
+
+    // 初始化相机
+    _initializeAll();
+
+    // 设置蓝牙监听 - 延迟执行，确保界面完全加载
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _setupBluetoothListener();
+    });
+  }
+
+
+
+// 4. 更安全的蓝牙监听设置
+  void _setupBluetoothListener() {
+    if (_disposed) return;  // 安全检查
+
+    try {
+      final bluetoothProvider = Provider.of<BluetoothProvider>(context, listen: false);
+
+      // 移除旧的监听器
+      bluetoothProvider.removeListener(_handleBluetoothTrigger);
+
+      // 添加新的监听器
+      bluetoothProvider.addListener(_handleBluetoothTrigger);
+
+      // 同步当前模式到蓝牙提供者
+      // 使用一个略微延迟，确保其他初始化完成
+      Future.delayed(Duration(milliseconds: 300), () {
+        if (!_disposed) {
+          bluetoothProvider.setTriggerType(_photoModeToTriggerType(_selectedPhotoMode));
+          print('蓝牙触发模式设置为: $_selectedPhotoMode');
+        }
+      });
+    } catch (e) {
+      print('设置蓝牙监听器失败: $e');
+    }
+  }
+
+
+
+// 8. 添加更直观的蓝牙状态指示
+  Widget _buildBluetoothStatusIndicator() {
+    try {
+      final bluetoothProvider = Provider.of<BluetoothProvider>(context);
+      if (bluetoothProvider.connectionState == BtConnectionState.connected) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(
+            color: Colors.green.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.green.withOpacity(0.5)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.bluetooth_connected, color: Colors.green, size: 16),
+              SizedBox(width: 4),
+              Text(
+                '蓝牙已连接：${bluetoothProvider.connectedDevice?.name ?? "遥控器"}',
+                style: TextStyle(color: Colors.green, fontSize: 12),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      // 忽略可能的错误
+    }
+    return SizedBox.shrink();
   }
 
   @override
   void dispose() {
-    // 移除蓝牙监听
-    Provider.of<BluetoothProvider>(context, listen: false)
-        .removeListener(_handleBluetoothTrigger);
+    _disposed = true;  // 标记为已销毁
 
-    // 在页面销毁时刷新项目列表
-    Future.microtask(() =>
-        Provider.of<ProjectProvider>(context, listen: false).initialize());
+    try {
+      // 安全移除蓝牙监听器
+      if (mounted) {  // 添加mounted检查
+        final provider = Provider.of<BluetoothProvider>(context, listen: false);
+        provider.removeListener(_handleBluetoothTrigger);
+      }
+    } catch (e) {
+      // 忽略可能的错误
+      print('清理蓝牙监听器时出错: $e');
+    }
+
+    // 不要使用context在dispose后
+    // 移除刷新项目列表的microtask，或者使用其他方式不依赖context
+
+    // 在dispose中释放相机资源
+    _disposeCamera();
+
     super.dispose();
   }
 
 
-// 5. 添加蓝牙触发处理方法
-  void _handleBluetoothTrigger() {
-    final provider = Provider.of<BluetoothProvider>(context, listen: false);
 
-    // 检查是否是按钮触发事件
-    if (provider.connectionState == BtConnectionState.connected) {
-      // 根据当前选择的拍照模式触发拍照
-      switch (provider.currentTriggerType) {
-        case PhotoTriggerType.start:
-          if (_isButtonEnabled(PhotoMode.start)) {
-            _takePicture(PhotoMode.start);
+
+// 5. 安全的蓝牙触发处理方法
+  bool _isProcessingBtTrigger = false;
+  DateTime? _lastTriggerTime;
+
+  void _handleBluetoothTrigger() {
+    // 立即检查组件状态
+    if (_disposed || !mounted) {
+      print('组件已卸载，忽略蓝牙触发');
+      return;
+    }
+
+    // 防抖: 如果短时间内多次触发，忽略后续触发
+    final now = DateTime.now();
+    if (_lastTriggerTime != null && now.difference(_lastTriggerTime!).inMilliseconds < 1000) {
+      print('触发过于频繁，忽略此次事件');
+      return;
+    }
+    _lastTriggerTime = now;
+
+    // 检查是否在处理中
+    if (_isProcessingBtTrigger) {
+      print('正在处理中，忽略此次触发');
+      return;
+    }
+
+    // 获取蓝牙提供者但不使用context
+    BluetoothProvider? provider;
+    try {
+      provider = Provider.of<BluetoothProvider>(context, listen: false);
+    } catch (e) {
+      print('获取蓝牙提供者失败，可能是context已失效: $e');
+      return;
+    }
+
+    // 检查连接状态和相机初始化
+    if (provider.connectionState == BtConnectionState.connected && _isInitialized) {
+      _isProcessingBtTrigger = true;
+      print('收到蓝牙触发，模式: ${provider.currentTriggerType}');
+
+      try {
+        // 根据蓝牙提供者的当前触发类型选择照片模式
+        PhotoMode photoMode;
+        switch (provider.currentTriggerType) {
+          case PhotoTriggerType.start:
+            photoMode = PhotoMode.start;
+            break;
+          case PhotoTriggerType.middle:
+            photoMode = PhotoMode.middle;
+            break;
+          case PhotoTriggerType.model:
+            photoMode = PhotoMode.model;
+            break;
+          case PhotoTriggerType.end:
+            photoMode = PhotoMode.end;
+            break;
+          default:
+            photoMode = PhotoMode.model;
+        }
+
+        // 检查按钮是否可用
+        if (_isButtonEnabled(photoMode)) {
+          print('触发拍照，模式: $photoMode');
+          _takePicture(photoMode);
+        } else {
+          print('当前模式($photoMode)不可用，忽略触发');
+          // 可选：震动反馈表示不可用
+          HapticFeedback.heavyImpact();
+        }
+      } catch (e) {
+        print('处理蓝牙触发异常: $e');
+      } finally {
+        // 延迟重置状态，防止连续触发
+        Future.delayed(Duration(seconds: 1), () {
+          if (mounted) {
+            _isProcessingBtTrigger = false;
           }
-          break;
-        case PhotoTriggerType.middle:
-          if (_isButtonEnabled(PhotoMode.middle)) {
-            _takePicture(PhotoMode.middle);
-          }
-          break;
-        case PhotoTriggerType.model:
-          if (_isButtonEnabled(PhotoMode.model)) {
-            _takePicture(PhotoMode.model);
-          }
-          break;
-        case PhotoTriggerType.end:
-          if (_isButtonEnabled(PhotoMode.end)) {
-            _takePicture(PhotoMode.end);
-          }
-          break;
+        });
+      }
+    } else {
+      if (provider.connectionState != BtConnectionState.connected) {
+        print('蓝牙未连接，忽略触发');
+      }
+      if (!_isInitialized) {
+        print('相机未初始化，忽略触发');
       }
     }
   }
+
 
 // 6. 添加初始化拍照模式方法
   void _initializePhotoMode() {
@@ -190,18 +333,21 @@ class _CameraScreenState extends State<CameraScreen>
     }
   }
 
-// 8. 添加拍照模式处理方法
+
+// 修改拍照模式变更方法，确保立即同步到蓝牙模块
   void _onPhotoModeChanged(PhotoMode? mode) {
     if (mode != null && _isButtonEnabled(mode)) {
       setState(() {
         _selectedPhotoMode = mode;
       });
 
-      // 同步到蓝牙提供者
+      // 同步到蓝牙提供者，确保触发时使用正确的模式
       final bluetoothProvider = Provider.of<BluetoothProvider>(context, listen: false);
       bluetoothProvider.setTriggerType(_photoModeToTriggerType(mode));
+      print('拍照模式已更改为: $mode，蓝牙触发类型已更新');
     }
   }
+
 
 // 9. 构建拍照模式下拉框
   Widget _buildPhotoModeDropdown() {
@@ -1081,6 +1227,7 @@ class _CameraScreenState extends State<CameraScreen>
               ),
             ),
             child: FloatingActionButton(
+              heroTag: 'cameraButton${mode.toString()}',
               backgroundColor: isSelected
                   ? Colors.blue.withOpacity(0.3)
                   : Colors.white.withOpacity(0.2),
@@ -1121,6 +1268,8 @@ class _CameraScreenState extends State<CameraScreen>
       ),
     );
   }
+
+
 }
 
 // ====== 自定义画笔 ======

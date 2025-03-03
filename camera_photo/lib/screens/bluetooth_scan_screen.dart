@@ -1,8 +1,9 @@
-// lib/screens/bluetooth_scan_screen.dart
+// lib/screens/bluetooth_scan_screen.dart 更新版
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:provider/provider.dart';
 import '../providers/bluetooth_provider.dart';
+import 'bluetooth_debug_screen.dart';  // 导入调试工具
 
 class BluetoothScanScreen extends StatefulWidget {
   const BluetoothScanScreen({Key? key}) : super(key: key);
@@ -26,6 +27,16 @@ class _BluetoothScanScreenState extends State<BluetoothScanScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('连接蓝牙设备'),
+        actions: [
+          // 添加调试按钮
+          IconButton(
+            icon: const Icon(Icons.bug_report),
+            onPressed: () {
+              _showDebugMessage(context);
+            },
+            tooltip: '调试信息',
+          ),
+        ],
       ),
       body: Consumer<BluetoothProvider>(
         builder: (context, provider, child) {
@@ -75,13 +86,13 @@ class _BluetoothScanScreenState extends State<BluetoothScanScreen> {
               ),
 
               // 系统已连接设备
-              _buildSystemConnectedDevices(),
+              _buildSystemConnectedDevices(context), // 更新为传入context
 
               // 设备列表
               Expanded(
                 child: provider.devicesList.isEmpty
                     ? _buildEmptyListView(provider)
-                    : _buildDeviceListView(provider),
+                    : _buildDeviceListView(provider, context), // 更新为传入context
               ),
 
               // 底部按钮
@@ -190,9 +201,8 @@ class _BluetoothScanScreenState extends State<BluetoothScanScreen> {
     );
   }
 
-  // 系统已连接的设备
-// 系统已连接的设备
-  Widget _buildSystemConnectedDevices() {
+  // 系统已连接的设备 - 添加调试入口
+  Widget _buildSystemConnectedDevices(BuildContext context) {
     // 获取已连接设备列表
     final List<BluetoothDevice> connectedDevices = FlutterBluePlus.connectedDevices;
 
@@ -228,11 +238,15 @@ class _BluetoothScanScreenState extends State<BluetoothScanScreen> {
           ...systemConnectedDevices.map((device) => ListTile(
             leading: Icon(Icons.bluetooth_connected, color: Colors.green),
             title: Text(device.name),
-            subtitle: Text('点击重新连接'),
+            subtitle: Text('点击连接 | 长按调试'),
             dense: true,
             onTap: () {
               Provider.of<BluetoothProvider>(context, listen: false)
                   .connectToDevice(device);
+            },
+            onLongPress: () {
+              // 打开调试界面
+              _navigateToDebugScreen(context, device);
             },
           )).toList(),
         ],
@@ -311,8 +325,8 @@ class _BluetoothScanScreenState extends State<BluetoothScanScreen> {
     );
   }
 
-  // 设备列表视图
-  Widget _buildDeviceListView(BluetoothProvider provider) {
+  // 设备列表视图 - 添加调试入口
+  Widget _buildDeviceListView(BluetoothProvider provider, BuildContext context) {
     return ListView.builder(
       itemCount: provider.devicesList.length,
       itemBuilder: (context, index) {
@@ -335,7 +349,15 @@ class _BluetoothScanScreenState extends State<BluetoothScanScreen> {
               device.name.isEmpty ? 'LP848蓝牙遥控器' : device.name,
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-            subtitle: Text(device.id.id),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(device.id.id),
+                Text('点击连接 | 长按进入调试模式',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
             trailing: isConnecting
                 ? const SizedBox(
               width: 24,
@@ -353,9 +375,58 @@ class _BluetoothScanScreenState extends State<BluetoothScanScreen> {
                 provider.connectToDevice(device);
               }
             },
+            onLongPress: () {
+              // 打开调试界面
+              _navigateToDebugScreen(context, device);
+            },
           ),
         );
       },
+    );
+  }
+
+  // 跳转到调试界面
+  void _navigateToDebugScreen(BuildContext context, BluetoothDevice device) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BluetoothDebugScreen(device: device),
+      ),
+    );
+  }
+
+  // 显示调试信息消息框
+  void _showDebugMessage(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('蓝牙设备调试说明'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('UGREEN-LP848蓝牙设备调试工具使用说明:'),
+            SizedBox(height: 8),
+            Text('1. 长按任意设备名称可以进入调试模式'),
+            Text('2. 调试模式可以查看设备服务和特征'),
+            Text('3. 找到按键触发特征后，可以将其添加到应用配置中'),
+            SizedBox(height: 16),
+            Text('UGREEN-LP848设备可能的服务:', style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 4),
+            Text('• HID服务(1812)\n• 电池服务(180F)\n• 设备信息服务(180A)\n• 自定义控制服务(FFE0)'),
+            SizedBox(height: 16),
+            Text('目前应用已配置服务列表:', style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 4),
+            Text(BluetoothProvider.POSSIBLE_SERVICE_UUIDS.join(', ')),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('关闭'),
+          ),
+        ],
+      ),
     );
   }
 }

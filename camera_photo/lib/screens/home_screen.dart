@@ -985,6 +985,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
           floatingActionButton: FloatingActionButton(
+            heroTag: 'homeScreenFAB',  // 添加唯一标签
             onPressed: _showCreateOptions,
             child: const Icon(Icons.add),
           ),
