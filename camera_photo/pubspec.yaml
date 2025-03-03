@@ -44,7 +44,7 @@ dependencies:
   pool: ^1.5.1
   barcode_scan2: ^4.2.4
   #qr_code_scanner: ^1.0.1
-  #image_gallery_saver: ^2.0.3
+  #image_gallery_saver: ^2.0.3 #1
   mobile_scanner: ^3.5.6  # 用于扫描二维码
   qr_flutter: ^4.1.0      # 用于生成二维码
   # 蓝牙相关依赖
