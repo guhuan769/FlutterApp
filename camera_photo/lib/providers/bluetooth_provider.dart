@@ -13,6 +13,8 @@ enum BtConnectionState {
   error,
 }
 
+
+
 // 拍照触发类型枚举
 enum PhotoTriggerType {
   start,
@@ -22,6 +24,7 @@ enum PhotoTriggerType {
 }
 
 class BluetoothProvider with ChangeNotifier {
+
   // ========== 基本属性 ==========
   List<BluetoothDevice> _devicesList = [];
   BluetoothDevice? _connectedDevice;
@@ -37,31 +40,36 @@ class BluetoothProvider with ChangeNotifier {
   // 设备信息
   static const String DEVICE_NAME_FILTER = "UGREEN-LP848";
 
-  // 可能的服务UUID列表 - 扩展更多可能的服务UUID
+
+// 针对 UGREEN-LP848 常见的服务UUID列表 - 基于设备信息扩展
   static const List<String> POSSIBLE_SERVICE_UUIDS = [
-    "1812",    // HID服务
+    "1812",    // HID服务（最可能的服务）
     "180F",    // 电池服务
     "180A",    // 设备信息服务
     "FFE0",    // 自定义控制服务
     "FFF0",    // 另一种自定义服务
-    "FF00",    // 常见的自定义服务
-    "FF10",    // 常见的自定义服务
+    "FF00",    // UGREEN常用自定义服务
+    "FF10",    // UGREEN常用自定义服务
+    "FFA0",    // UGREEN-LP848可能使用的服务
     "1801",    // 通用属性服务
     "1800",    // 通用访问服务
   ];
 
-  // 可能的特征UUID列表 - 添加特征UUID列表
+// 针对 UGREEN-LP848 常见的特征UUID列表
   static const List<String> POSSIBLE_CHARACTERISTIC_UUIDS = [
     "FFE1",    // 常见的自定义特征
     "2A4D",    // HID报告特征
     "2A4B",    // HID报告映射特征
     "2A4A",    // HID信息特征
+    "2A33",    // 设备按键特征
     "2A19",    // 电池电量特征
     "2A00",    // 设备名称特征
     "FFF1",    // 自定义特征
     "FFF2",    // 自定义特征
     "FF01",    // 自定义特征
+    "FFA1",    // UGREEN-LP848可能使用的特征
   ];
+
 
   // 拍照模式
   PhotoTriggerType _currentTriggerType = PhotoTriggerType.model;
@@ -306,44 +314,272 @@ class BluetoothProvider with ChangeNotifier {
   }
 
 
-// 添加改进的服务发现方法
+
+// 在 bluetooth_provider.dart 修改 _discoverServices 方法
   Future<void> _discoverServices(BluetoothDevice device) async {
     try {
       print('开始发现设备服务...');
       List<BluetoothService> services = await device.discoverServices();
       print('发现了 ${services.length} 个服务');
 
-      // 记录所有服务和特征
+      // 记录所有服务和特征用于调试
       _logAllServicesAndCharacteristics(services);
 
-      // 查找可用的服务和特征
-      bool foundTriggerService = await _findAndSetupTriggerService(services);
+      // 针对 UGREEN-LP848 设备，尝试直接找到 HID 服务
+      bool foundTriggerService = await _setupHidService(services);
 
-      // 使用备用方案，尝试设置所有支持通知的特征
       if (!foundTriggerService) {
+        // 尝试常规服务发现
+        foundTriggerService = await _findAndSetupTriggerService(services);
+      }
+
+      if (!foundTriggerService) {
+        // 使用备用方案，尝试设置所有支持通知的特征
         foundTriggerService = await _setupAllPossibleNotifyCharacteristics(services);
       }
 
-      // 如果仍未找到，尝试使用通用HID特征
+      // 如果仍未找到，使用轮询方式监控特征
       if (!foundTriggerService && _connectionState == BtConnectionState.connected) {
-        print('使用通用HID键盘监听作为备选方案');
-        _setupFallbackButtonDetection();
-        // 即使找不到特定特征，也认为连接成功
+        print('使用轮询方式监控HID按键');
+        setupPollingFallback(services);
         foundTriggerService = true;
       }
 
-      if (!foundTriggerService) {
+      if (foundTriggerService) {
+        print('成功设置蓝牙触发服务');
+      } else {
         _errorMessage = '未找到兼容的设备服务，但设备已连接';
         print(_errorMessage);
-        notifyListeners();
-      } else {
-        print('成功设置蓝牙触发服务');
       }
+
+      notifyListeners();
     } catch (e) {
       _errorMessage = '服务发现失败: $e';
       print(_errorMessage);
       _setConnectionState(BtConnectionState.error);
     }
+  }
+
+
+// 添加轮询监控方法 - 从日志看出 UGREEN-LP848 设备有 HID 服务和可读的特征
+  void setupPollingFallback(List<BluetoothService> services) {
+    print('设置轮询监控...');
+
+    // 找到所有可读特征
+    List<BluetoothCharacteristic> readableCharacteristics = [];
+
+    for (var service in services) {
+      for (var characteristic in service.characteristics) {
+        if (characteristic.properties.read) {
+          readableCharacteristics.add(characteristic);
+          print('添加可读特征到轮询队列: ${characteristic.uuid}');
+        }
+      }
+    }
+
+    if (readableCharacteristics.isEmpty) {
+      print('没有找到可读特征，无法设置轮询');
+      return;
+    }
+
+    // 保存最近读取的值
+    Map<String, List<int>> lastValues = {};
+
+    // 设置定时器进行轮询
+    Timer.periodic(Duration(milliseconds: 200), (timer) async {
+      if (_connectionState != BtConnectionState.connected) {
+        print('设备已断开连接，停止轮询');
+        timer.cancel();
+        return;
+      }
+
+      for (var characteristic in readableCharacteristics) {
+        try {
+          final value = await characteristic.read();
+          final charUuid = characteristic.uuid.toString();
+
+          // 检查值是否变化
+          if (lastValues.containsKey(charUuid) &&
+              !_areListsEqual(lastValues[charUuid]!, value) &&
+              value.isNotEmpty) {
+            // 值发生变化，可能是按钮按下
+            print('轮询检测到值变化: $charUuid - 旧值: ${lastValues[charUuid]}, 新值: $value');
+            _handleButtonPress(value);
+          }
+
+          lastValues[charUuid] = value;
+        } catch (e) {
+          // 忽略读取错误，继续轮询
+        }
+      }
+    });
+  }
+
+
+// 比较两个列表是否相等
+  bool _areListsEqual(List<int> a, List<int> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+
+// 为 UGREEN-LP848 添加专门的 HID 服务设置方法
+  Future<bool> _setupHidService(List<BluetoothService> services) async {
+    print('尝试设置 UGREEN-LP848 的 HID 服务...');
+
+    // 查找 HID 服务 (0x1812)
+    final hidServices = services.where((service) =>
+        service.uuid.toString().toUpperCase().contains("1812")).toList();
+
+    if (hidServices.isEmpty) {
+      print('未找到 HID 服务');
+      return false;
+    }
+
+    print('找到 ${hidServices.length} 个 HID 服务');
+
+    for (var hidService in hidServices) {
+      final characteristics = hidService.characteristics;
+
+      // 从日志看，设备有 2A4D Report 特征
+      var reportCharacteristics = characteristics.where((c) =>
+          c.uuid.toString().toUpperCase().contains("2A4D")).toList();
+
+      if (reportCharacteristics.isEmpty) {
+        print('HID 服务中未找到 Report 特征');
+        continue;
+      }
+
+      print('找到 ${reportCharacteristics.length} 个 Report 特征');
+
+      // 尝试设置轮询监控这些特征
+      _triggerService = hidService;
+
+      // 对每个特征设置轮询读取
+      List<List<int>> lastValues = List.generate(
+          reportCharacteristics.length,
+              (_) => []
+      );
+
+      Timer.periodic(Duration(milliseconds: 100), (timer) async {
+        if (_connectionState != BtConnectionState.connected) {
+          timer.cancel();
+          return;
+        }
+
+        for (int i = 0; i < reportCharacteristics.length; i++) {
+          try {
+            final characteristic = reportCharacteristics[i];
+
+            if (!characteristic.properties.read) continue;
+
+            final value = await characteristic.read();
+
+            // 检查值是否变化
+            if (lastValues[i].isNotEmpty &&
+                !_areListsEqual(lastValues[i], value) &&
+                value.isNotEmpty) {
+              // 值发生变化，可能是按钮按下
+              print('轮询 Report 特征检测到值变化: 旧值: ${lastValues[i]}, 新值: $value');
+              _handleButtonPress(value);
+            }
+
+            lastValues[i] = value;
+          } catch (e) {
+            // 忽略读取错误
+          }
+        }
+      });
+
+      print('已设置 HID 服务轮询');
+      return true;
+    }
+
+    return false;
+  }
+
+
+
+// 3. 添加专门用于HID服务特征的设置方法
+  Future<bool> _setupAllHidCharacteristics(List<BluetoothService> services) async {
+    print('尝试设置HID服务特征...');
+    bool anySuccess = false;
+
+    try {
+      // 查找HID服务
+      final hidServices = services.where((service) =>
+          service.uuid.toString().toUpperCase().contains("1812"));
+
+      if (hidServices.isEmpty) {
+        print('未找到HID服务');
+        return false;
+      }
+
+      // 对每个HID服务设置所有通知特征
+      for (var hidService in hidServices) {
+        print('发现HID服务: ${hidService.uuid}');
+
+        // 查找报告特征或其他可能包含按键信息的特征
+        final potentialCharacteristics = hidService.characteristics.where((c) =>
+        c.properties.notify || c.properties.indicate || c.properties.read);
+
+        for (var characteristic in potentialCharacteristics) {
+          try {
+            print('尝试设置HID特征通知: ${characteristic.uuid}');
+
+            // 如果支持通知，设置通知
+            if (characteristic.properties.notify || characteristic.properties.indicate) {
+              await characteristic.setNotifyValue(true);
+
+              // 设置监听
+              if (!anySuccess) {
+                _buttonPressSubscription = characteristic.value.listen(
+                        (value) {
+                      print('收到HID特征值更新: $value');
+                      if (value.isNotEmpty) {
+                        _handleButtonPress(value);
+                      }
+                    }
+                );
+
+                _triggerService = hidService;
+                _triggerCharacteristic = characteristic;
+                anySuccess = true;
+                print('成功设置HID特征通知');
+              }
+            }
+            // 如果是只读特征，定期读取它的值
+            else if (characteristic.properties.read) {
+              // 设置定期读取计时器
+              Timer.periodic(Duration(milliseconds: 100), (timer) async {
+                if (_connectionState == BtConnectionState.connected) {
+                  try {
+                    final value = await characteristic.read();
+                    if (value.isNotEmpty) {
+                      print('读取HID特征值: $value');
+                      _handleButtonPress(value);
+                    }
+                  } catch (e) {
+                    // 忽略读取错误
+                  }
+                } else {
+                  timer.cancel();
+                }
+              });
+            }
+          } catch (e) {
+            print('设置HID特征失败: ${characteristic.uuid}, 错误: $e');
+          }
+        }
+      }
+    } catch (e) {
+      print('设置HID特征时出错: $e');
+    }
+
+    return anySuccess;
   }
 
 
@@ -491,14 +727,16 @@ class BluetoothProvider with ChangeNotifier {
   }
 
 
-// 改进的按钮按下事件处理
+
+
+// 修改按钮事件处理方法，增加更多检测模式
   void _handleButtonPress(List<int> value) {
     final now = DateTime.now();
 
-    // 防抖处理：如果两次按钮事件间隔小于800毫秒，忽略后续事件
+    // 防抖处理，避免重复触发
     if (_lastTriggerTime != null) {
       final difference = now.difference(_lastTriggerTime!);
-      if (difference.inMilliseconds < 800) {
+      if (difference.inMilliseconds < 500) {
         print('按钮事件触发过于频繁 (${difference.inMilliseconds}ms)，忽略此次事件');
         return;
       }
@@ -506,20 +744,56 @@ class BluetoothProvider with ChangeNotifier {
 
     _lastTriggerTime = now;
 
-    // 记录详细的按键值
+    // 输出详细的按键值以便调试
     String hexValues = value.map((b) => '0x${b.toRadixString(16).padLeft(2, '0')}').join(', ');
-    print('按键值: [$hexValues], 长度: ${value.length}');
+    print('接收到按键值: [$hexValues], 长度: ${value.length}');
 
-    // 使用更强的震动反馈确认按钮被按下
-    try {
-      HapticFeedback.mediumImpact();
-    } catch (e) {
-      // 忽略可能的平台错误
+    // UGREEN-LP848 常见的几种按键模式判断
+    bool isButtonPress = false;
+
+    // 1. 有些值变化会置第一个字节为1
+    if (value.length >= 1 && value[0] != 0) {
+      isButtonPress = true;
     }
 
-    // 触发拍照事件
-    print('检测到远程触发！当前模式: $_currentTriggerType');
-    onRemoteTriggerPressed();
+    // 2. HID键盘事件格式：通常在特定位置有变化
+    else if (value.length >= 8) {
+      // HID报告格式，通常第3-8字节会包含按键码
+      for (int i = 2; i < 8 && i < value.length; i++) {
+        if (value[i] != 0) {
+          isButtonPress = true;
+          break;
+        }
+      }
+    }
+
+    // 3. 部分按键可能会在最后一个字节发生变化
+    else if (value.length > 1 && value.last != 0) {
+      isButtonPress = true;
+    }
+
+    // 4. 某些设备会以位变化方式报告
+    else if (value.length > 0) {
+      // 一般来说，任何非零值都可能表示按钮按下
+      bool allZeros = value.every((element) => element == 0);
+      if (!allZeros) {
+        isButtonPress = true;
+      }
+    }
+
+    // 如果判断为按钮按下，则触发相机拍照
+    if (isButtonPress) {
+      try {
+        // 振动反馈
+        HapticFeedback.mediumImpact();
+      } catch (e) {
+        // 忽略振动失败
+      }
+
+      // 触发拍照事件
+      print('检测到远程触发！当前模式: $_currentTriggerType');
+      onRemoteTriggerPressed();
+    }
   }
 
   // ========== 触发方法 ==========
@@ -539,9 +813,20 @@ class BluetoothProvider with ChangeNotifier {
 
   // 设置当前的触发类型
   void setTriggerType(PhotoTriggerType type) {
+    // 如果类型没有变化，则不通知
+    if (_currentTriggerType == type) return;
+
     print('设置触发类型: $type');
     _currentTriggerType = type;
-    notifyListeners();
+
+    // 使用更安全的方式通知监听器，不会与小部件构建冲突
+    Future.microtask(() {
+      try {
+        notifyListeners();
+      } catch (e) {
+        print('通知监听器错误: $e');
+      }
+    });
   }
 
   // 更新连接状态

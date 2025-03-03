@@ -7,8 +7,35 @@ import 'providers/photo_provider.dart';
 import 'providers/project_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/settings_screen.dart';
+import 'dart:io';  // 为了使用 Platform
+import 'package:permission_handler/permission_handler.dart';
 
-void main() {
+// void main()  async
+// {
+//   runApp(
+//     MultiProvider(
+//       providers: [
+//         ChangeNotifierProvider(create: (_) => PhotoProvider()),
+//         ChangeNotifierProvider(create: (_) => ProjectProvider()),
+//         ChangeNotifierProvider(create: (_) => BluetoothProvider()),
+//       ],
+//       child: const MyApp(),
+//     ),
+//   );
+// }
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 请求蓝牙权限
+  if (Platform.isAndroid) {
+    await [
+      Permission.bluetooth,
+      Permission.bluetoothConnect,
+      Permission.bluetoothScan,
+    ].request();
+  }
+
   runApp(
     MultiProvider(
       providers: [

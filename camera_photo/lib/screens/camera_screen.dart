@@ -96,7 +96,8 @@ class _CameraScreenState extends State<CameraScreen>
     _initializeComponents();
   }
 
-// 3. 添加新的初始化方法
+
+// 改进相机初始化顺序
   void _initializeComponents() {
     if (_disposed) return;  // 安全检查
 
@@ -107,8 +108,8 @@ class _CameraScreenState extends State<CameraScreen>
       currentTrack = projectProvider.currentTrack;
     });
 
-    // 默认选择当前可用的模式
-    _initializePhotoMode();
+    // 初始化默认照片模式
+    _initializeDefaultPhotoMode();
 
     // 加载照片
     if (currentProject != null) {
@@ -117,23 +118,34 @@ class _CameraScreenState extends State<CameraScreen>
       photoProvider.loadPhotosForProjectOrTrack(path);
     }
 
-    // 初始化相机
-    _initializeAll();
-
-    // 设置蓝牙监听 - 延迟执行，确保界面完全加载
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    // 初始化相机 - 重要：确保相机初始化完成
+    _initializeCamera().then((_) {
+      // 相机初始化完成后再设置蓝牙监听
       _setupBluetoothListener();
     });
   }
 
+  void _initializeDefaultPhotoMode() {
+    // 根据当前项目/轨迹状态设置默认照片模式
+    if (currentTrack != null) {
+      _selectedPhotoMode = PhotoMode.start;  // 轨迹默认为起始点
+    } else {
+      _selectedPhotoMode = PhotoMode.model;  // 项目默认为模型点
+    }
+  }
 
 
-// 4. 更安全的蓝牙监听设置
+
+
   void _setupBluetoothListener() {
     if (_disposed) return;  // 安全检查
 
     try {
       final bluetoothProvider = Provider.of<BluetoothProvider>(context, listen: false);
+
+      // 打印蓝牙状态信息
+      print('蓝牙状态: ${bluetoothProvider.connectionState}');
+      print('已连接设备: ${bluetoothProvider.connectedDevice?.name ?? "无"}');
 
       // 移除旧的监听器
       bluetoothProvider.removeListener(_handleBluetoothTrigger);
@@ -142,11 +154,12 @@ class _CameraScreenState extends State<CameraScreen>
       bluetoothProvider.addListener(_handleBluetoothTrigger);
 
       // 同步当前模式到蓝牙提供者
-      // 使用一个略微延迟，确保其他初始化完成
-      Future.delayed(Duration(milliseconds: 300), () {
-        if (!_disposed) {
-          bluetoothProvider.setTriggerType(_photoModeToTriggerType(_selectedPhotoMode));
-          print('蓝牙触发模式设置为: $_selectedPhotoMode');
+      // 使用延迟确保UI已完全构建
+      Future.delayed(Duration(milliseconds: 500), () {
+        if (!_disposed && mounted) {
+          final triggerType = _photoModeToTriggerType(_selectedPhotoMode);
+          print('设置蓝牙触发类型为: $_selectedPhotoMode (${triggerType.toString()})');
+          bluetoothProvider.setTriggerType(triggerType);
         }
       });
     } catch (e) {
@@ -219,6 +232,9 @@ class _CameraScreenState extends State<CameraScreen>
   bool _isProcessingBtTrigger = false;
   DateTime? _lastTriggerTime;
 
+
+
+// 优化蓝牙触发处理方法
   void _handleBluetoothTrigger() {
     // 立即检查组件状态
     if (_disposed || !mounted) {
@@ -240,17 +256,39 @@ class _CameraScreenState extends State<CameraScreen>
       return;
     }
 
-    // 获取蓝牙提供者但不使用context
+    // 获取蓝牙提供者
     BluetoothProvider? provider;
     try {
       provider = Provider.of<BluetoothProvider>(context, listen: false);
+
+      // 输出当前状态信息帮助调试
+      print('蓝牙触发事件：');
+      print('- 连接状态: ${provider.connectionState}');
+      print('- 当前触发类型: ${provider.currentTriggerType}');
+      print('- 相机初始化状态: $_isInitialized');
+
     } catch (e) {
-      print('获取蓝牙提供者失败，可能是context已失效: $e');
+      print('获取蓝牙提供者失败: $e');
       return;
     }
 
     // 检查连接状态和相机初始化
-    if (provider.connectionState == BtConnectionState.connected && _isInitialized) {
+    if (provider.connectionState == BtConnectionState.connected) {
+      // 特别重要：如果相机未初始化，尝试初始化相机
+      if (!_isInitialized) {
+        print('相机未初始化，尝试初始化相机');
+        _initializeCamera().then((_) {
+          // 相机初始化完成后再次触发
+          if (mounted) {
+            print('相机初始化完成，重新触发蓝牙事件');
+            Future.delayed(Duration(milliseconds: 500), () {
+              _handleBluetoothTrigger();
+            });
+          }
+        });
+        return;
+      }
+
       _isProcessingBtTrigger = true;
       print('收到蓝牙触发，模式: ${provider.currentTriggerType}');
 
@@ -276,12 +314,15 @@ class _CameraScreenState extends State<CameraScreen>
 
         // 检查按钮是否可用
         if (_isButtonEnabled(photoMode)) {
-          print('触发拍照，模式: $photoMode');
+          print('执行拍照，模式: $photoMode');
           _takePicture(photoMode);
+
+          // 添加震动反馈
+          HapticFeedback.heavyImpact();
         } else {
           print('当前模式($photoMode)不可用，忽略触发');
           // 可选：震动反馈表示不可用
-          HapticFeedback.heavyImpact();
+          HapticFeedback.vibrate();
         }
       } catch (e) {
         print('处理蓝牙触发异常: $e');
@@ -296,9 +337,6 @@ class _CameraScreenState extends State<CameraScreen>
     } else {
       if (provider.connectionState != BtConnectionState.connected) {
         print('蓝牙未连接，忽略触发');
-      }
-      if (!_isInitialized) {
-        print('相机未初始化，忽略触发');
       }
     }
   }
@@ -475,6 +513,8 @@ class _CameraScreenState extends State<CameraScreen>
     }
   }
 
+
+// 修改相机初始化方法返回Future
   Future<void> _initializeCamera() async {
     if (!mounted || _cameras.isEmpty) return;
 
@@ -483,8 +523,7 @@ class _CameraScreenState extends State<CameraScreen>
 
       // 获取保存的分辨率设置
       final savedResolution = await SettingsManager.getResolutionPreset();
-      print(
-          'Initializing camera with resolution: ${savedResolution.toString()}');
+      print('Initializing camera with resolution: ${savedResolution.toString()}');
 
       CameraController cameraController = CameraController(
         _cameras[_currentCameraIndex],
@@ -492,18 +531,11 @@ class _CameraScreenState extends State<CameraScreen>
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.bgra8888,
       );
-      //imageFormatGroup: ImageFormatGroup.jpeg,
-      // final CameraController cameraController = CameraController(
-      //   cameraDescription,
-      //   ResolutionPreset.max,
-      //   enableAudio: false,
-      // );
 
       _controller = cameraController;
 
       await cameraController.initialize();
 
-      // 打印当前相机配置
       // 打印当前相机配置
       print('Camera description: ${_cameras[_currentCameraIndex].toString()}');
       print('Current resolution preset: ${savedResolution.toString()}');
