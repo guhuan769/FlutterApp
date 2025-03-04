@@ -30,23 +30,20 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  camera: ^0.10.5+5
-  image_picker: ^1.0.4
+  provider: ^6.1.1
+  image_picker: ^1.0.7  # 添加image_picker依赖
+  camera: ^0.10.5+9     # 保留camera包用于使用其枚举类型
   path_provider: ^2.1.1
   path: ^1.8.3
-  provider: ^6.0.5
   shared_preferences: ^2.2.2
   http: ^1.1.0
-  image: ^4.1.3
-  permission_handler: ^11.0.1
   http_parser: ^4.0.2
-  mime: ^1.0.4
-  pool: ^1.5.1
+  mobile_scanner: ^3.5.2
   barcode_scan2: ^4.2.4
-  #qr_code_scanner: ^1.0.1
-  #image_gallery_saver: ^2.0.3
-  mobile_scanner: ^3.5.6  # 用于扫描二维码
-  qr_flutter: ^4.1.0      # 用于生成二维码
+  image: ^4.1.3        # 添加image依赖用于图像处理
+  qr_flutter: ^4.1.0
+  pool: ^1.5.1
+  mime: ^1.0.4
 
 
 

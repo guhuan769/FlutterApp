@@ -12,7 +12,6 @@ import 'package:provider/provider.dart';
 import 'package:image/image.dart' as img;
 import '../utils/settings_manager.dart';
 import '../providers/photo_provider.dart';
-import '../services/system_camera_service.dart';
 
 // 拍照模式枚举
 enum PhotoMode {
@@ -22,6 +21,12 @@ enum PhotoMode {
   end, // 结束点拍照
 }
 
+// 照片类型定义
+const String START_PHOTO = '起始点拍照';
+const String MIDDLE_PHOTO = '中间点拍照';
+const String MODEL_PHOTO = '模型点拍照';
+const String END_PHOTO = '结束点拍照';
+
 class CameraScreen extends StatefulWidget {
   const CameraScreen({Key? key}) : super(key: key);
 
@@ -29,10 +34,8 @@ class CameraScreen extends StatefulWidget {
   State<CameraScreen> createState() => _CameraScreenState();
 }
 
-class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver {
-  // 系统相机服务
-  final SystemCameraService _systemCameraService = SystemCameraService();
-
+class _CameraScreenState extends State<CameraScreen>
+    with WidgetsBindingObserver {
   // ====== 相机控制相关变量 ======
   CameraController? _controller;
   bool _isInitialized = false;
@@ -79,7 +82,8 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     // 使用 Future.microtask 来确保在构建完成后初始化
     Future.microtask(() {
       // 获取当前项目和轨迹状态
-      final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
+      final projectProvider =
+          Provider.of<ProjectProvider>(context, listen: false);
       setState(() {
         currentProject = projectProvider.currentProject;
         currentTrack = projectProvider.currentTrack;
@@ -87,7 +91,8 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
 
       // 加载照片
       if (currentProject != null) {
-        final photoProvider = Provider.of<PhotoProvider>(context, listen: false);
+        final photoProvider =
+            Provider.of<PhotoProvider>(context, listen: false);
         final path = currentTrack?.path ?? currentProject!.path;
         photoProvider.loadPhotosForProjectOrTrack(path);
       }
@@ -99,10 +104,9 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _disposeCamera();
     // 在页面销毁时刷新项目列表
-    Future.microtask(() => Provider.of<ProjectProvider>(context, listen: false).initialize());
+    Future.microtask(() =>
+        Provider.of<ProjectProvider>(context, listen: false).initialize());
     super.dispose();
   }
 
@@ -162,7 +166,8 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
 
       // 获取保存的分辨率设置
       final savedResolution = await SettingsManager.getResolutionPreset();
-      print('Initializing camera with resolution: ${savedResolution.toString()}');
+      print(
+          'Initializing camera with resolution: ${savedResolution.toString()}');
 
       CameraController cameraController = CameraController(
         _cameras[_currentCameraIndex],
@@ -170,11 +175,18 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.bgra8888,
       );
+      //imageFormatGroup: ImageFormatGroup.jpeg,
+      // final CameraController cameraController = CameraController(
+      //   cameraDescription,
+      //   ResolutionPreset.max,
+      //   enableAudio: false,
+      // );
 
       _controller = cameraController;
 
       await cameraController.initialize();
 
+      // 打印当前相机配置
       // 打印当前相机配置
       print('Camera description: ${_cameras[_currentCameraIndex].toString()}');
       print('Current resolution preset: ${savedResolution.toString()}');
@@ -248,10 +260,11 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
   // ====== 照片排序和管理方法 ======
   Future<void> _organizePhotos(List<File> photos) async {
     // 处理重复的起始点照片
-    final startPhotos = _findPhotosOfType(photos, PhotoUtils.START_PHOTO);
+    final startPhotos = _findPhotosOfType(photos, START_PHOTO);
     if (startPhotos.length > 1) {
       // 按修改时间排序，保留最新的
-      startPhotos.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+      startPhotos
+          .sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
       // 删除多余的照片
       for (int i = 1; i < startPhotos.length; i++) {
         await startPhotos[i].delete();
@@ -259,10 +272,11 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     }
 
     // 处理重复的结束点照片
-    final endPhotos = _findPhotosOfType(photos, PhotoUtils.END_PHOTO);
+    final endPhotos = _findPhotosOfType(photos, END_PHOTO);
     if (endPhotos.length > 1) {
       // 按修改时间排序，保留最新的
-      endPhotos.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+      endPhotos
+          .sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
       // 删除多余的照片
       for (int i = 1; i < endPhotos.length; i++) {
         await endPhotos[i].delete();
@@ -271,7 +285,11 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
   }
 
   // ====== 照片处理方法 ======
-  Future<void> _handleMiddlePointPhoto(String sourcePath, String savePath, String timestamp, List<File> existingPhotos) async {
+
+// 中间点照片处理保持不变
+
+  Future<void> _handleMiddlePointPhoto(String sourcePath, String savePath,
+      String timestamp, List<File> existingPhotos) async {
     try {
       final sortedPhotos = PhotoUtils.sortPhotos(existingPhotos);
       int sequence;
@@ -280,7 +298,8 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
         sequence = 2;
       } else {
         final nonEndPhotos = sortedPhotos
-            .where((p) => PhotoUtils.getPhotoType(p.path) != PhotoUtils.END_PHOTO)
+            .where(
+                (p) => PhotoUtils.getPhotoType(p.path) != PhotoUtils.END_PHOTO)
             .toList();
         sequence = nonEndPhotos.isEmpty
             ? 2
@@ -297,9 +316,13 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     }
   }
 
-  Future<void> _handleModelPointPhoto(String sourcePath, String savePath, String timestamp, List<File> existingPhotos) async {
+  // 模型点照片处理保持不变
+
+  Future<void> _handleModelPointPhoto(String sourcePath, String savePath,
+      String timestamp, List<File> existingPhotos) async {
     try {
-      final sequence = PhotoUtils.generateNewSequence(existingPhotos, PhotoUtils.MODEL_PHOTO);
+      final sequence = PhotoUtils.generateNewSequence(
+          existingPhotos, PhotoUtils.MODEL_PHOTO);
       final String filename = PhotoUtils.generateFileName(
           PhotoUtils.MODEL_PHOTO, sequence, timestamp);
       final String newPath = path.join(savePath, filename);
@@ -310,7 +333,11 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     }
   }
 
-  Future<void> _handleStartPointPhoto(String sourcePath, String savePath, String timestamp, List<File> existingPhotos) async {
+  // 在 CameraScreen 类中更新 _handleStartPointPhoto 方法
+
+// 修改照片处理方法的签名和实现
+  Future<void> _handleStartPointPhoto(String sourcePath, String savePath,
+      String timestamp, List<File> existingPhotos) async {
     try {
       // 删除现有的起始点照片
       for (var photo in existingPhotos) {
@@ -320,7 +347,8 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
       }
 
       // 生成新文件名
-      final String filename = PhotoUtils.generateFileName(PhotoUtils.START_PHOTO, 1, timestamp);
+      final String filename =
+          PhotoUtils.generateFileName(PhotoUtils.START_PHOTO, 1, timestamp);
       final String newPath = path.join(savePath, filename);
       await File(sourcePath).copy(newPath);
     } catch (e) {
@@ -329,7 +357,8 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     }
   }
 
-  Future<void> _handleEndPointPhoto(String sourcePath, String savePath, String timestamp, List<File> existingPhotos) async {
+  Future<void> _handleEndPointPhoto(String sourcePath, String savePath,
+      String timestamp, List<File> existingPhotos) async {
     try {
       // 删除现有的结束点照片
       for (var photo in existingPhotos) {
@@ -338,7 +367,8 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
         }
       }
 
-      final String filename = PhotoUtils.generateFileName(PhotoUtils.END_PHOTO, 999, timestamp);
+      final String filename =
+          PhotoUtils.generateFileName(PhotoUtils.END_PHOTO, 999, timestamp);
       final String newPath = path.join(savePath, filename);
       await File(sourcePath).copy(newPath);
     } catch (e) {
@@ -369,7 +399,8 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
 
   Future<File> _cropImage(String imagePath) async {
     final File imageFile = File(imagePath);
-    final img.Image? originalImage = img.decodeImage(await imageFile.readAsBytes());
+    final img.Image? originalImage =
+        img.decodeImage(await imageFile.readAsBytes());
 
     if (originalImage == null) throw Exception('Failed to load image');
 
@@ -398,33 +429,31 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     final File croppedFile = File(croppedPath);
     await croppedFile.writeAsBytes(img.encodeJpg(croppedImage, quality: 100));
 
+    await imageFile.delete();
+
     return croppedFile;
   }
 
   // ====== 主拍照方法 ======
-  Future<void> _takePicture(PhotoMode mode) async {
-    if (_isProcessing) {
+
+  // 修改原有的拍照方法
+
+  // 修改拍照方法，添加 PhotoMode 参数
+// 修改拍照方法
+  Future<void> _takePicture(PhotoMode photoMode) async {
+    if (_controller == null ||
+        !_controller!.value.isInitialized ||
+        _isProcessing) {
       return;
     }
 
     setState(() => _isProcessing = true);
 
     try {
+      final XFile photo = await _controller!.takePicture();
+
       if (currentProject == null) {
         throw Exception('未选择项目');
-      }
-
-      // 获取当前分辨率设置
-      final resolution = await SettingsManager.getResolutionPreset();
-      final imageQuality = _systemCameraService.getImageQualityFromResolution(resolution);
-
-      // 使用系统相机拍照
-      final XFile? photo = await _systemCameraService.takePhoto(imageQuality: imageQuality);
-
-      // 用户取消拍照
-      if (photo == null) {
-        setState(() => _isProcessing = false);
-        return;
       }
 
       final String savePath = currentTrack?.path ?? currentProject!.path;
@@ -440,7 +469,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
 
       // 根据模式处理照片
       if (currentTrack != null) {
-        switch (mode) {
+        switch (photoMode) {
           case PhotoMode.start:
             await _handleStartPointPhoto(
                 photo.path, savePath, timestamp, existingPhotos);
@@ -453,28 +482,25 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
             await _handleEndPointPhoto(
                 photo.path, savePath, timestamp, existingPhotos);
             break;
-          case PhotoMode.model:
-          // 轨迹模式下不支持模型点拍照
-            _showError('轨迹模式下不能拍摄模型点照片');
+          default:
             break;
         }
-      } else if (mode == PhotoMode.model) {
+      } else if (photoMode == PhotoMode.model) {
         await _handleModelPointPhoto(
             photo.path, savePath, timestamp, existingPhotos);
-      } else {
-        _showError('项目模式下只能拍摄模型点照片');
       }
 
       // 强制重新加载照片列表
       await photoProvider.forceReloadPhotos();
 
-      final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
+      final projectProvider =
+          Provider.of<ProjectProvider>(context, listen: false);
       await projectProvider.initialize(); // 重新加载项目数据
 
       // 显示提示
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${_getModePrefix(mode)}已保存')),
+          SnackBar(content: Text('${_getModePrefix(photoMode)}已保存')),
         );
       }
     } catch (e) {
@@ -489,6 +515,109 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
         setState(() => _isProcessing = false);
       }
     }
+  }
+
+  // 修改按钮构建方法以显示正确的标签
+  Widget _buildCaptureButtons() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildCaptureButton(PhotoMode.start, '起始点'),
+          _buildCaptureButton(PhotoMode.middle, '中间点'),
+          _buildCaptureButton(PhotoMode.model, '模型点'),
+          _buildCaptureButton(PhotoMode.end, '结束点'),
+        ],
+      ),
+    );
+  }
+
+  // ====== 辅助方法 ======
+  String _getModePrefix(PhotoMode mode) {
+    switch (mode) {
+      case PhotoMode.start:
+        return PhotoUtils.START_PHOTO;
+      case PhotoMode.middle:
+        return PhotoUtils.MIDDLE_PHOTO;
+      case PhotoMode.model:
+        return PhotoUtils.MODEL_PHOTO;
+      case PhotoMode.end:
+        return PhotoUtils.END_PHOTO;
+    }
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        action: SnackBarAction(
+          label: '重试',
+          textColor: Colors.white,
+          onPressed: _initializeCamera,
+        ),
+      ),
+    );
+  }
+
+  // ====== UI 构建方法 ======
+// 修改拍照按钮的构建方法
+
+  // 修改拍照按钮构建方法
+  Widget _buildCaptureButton(PhotoMode mode, String label) {
+    final bool isEnabled = _isButtonEnabled(mode);
+
+    return Opacity(
+      opacity: isEnabled ? 1.0 : 0.3,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white,
+                width: 2,
+              ),
+            ),
+            child: FloatingActionButton(
+              backgroundColor: Colors.white.withOpacity(0.2),
+              elevation: 0,
+              onPressed: (_isProcessing || !isEnabled)
+                  ? null
+                  : () => _takePicture(mode),
+              child: _isProcessing
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                      ),
+                    )
+                  : Container(
+                      margin: const EdgeInsets.all(2),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   // ====== 导航方法 ======
@@ -706,91 +835,6 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     }
   }
 
-  // ====== 辅助方法 ======
-  String _getModePrefix(PhotoMode mode) {
-    switch (mode) {
-      case PhotoMode.start:
-        return PhotoUtils.START_PHOTO;
-      case PhotoMode.middle:
-        return PhotoUtils.MIDDLE_PHOTO;
-      case PhotoMode.model:
-        return PhotoUtils.MODEL_PHOTO;
-      case PhotoMode.end:
-        return PhotoUtils.END_PHOTO;
-    }
-  }
-
-  void _showError(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        action: SnackBarAction(
-          label: '重试',
-          textColor: Colors.white,
-          onPressed: _initializeCamera,
-        ),
-      ),
-    );
-  }
-
-  // ====== UI 构建方法 ======
-  // 修改拍照按钮的构建方法
-  Widget _buildCaptureButton(PhotoMode mode, String label) {
-    final bool isEnabled = _isButtonEnabled(mode);
-
-    return Opacity(
-      opacity: isEnabled ? 1.0 : 0.3,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.white,
-                width: 2,
-              ),
-            ),
-            child: FloatingActionButton(
-              backgroundColor: Colors.white.withOpacity(0.2),
-              elevation: 0,
-              onPressed: (_isProcessing || !isEnabled)
-                  ? null
-                  : () => _takePicture(mode),
-              child: _isProcessing
-                  ? const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                ),
-              )
-                  : Container(
-                margin: const EdgeInsets.all(2),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -817,26 +861,27 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
             ),
 
           // 根据设置显示裁剪框
-          if (_isInitialized && _cropEnabled)
-            Positioned.fill(
-              child: GestureDetector(
-                onPanStart: _handleCropBoxPanStart,
-                onPanUpdate: _handleCropBoxPanUpdate,
-                onPanEnd: _handleCropBoxPanEnd,
-                onTapDown: _handleCropBoxTapDown,
-                child: CustomPaint(
-                  painter: CropBoxPainter(
-                    cropBoxPosition: _cropBoxPosition,
-                    cropBoxSize: _cropBoxSize,
+          if (false)
+            if (_isInitialized && _cropEnabled)
+              Positioned.fill(
+                child: GestureDetector(
+                  onPanStart: _handleCropBoxPanStart,
+                  onPanUpdate: _handleCropBoxPanUpdate,
+                  onPanEnd: _handleCropBoxPanEnd,
+                  onTapDown: _handleCropBoxTapDown,
+                  child: CustomPaint(
+                    painter: CropBoxPainter(
+                      cropBoxPosition: _cropBoxPosition,
+                      cropBoxSize: _cropBoxSize,
+                    ),
                   ),
                 ),
               ),
-            ),
           // 显示分辨率指示器
           if (_isInitialized) _buildResolutionIndicator(),
           // 中心点指示器
           if (_isInitialized && _showCenterPoint)
-            Center(
+            const Positioned.fill(
               child: CustomPaint(
                 painter: CenterPointPainter(),
               ),
@@ -867,8 +912,10 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
   }
 }
 
-// 中心点指示器
+// ====== 自定义画笔 ======
 class CenterPointPainter extends CustomPainter {
+  const CenterPointPainter();
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
@@ -876,29 +923,31 @@ class CenterPointPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.0;
 
+    final center = Offset(size.width / 2, size.height / 2);
     const crossSize = 20.0;
 
     // 绘制十字准星
     canvas.drawLine(
-      Offset(-crossSize, 0),
-      Offset(crossSize, 0),
+      Offset(center.dx - crossSize, center.dy),
+      Offset(center.dx + crossSize, center.dy),
       paint,
     );
     canvas.drawLine(
-      Offset(0, -crossSize),
-      Offset(0, crossSize),
+      Offset(center.dx, center.dy - crossSize),
+      Offset(center.dx, center.dy + crossSize),
       paint,
     );
 
     // 绘制圆圈
-    canvas.drawCircle(Offset.zero, crossSize * 1.5, paint);
+    canvas.drawCircle(center, crossSize * 1.5, paint);
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// 裁剪框绘制器
+// 在 camera_screen.dart 文件底部添加此类
+
 class CropBoxPainter extends CustomPainter {
   final Offset cropBoxPosition;
   final double cropBoxSize;

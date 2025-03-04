@@ -1,5 +1,7 @@
 // lib/screens/home_screen.dart
 import 'package:camera_photo/config/upload_options.dart';
+import 'package:camera_photo/screens/system_camera_screen.dart';
+import 'package:camera_photo/services/system_camera_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/project_provider.dart';
@@ -14,6 +16,7 @@ import 'qr_generator_screen.dart';
 import 'qr_scanner_screen.dart';
 import 'batch_qr_scanner_screen.dart';
 import 'qr_test_page.dart'; // 仅在开发测试时使用
+import 'system_camera_screen.dart'; // 添加在文件头部
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -504,7 +507,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             provider.setCurrentTrack(null);
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (_) => const CameraScreen()),
+                              MaterialPageRoute(builder: (_) => const SystemCameraScreen()), // 使用SystemCameraScreen替换CameraScreen
                             );
                           },
                           tooltip: '拍照',
@@ -729,6 +732,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   '${project.name} - ${track.name}的照片',
                 ),
               ),
+
               IconButton(
                 icon: const Icon(Icons.camera_alt),
                 onPressed: () {
@@ -740,7 +744,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   provider.setCurrentTrack(track);
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const CameraScreen()),
+                    MaterialPageRoute(builder: (_) => const SystemCameraScreen()), // 使用SystemCameraScreen替换CameraScreen
                   );
                 },
               ),

@@ -1,4 +1,5 @@
-// lib/main.dart
+// lib/main.dart (修改版本)
+import 'package:camera_photo/screens/system_camera_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/photo_provider.dart';
@@ -33,6 +34,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/': (context) => const HomeScreen(),
         '/settings': (context) => const SettingsScreen(),
+        '/camera': (context) => const SystemCameraScreen(), // 使用新的系统相机屏幕
       },
     );
   }

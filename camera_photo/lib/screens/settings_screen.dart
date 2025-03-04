@@ -1,7 +1,5 @@
 // lib/screens/settings_screen.dart
 
-import 'package:camera_photo/screens/camera_screen.dart';
-import 'package:camera_photo/screens/home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -19,9 +17,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _urlController;
   bool _isTesting = false;
-  bool _cropEnabled = false;
-  bool _showCenterPoint = true; // 新增
-  ResolutionPreset _selectedResolution = ResolutionPreset.max;
+  bool _showCenterPoint = true;
+  ResolutionPreset _selectedResolution = ResolutionPreset.high;
 
   @override
   void initState() {
@@ -34,35 +31,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final savedUrl =
         (await SharedPreferences.getInstance()).getString('api_url') ??
             'http://your-server:5000/upload';
-    final cropEnabled =  false;//await SettingsManager.getCropEnabled();
     final resolution = await SettingsManager.getResolutionPreset();
     final showCenterPoint = await SettingsManager.getShowCenterPoint();
 
     setState(() {
       _urlController.text = savedUrl;
-      _cropEnabled = cropEnabled;
       _selectedResolution = resolution;
       _showCenterPoint = showCenterPoint;
     });
-  }
-
-  // 添加相机信息获取方法
-  Future<Map<String, dynamic>> _getCameraInfo() async {
-    try {
-      final cameras = await availableCameras();
-      if (cameras.isEmpty) {
-        return {'error': '没有可用的相机'};
-      }
-
-      final camera = cameras[0]; // 通常使用第一个相机
-      return {
-        'name': camera.name,
-        'lensDirection': camera.lensDirection.toString(),
-        'sensorOrientation': camera.sensorOrientation,
-      };
-    } catch (e) {
-      return {'error': '获取相机信息失败: $e'};
-    }
   }
 
   Future<void> _saveUrl(String url) async {
@@ -142,47 +118,103 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-
-// 更新分辨率选择器
+  // 更新为系统相机的分辨率选择器
   Future<void> _showResolutionPicker(BuildContext context) async {
-    final cameraInfo = await _getCameraInfo();
+    final List<Map<String, dynamic>> resolutionOptions = [
+      {
+        'preset': ResolutionPreset.high,
+        'name': '高清 (1080p)',
+        'description': '1920x1080',
+        'systemCameraDesc': '标准相机质量 (70%)',
+      },
+      {
+        'preset': ResolutionPreset.veryHigh,
+        'name': '超清 (2160p)',
+        'description': '3840x2160',
+        'systemCameraDesc': '高质量 (85%)',
+      },
+      {
+        'preset': ResolutionPreset.max,
+        'name': '最高清晰度',
+        'description': '设备支持的最高分辨率',
+        'systemCameraDesc': '最高质量 (100%)',
+      },
+    ];
 
     final ResolutionPreset? result = await showDialog<ResolutionPreset>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('选择相机分辨率'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 显示相机信息
-              Text('相机信息:', style: Theme.of(context).textTheme.titleSmall),
-              if (cameraInfo.containsKey('error'))
-                Text(cameraInfo['error'], style: const TextStyle(color: Colors.red))
-              else ...[
-                Text('设备: ${cameraInfo['name']}'),
-                Text('方向: ${cameraInfo['lensDirection']}'),
-                Text('传感器方向: ${cameraInfo['sensorOrientation']}°'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Colors.blue.withOpacity(0.3),
+                    ),
+                  ),
+                  padding: const EdgeInsets.all(12),
+                  child: const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.info_outline, size: 16, color: Colors.blue),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '使用系统相机时，实际分辨率取决于设备支持',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        '更高的清晰度需要更多的存储空间，请根据需要选择',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // 分辨率列表
+                ...resolutionOptions.map((option) {
+                  final bool isCurrentSelection = option['preset'] == _selectedResolution;
+                  return ListTile(
+                    title: Text(option['name']),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(option['description']),
+                        Text(
+                          option['systemCameraDesc'],
+                          style: const TextStyle(fontSize: 12, color: Colors.blue),
+                        ),
+                      ],
+                    ),
+                    selected: isCurrentSelection,
+                    leading: isCurrentSelection
+                        ? const Icon(Icons.check_circle, color: Colors.blue)
+                        : const Icon(Icons.circle_outlined),
+                    onTap: () => Navigator.pop(context, option['preset']),
+                  );
+                }).toList(),
               ],
-              const Divider(),
-              const Text('可用分辨率:'),
-              const SizedBox(height: 8),
-              // 分辨率列表
-              ...SettingsManager.availableResolutions.map((preset) {
-                final bool isCurrentSelection = preset == _selectedResolution;
-                return ListTile(
-                  title: Text(SettingsManager.resolutionPresetToString(preset)),
-                  subtitle: Text(SettingsManager.getResolutionDescription(preset)),
-                  selected: isCurrentSelection,
-                  leading: isCurrentSelection
-                      ? const Icon(Icons.check_circle, color: Colors.blue)
-                      : const Icon(Icons.circle_outlined),
-                  onTap: () => Navigator.pop(context, preset),
-                );
-              }).toList(),
-            ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+          ],
         );
       },
     );
@@ -192,15 +224,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         // 保存新的分辨率设置
         await SettingsManager.setResolutionPreset(result);
 
-        // 验证设置是否保存成功
-        final savedPreset = await SettingsManager.getResolutionPreset();
-        print('Requested resolution: ${result.toString()}');
-        print('Saved resolution: ${savedPreset.toString()}');
-
         if (mounted) {
           setState(() => _selectedResolution = result);
 
-          // 显示更详细的提示
+          // 显示提示
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Column(
@@ -208,16 +235,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('分辨率已更改为: ${SettingsManager.resolutionPresetToString(result)}'),
-                  Text('目标分辨率: ${SettingsManager.getResolutionDescription(result)}'),
-                  const Text('请重启应用以应用新设置'),
-                  if (result == ResolutionPreset.ultraHigh || result == ResolutionPreset.max)
-                    const Text(
-                      '注意：高分辨率可能受设备硬件限制',
-                      style: TextStyle(color: Colors.yellow),
-                    ),
+                  const Text('下次拍照时将使用新的分辨率设置'),
                 ],
               ),
-              duration: const Duration(seconds: 5),
+              duration: const Duration(seconds: 3),
             ),
           );
         }
@@ -252,17 +273,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 16),
 
-            //裁剪开关
-            // SwitchListTile(
-            //   title: const Text('启用图片裁剪'),
-            //   subtitle: const Text('拍照时显示裁剪框'),
-            //   value: _cropEnabled,
-            //   onChanged: (value) async {
-            //     await SettingsManager.setCropEnabled(value);
-            //     setState(() => _cropEnabled = value);
-            //   },
-            // ),
-
             // 中心点显示开关
             SwitchListTile(
               title: const Text('显示中心点'),
@@ -282,10 +292,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   const Text('相机分辨率'),
                   const SizedBox(width: 8),
-                  if (_selectedResolution == ResolutionPreset.ultraHigh ||
-                      _selectedResolution == ResolutionPreset.max)
+                  if (_selectedResolution == ResolutionPreset.max)
                     const Tooltip(
-                      message: '高分辨率可能受设备硬件限制',
+                      message: '最高分辨率可能占用更多存储空间',
                       child: Icon(Icons.info_outline, size: 16, color: Colors.orange),
                     ),
                 ],
@@ -297,6 +306,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Text(
                     SettingsManager.getResolutionDescription(_selectedResolution),
                     style: const TextStyle(fontSize: 12),
+                  ),
+                  Text(
+                    '系统相机质量: ${SettingsManager.getSystemCameraQuality(_selectedResolution)}%',
+                    style: const TextStyle(fontSize: 12, color: Colors.blue),
                   ),
                 ],
               ),
@@ -364,17 +377,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             children: [
                               Expanded(
                                 child: ElevatedButton.icon(
-                                  onPressed:
-                                      _isTesting ? null : _testApiConnection,
+                                  onPressed: _isTesting ? null : _testApiConnection,
                                   icon: _isTesting
                                       ? const SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Colors.white,
-                                          ),
-                                        )
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
                                       : const Icon(Icons.refresh),
                                   label: Text(_isTesting ? '测试中...' : '测试连接'),
                                   style: ElevatedButton.styleFrom(
@@ -389,11 +401,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   onPressed: _isTesting
                                       ? null
                                       : () {
-                                          if (_formKey.currentState!
-                                              .validate()) {
-                                            _saveUrl(_urlController.text);
-                                          }
-                                        },
+                                    if (_formKey.currentState!.validate()) {
+                                      _saveUrl(_urlController.text);
+                                    }
+                                  },
                                   icon: const Icon(Icons.save),
                                   label: const Text('保存设置'),
                                   style: ElevatedButton.styleFrom(
@@ -403,27 +414,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 16),
-                          ElevatedButton.icon(
-                            onPressed: _isTesting
-                                ? null
-                                : () {
-                                    Navigator.pushAndRemoveUntil(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            const HomeScreen(),
-                                      ),
-                                      (route) => false,
-                                    );
-                                  },
-                            icon: const Icon(Icons.refresh),
-                            label: const Text('重启应用'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange,
-                              padding: const EdgeInsets.all(12),
-                            ),
-                          )
                         ],
                       ),
                     ],
