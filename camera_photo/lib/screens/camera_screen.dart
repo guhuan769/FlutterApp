@@ -134,9 +134,6 @@ class _CameraScreenState extends State<CameraScreen>
     }
   }
 
-
-
-
   void _setupBluetoothListener() {
     if (_disposed) return;  // 安全检查
 
