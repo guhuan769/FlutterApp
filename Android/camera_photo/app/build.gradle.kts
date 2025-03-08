@@ -60,6 +60,12 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     
+    // 添加AppCompat库的依赖
+    implementation("androidx.appcompat:appcompat:1.6.1")
+    
+    // 添加ConstraintLayout依赖
+    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+    
     // 添加相机相关依赖
     implementation("androidx.camera:camera-core:1.3.1")
     implementation("androidx.camera:camera-camera2:1.3.1")
