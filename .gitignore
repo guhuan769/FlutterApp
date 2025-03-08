@@ -11,6 +11,7 @@
 *.exe
 *.mp4
 *.rar
+*apk
 
 
 # User-specific files (MonoDevelop/Xamarin Studio)
