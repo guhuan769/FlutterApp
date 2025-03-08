@@ -43,6 +43,11 @@ import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.border
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 
 class MainActivity : ComponentActivity() {
     private var customCameraPhotoUri: Uri? = null
@@ -111,10 +116,32 @@ class MainActivity : ComponentActivity() {
                         },
                         onCustomCameraClick = {
                             launchCustomCamera()
+                        },
+                        getImageResolution = { uri ->
+                            getImageResolution(uri)
                         }
                     )
                 }
             }
+        }
+    }
+    
+    // 获取图片分辨率
+    private fun getImageResolution(uri: Uri?): Pair<Int, Int> {
+        if (uri == null) return Pair(0, 0)
+        
+        return try {
+            val inputStream = contentResolver.openInputStream(uri)
+            val options = BitmapFactory.Options().apply {
+                inJustDecodeBounds = true  // 只获取图片尺寸，不加载整个图片
+            }
+            BitmapFactory.decodeStream(inputStream, null, options)
+            inputStream?.close()
+            
+            Pair(options.outWidth, options.outHeight)
+        } catch (e: Exception) {
+            Log.e("MainActivity", "获取图片分辨率失败: ${e.message}", e)
+            Pair(0, 0)
         }
     }
     
@@ -167,7 +194,8 @@ class MainActivity : ComponentActivity() {
     fun MainScreen(
         photoUri: Uri?,
         onTakePhotoClick: () -> Unit,
-        onCustomCameraClick: () -> Unit
+        onCustomCameraClick: () -> Unit,
+        getImageResolution: (Uri?) -> Pair<Int, Int>
     ) {
         Column(
             modifier = Modifier
@@ -177,13 +205,36 @@ class MainActivity : ComponentActivity() {
         ) {
             // 显示照片
             if (photoUri != null) {
-                Image(
-                    painter = rememberAsyncImagePainter(photoUri),
-                    contentDescription = "Photo",
+                val resolution = getImageResolution(photoUri)
+                
+                Column(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxWidth()
-                )
+                        .fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // 显示分辨率信息
+                    Text(
+                        text = "照片分辨率: ${resolution.first} × ${resolution.second}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp)
+                            .border(1.dp, Color.Gray)
+                            .padding(8.dp),
+                        textAlign = TextAlign.Center
+                    )
+                    
+                    // 显示图片
+                    Image(
+                        painter = rememberAsyncImagePainter(photoUri),
+                        contentDescription = "Photo",
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                    )
+                }
             } else {
                 Spacer(modifier = Modifier.weight(1f))
             }

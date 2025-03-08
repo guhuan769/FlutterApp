@@ -23,6 +23,9 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import androidx.camera.core.ImageProxy
+import androidx.camera.core.impl.utils.Exif
+import java.io.File
 
 class CameraActivity : AppCompatActivity() {
     private lateinit var viewFinder: PreviewView
