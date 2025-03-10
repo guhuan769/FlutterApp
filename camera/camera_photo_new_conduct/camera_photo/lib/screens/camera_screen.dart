@@ -286,73 +286,106 @@ class _CameraScreenState extends State<CameraScreen>
 
   // ====== 照片处理方法 ======
 
-// 中间点照片处理保持不变
+  Future<void> _handleStartPointPhoto(String sourcePath, String savePath,
+      String timestamp, List<File> existingPhotos) async {
+    try {
+      // 查找现有的起始点照片
+      final startPhotos = existingPhotos
+          .where((p) => PhotoUtils.getPhotoType(p.path) == PhotoUtils.START_PHOTO)
+          .toList();
+      
+      int sequence;
+      if (startPhotos.isEmpty) {
+        // 如果没有起始点照片，使用序号1
+        sequence = 1;
+      } else {
+        // 找到最大序号并加1
+        startPhotos.sort((a, b) => 
+          PhotoUtils.getPhotoSequence(a.path).compareTo(
+            PhotoUtils.getPhotoSequence(b.path)
+          )
+        );
+        sequence = PhotoUtils.getPhotoSequence(startPhotos.last.path) + 1;
+      }
+
+      // 生成新文件名
+      final String filename =
+          PhotoUtils.generateFileName(PhotoUtils.START_PHOTO, sequence, timestamp);
+      final String newPath = path.join(savePath, filename);
+      await File(sourcePath).copy(newPath);
+      
+      // 不需要重新排序，只需要重新加载照片列表
+      // 因为我们已经确保了照片的命名和排序规则
+    } catch (e) {
+      print('处理起始点照片失败: $e');
+      rethrow;
+    }
+  }
 
   Future<void> _handleMiddlePointPhoto(String sourcePath, String savePath,
       String timestamp, List<File> existingPhotos) async {
     try {
-      final sortedPhotos = PhotoUtils.sortPhotos(existingPhotos);
+      // 查找现有的中间点照片
+      final middlePhotos = existingPhotos
+          .where((p) => PhotoUtils.getPhotoType(p.path) == PhotoUtils.MIDDLE_PHOTO)
+          .toList();
+      
       int sequence;
-
-      if (sortedPhotos.isEmpty) {
-        sequence = 2;
+      if (middlePhotos.isEmpty) {
+        // 如果没有中间点照片，使用序号1
+        sequence = 1;
       } else {
-        final nonEndPhotos = sortedPhotos
-            .where(
-                (p) => PhotoUtils.getPhotoType(p.path) != PhotoUtils.END_PHOTO)
-            .toList();
-        sequence = nonEndPhotos.isEmpty
-            ? 2
-            : PhotoUtils.getPhotoSequence(nonEndPhotos.last.path) + 1;
+        // 找到最大序号并加1
+        middlePhotos.sort((a, b) => 
+          PhotoUtils.getPhotoSequence(a.path).compareTo(
+            PhotoUtils.getPhotoSequence(b.path)
+          )
+        );
+        sequence = PhotoUtils.getPhotoSequence(middlePhotos.last.path) + 1;
       }
 
       final String filename = PhotoUtils.generateFileName(
           PhotoUtils.MIDDLE_PHOTO, sequence, timestamp);
       final String newPath = path.join(savePath, filename);
       await File(sourcePath).copy(newPath);
+      
+      // 不需要重新排序，只需要重新加载照片列表
     } catch (e) {
       print('处理中间点照片失败: $e');
       rethrow;
     }
   }
 
-  // 模型点照片处理保持不变
-
   Future<void> _handleModelPointPhoto(String sourcePath, String savePath,
       String timestamp, List<File> existingPhotos) async {
     try {
-      final sequence = PhotoUtils.generateNewSequence(
-          existingPhotos, PhotoUtils.MODEL_PHOTO);
+      // 查找现有的模型点照片
+      final modelPhotos = existingPhotos
+          .where((p) => PhotoUtils.getPhotoType(p.path) == PhotoUtils.MODEL_PHOTO)
+          .toList();
+      
+      int sequence;
+      if (modelPhotos.isEmpty) {
+        // 如果没有模型点照片，使用序号1
+        sequence = 1;
+      } else {
+        // 找到最大序号并加1
+        modelPhotos.sort((a, b) => 
+          PhotoUtils.getPhotoSequence(a.path).compareTo(
+            PhotoUtils.getPhotoSequence(b.path)
+          )
+        );
+        sequence = PhotoUtils.getPhotoSequence(modelPhotos.last.path) + 1;
+      }
+
       final String filename = PhotoUtils.generateFileName(
           PhotoUtils.MODEL_PHOTO, sequence, timestamp);
       final String newPath = path.join(savePath, filename);
       await File(sourcePath).copy(newPath);
+      
+      // 不需要重新排序，只需要重新加载照片列表
     } catch (e) {
       print('处理模型点照片失败: $e');
-      rethrow;
-    }
-  }
-
-  // 在 CameraScreen 类中更新 _handleStartPointPhoto 方法
-
-// 修改照片处理方法的签名和实现
-  Future<void> _handleStartPointPhoto(String sourcePath, String savePath,
-      String timestamp, List<File> existingPhotos) async {
-    try {
-      // 删除现有的起始点照片
-      for (var photo in existingPhotos) {
-        if (PhotoUtils.getPhotoType(photo.path) == PhotoUtils.START_PHOTO) {
-          await photo.delete();
-        }
-      }
-
-      // 生成新文件名
-      final String filename =
-          PhotoUtils.generateFileName(PhotoUtils.START_PHOTO, 1, timestamp);
-      final String newPath = path.join(savePath, filename);
-      await File(sourcePath).copy(newPath);
-    } catch (e) {
-      print('处理起始点照片失败: $e');
       rethrow;
     }
   }
@@ -360,21 +393,53 @@ class _CameraScreenState extends State<CameraScreen>
   Future<void> _handleEndPointPhoto(String sourcePath, String savePath,
       String timestamp, List<File> existingPhotos) async {
     try {
-      // 删除现有的结束点照片
-      for (var photo in existingPhotos) {
-        if (PhotoUtils.getPhotoType(photo.path) == PhotoUtils.END_PHOTO) {
-          await photo.delete();
-        }
+      // 查找现有的结束点照片
+      final endPhotos = existingPhotos
+          .where((p) => PhotoUtils.getPhotoType(p.path) == PhotoUtils.END_PHOTO)
+          .toList();
+      
+      int sequence;
+      if (endPhotos.isEmpty) {
+        // 如果没有结束点照片，使用序号1
+        sequence = 1;
+      } else {
+        // 找到最大序号并加1
+        endPhotos.sort((a, b) => 
+          PhotoUtils.getPhotoSequence(a.path).compareTo(
+            PhotoUtils.getPhotoSequence(b.path)
+          )
+        );
+        sequence = PhotoUtils.getPhotoSequence(endPhotos.last.path) + 1;
       }
 
+      // 生成新文件名
       final String filename =
-          PhotoUtils.generateFileName(PhotoUtils.END_PHOTO, 999, timestamp);
+          PhotoUtils.generateFileName(PhotoUtils.END_PHOTO, sequence, timestamp);
       final String newPath = path.join(savePath, filename);
       await File(sourcePath).copy(newPath);
+      
+      // 不需要重新排序，只需要重新加载照片列表
     } catch (e) {
       print('处理结束点照片失败: $e');
       rethrow;
     }
+  }
+  
+  // 辅助方法：加载目录中的所有照片
+  Future<List<File>> _loadAllPhotos(String dirPath) async {
+    final dir = Directory(dirPath);
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+      return [];
+    }
+    
+    final List<File> photos = [];
+    await for (var entity in dir.list(recursive: false)) {
+      if (entity is File && entity.path.toLowerCase().endsWith('.jpg')) {
+        photos.add(entity);
+      }
+    }
+    return photos;
   }
 
   // 处理图片的辅助方法
@@ -436,10 +501,7 @@ class _CameraScreenState extends State<CameraScreen>
 
   // ====== 主拍照方法 ======
 
-  // 修改原有的拍照方法
-
-  // 修改拍照方法，添加 PhotoMode 参数
-// 修改拍照方法
+  // 修改拍照方法
   Future<void> _takePicture(PhotoMode photoMode) async {
     if (_controller == null ||
         !_controller!.value.isInitialized ||
@@ -468,34 +530,32 @@ class _CameraScreenState extends State<CameraScreen>
       final existingPhotos = photoProvider.photos;
 
       // 根据模式处理照片
-      if (currentTrack != null) {
-        switch (photoMode) {
-          case PhotoMode.start:
-            await _handleStartPointPhoto(
-                photo.path, savePath, timestamp, existingPhotos);
-            break;
-          case PhotoMode.middle:
-            await _handleMiddlePointPhoto(
-                photo.path, savePath, timestamp, existingPhotos);
-            break;
-          case PhotoMode.end:
-            await _handleEndPointPhoto(
-                photo.path, savePath, timestamp, existingPhotos);
-            break;
-          default:
-            break;
-        }
-      } else if (photoMode == PhotoMode.model) {
-        await _handleModelPointPhoto(
-            photo.path, savePath, timestamp, existingPhotos);
+      switch (photoMode) {
+        case PhotoMode.start:
+          await _handleStartPointPhoto(
+              photo.path, savePath, timestamp, existingPhotos);
+          break;
+        case PhotoMode.middle:
+          await _handleMiddlePointPhoto(
+              photo.path, savePath, timestamp, existingPhotos);
+          break;
+        case PhotoMode.model:
+          await _handleModelPointPhoto(
+              photo.path, savePath, timestamp, existingPhotos);
+          break;
+        case PhotoMode.end:
+          await _handleEndPointPhoto(
+              photo.path, savePath, timestamp, existingPhotos);
+          break;
       }
 
       // 强制重新加载照片列表
       await photoProvider.forceReloadPhotos();
 
+      // 重新加载项目数据
       final projectProvider =
           Provider.of<ProjectProvider>(context, listen: false);
-      await projectProvider.initialize(); // 重新加载项目数据
+      await projectProvider.initialize();
 
       // 显示提示
       if (mounted) {

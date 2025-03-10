@@ -37,20 +37,23 @@ class PhotoUtils {
 
   // 生成新的序号
   static int generateNewSequence(List<File> photos, String photoType) {
-    if (photoType == START_PHOTO) return 1;
-    if (photoType == END_PHOTO) return 999;
-
-    // 获取现有序号
-    var sequences = photos.map((p) => getPhotoSequence(p.path))
-        .where((seq) => seq != 999) // 排除结束点照片
-        .toList()
-      ..sort();
-
-    if (sequences.isEmpty) return 2; // 如果只有起始点，从2开始
-
+    // 查找同类型的照片
+    final sameTypePhotos = photos
+        .where((p) => getPhotoType(p.path) == photoType)
+        .toList();
+    
+    if (sameTypePhotos.isEmpty) {
+      // 如果没有同类型照片，根据类型返回初始序号
+      if (photoType == START_PHOTO) return 1;
+      if (photoType == END_PHOTO) return 1;
+      return 1; // 其他类型也从1开始
+    }
+    
     // 找到最大序号并加1
-    int maxSeq = sequences.last;
-    return maxSeq + 1;
+    sameTypePhotos.sort((a, b) => 
+      getPhotoSequence(a.path).compareTo(getPhotoSequence(b.path))
+    );
+    return getPhotoSequence(sameTypePhotos.last.path) + 1;
   }
 
   // 生成文件名
@@ -60,44 +63,67 @@ class PhotoUtils {
 
   // 按照类型和序号排序照片
   static List<File> sortPhotos(List<File> photos) {
-    var sortedPhotos = List<File>.from(photos);
-    sortedPhotos.sort((a, b) {
-      final typeA = getPhotoType(a.path);
-      final typeB = getPhotoType(b.path);
-
-      if (typeA == START_PHOTO) return -1;
-      if (typeB == START_PHOTO) return 1;
-      if (typeA == END_PHOTO) return 1;
-      if (typeB == END_PHOTO) return -1;
-
-      final seqA = getPhotoSequence(a.path);
-      final seqB = getPhotoSequence(b.path);
-      return seqA.compareTo(seqB);
-    });
+    // 按照类型分组
+    final startPhotos = photos.where((p) => getPhotoType(p.path) == START_PHOTO).toList();
+    final endPhotos = photos.where((p) => getPhotoType(p.path) == END_PHOTO).toList();
+    final middlePhotos = photos.where((p) {
+      final type = getPhotoType(p.path);
+      return type == MIDDLE_PHOTO;
+    }).toList();
+    final modelPhotos = photos.where((p) {
+      final type = getPhotoType(p.path);
+      return type == MODEL_PHOTO;
+    }).toList();
+    
+    // 每组内部按序号排序
+    startPhotos.sort((a, b) => getPhotoSequence(a.path).compareTo(getPhotoSequence(b.path)));
+    middlePhotos.sort((a, b) => getPhotoSequence(a.path).compareTo(getPhotoSequence(b.path)));
+    modelPhotos.sort((a, b) => getPhotoSequence(a.path).compareTo(getPhotoSequence(b.path)));
+    endPhotos.sort((a, b) => getPhotoSequence(a.path).compareTo(getPhotoSequence(b.path)));
+    
+    // 合并四组照片，保持顺序：起始点 -> 中间点 -> 模型点 -> 结束点
+    final sortedPhotos = [...startPhotos, ...middlePhotos, ...modelPhotos, ...endPhotos];
     return sortedPhotos;
   }
 
   // 重新排序所有照片并更新序号
   static Future<void> reorderPhotos(List<File> photos) async {
     try {
-      // 先按类型和序号排序
-      var sortedPhotos = sortPhotos(photos);
-
-      // 重新分配序号
-      int currentSequence = 1;
-      for (var photo in sortedPhotos) {
-        final type = getPhotoType(photo.path);
-        if (type == START_PHOTO) {
-          // 起始点保持序号1
-          await _renameWithSequence(photo, type, 1);
-        } else if (type == END_PHOTO) {
-          // 结束点保持序号999
-          await _renameWithSequence(photo, type, 999);
-        } else {
-          // 其他照片按顺序递增
-          currentSequence++;
-          await _renameWithSequence(photo, type, currentSequence);
-        }
+      // 按照类型分组
+      final startPhotos = photos.where((p) => getPhotoType(p.path) == START_PHOTO).toList();
+      final endPhotos = photos.where((p) => getPhotoType(p.path) == END_PHOTO).toList();
+      final middlePhotos = photos.where((p) => getPhotoType(p.path) == MIDDLE_PHOTO).toList();
+      final modelPhotos = photos.where((p) => getPhotoType(p.path) == MODEL_PHOTO).toList();
+      
+      // 每组内部按序号排序
+      startPhotos.sort((a, b) => getPhotoSequence(a.path).compareTo(getPhotoSequence(b.path)));
+      middlePhotos.sort((a, b) => getPhotoSequence(a.path).compareTo(getPhotoSequence(b.path)));
+      modelPhotos.sort((a, b) => getPhotoSequence(a.path).compareTo(getPhotoSequence(b.path)));
+      endPhotos.sort((a, b) => getPhotoSequence(a.path).compareTo(getPhotoSequence(b.path)));
+      
+      // 重新分配序号 - 保持原有序号不变
+      // 起始点照片保持原有序号
+      for (int i = 0; i < startPhotos.length; i++) {
+        final currentSequence = getPhotoSequence(startPhotos[i].path);
+        await _renameWithSequence(startPhotos[i], START_PHOTO, currentSequence);
+      }
+      
+      // 中间点照片保持原有序号
+      for (int i = 0; i < middlePhotos.length; i++) {
+        final currentSequence = getPhotoSequence(middlePhotos[i].path);
+        await _renameWithSequence(middlePhotos[i], MIDDLE_PHOTO, currentSequence);
+      }
+      
+      // 模型点照片保持原有序号
+      for (int i = 0; i < modelPhotos.length; i++) {
+        final currentSequence = getPhotoSequence(modelPhotos[i].path);
+        await _renameWithSequence(modelPhotos[i], MODEL_PHOTO, currentSequence);
+      }
+      
+      // 结束点照片保持原有序号
+      for (int i = 0; i < endPhotos.length; i++) {
+        final currentSequence = getPhotoSequence(endPhotos[i].path);
+        await _renameWithSequence(endPhotos[i], END_PHOTO, currentSequence);
       }
     } catch (e) {
       print('重新排序照片失败: $e');

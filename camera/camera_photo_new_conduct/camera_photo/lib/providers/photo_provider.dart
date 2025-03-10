@@ -21,6 +21,7 @@ class PhotoProvider with ChangeNotifier {
   double _uploadProgress = 0;
   String _uploadStatus = '';
   bool _isSelectMode = false;
+  String _currentDirectoryPath = '';
 
   bool get isSelectMode => _isSelectMode;
   List<File> get photos => _photos;
@@ -415,24 +416,21 @@ class PhotoProvider with ChangeNotifier {
   // 强制重新加载照片列表
   Future<void> forceReloadPhotos() async {
     try {
-      final Directory appDir = await getApplicationDocumentsDirectory();
-      final List<FileSystemEntity> files = appDir.listSync();
+      if (_currentDirectoryPath.isEmpty) {
+        print('没有设置当前目录路径，无法重新加载照片');
+        return;
+      }
 
-      _photos = files
-          .whereType<File>()
-          .where((file) => file.path.toLowerCase().endsWith('.jpg'))
-          .toList();
+      final dir = Directory(_currentDirectoryPath);
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
 
-      // 确保照片按正确顺序排序
-      _photos = PhotoUtils.sortPhotos(_photos);
-
-      // 清除选择状态
+      _photos = await _loadPhotosInDirectory(_currentDirectoryPath);
       _selectedPhotos.clear();
-
       notifyListeners();
     } catch (e) {
       print('强制重新加载照片失败: $e');
-      rethrow;
     }
   }
 
@@ -446,6 +444,7 @@ class PhotoProvider with ChangeNotifier {
         await dir.create(recursive: true);
       }
 
+      _currentDirectoryPath = directoryPath; // 保存当前目录路径
       _photos = await _loadPhotosInDirectory(directoryPath);
       _selectedPhotos.clear();
       notifyListeners();
