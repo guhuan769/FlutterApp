@@ -1,0 +1,1 @@
+ /Users/elonsnyder/Library/code/FlutterApp/camera_photo/.dart_tool/flutter_build/6563ff9f789936d36508cea6cd8db941/native_assets.yaml: 
