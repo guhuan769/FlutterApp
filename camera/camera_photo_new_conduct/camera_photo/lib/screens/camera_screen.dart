@@ -81,13 +81,16 @@ class _CameraScreenState extends State<CameraScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _initializeCamera();
+    _initializeAll();
   }
 
   @override
   void dispose() {
-    _controller?.dispose();
-    _projectProvider.initialize();
+    WidgetsBinding.instance.removeObserver(this);
+    _disposeCamera();
+    if (mounted) {
+      _projectProvider.initialize();
+    }
     super.dispose();
   }
 
@@ -101,6 +104,21 @@ class _CameraScreenState extends State<CameraScreen>
         (size.width - _cropBoxSize) / 2,
         (size.height - _cropBoxSize) / 2,
       );
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final CameraController? cameraController = _controller;
+
+    if (cameraController == null || !cameraController.value.isInitialized) {
+      return;
+    }
+
+    if (state == AppLifecycleState.inactive) {
+      _disposeCamera();
+    } else if (state == AppLifecycleState.resumed) {
+      _initializeCamera();
     }
   }
 
@@ -146,40 +164,19 @@ class _CameraScreenState extends State<CameraScreen>
     try {
       await _disposeCamera();
 
-      // 获取保存的分辨率设置
       final savedResolution = await SettingsManager.getResolutionPreset();
-      print(
-          'Initializing camera with resolution: ${savedResolution.toString()}');
+      print('Initializing camera with resolution: ${savedResolution.toString()}');
 
-      CameraController cameraController = CameraController(
+      final CameraController cameraController = CameraController(
         _cameras[_currentCameraIndex],
-        _currentResolution,
+        savedResolution,
         enableAudio: false,
-        imageFormatGroup: ImageFormatGroup.bgra8888,
+        imageFormatGroup: ImageFormatGroup.jpeg,
       );
-      //imageFormatGroup: ImageFormatGroup.jpeg,
-      // final CameraController cameraController = CameraController(
-      //   cameraDescription,
-      //   ResolutionPreset.max,
-      //   enableAudio: false,
-      // );
 
       _controller = cameraController;
 
       await cameraController.initialize();
-
-      // 打印当前相机配置
-      // 打印当前相机配置
-      print('Camera description: ${_cameras[_currentCameraIndex].toString()}');
-      print('Current resolution preset: ${savedResolution.toString()}');
-
-      if (cameraController.value.isInitialized) {
-        final size = cameraController.value.previewSize;
-        if (size != null) {
-          print('Preview size: ${size.width}x${size.height}');
-        }
-      }
-
       await cameraController.setFlashMode(FlashMode.off);
 
       _maxAvailableZoom = await cameraController.getMaxZoomLevel();
@@ -195,21 +192,17 @@ class _CameraScreenState extends State<CameraScreen>
       }
     } catch (e) {
       print('相机初始化错误: $e');
-      _retryInitialize();
-    }
-  }
-
-  Future<void> _retryInitialize() async {
-    if (_retryCount < _maxRetries) {
-      _retryCount++;
-      print('尝试重新初始化相机: 第 $_retryCount 次');
-      await Future.delayed(Duration(milliseconds: 500 * _retryCount));
-      if (mounted) {
-        _initializeCamera();
-      }
-    } else {
-      if (mounted) {
-        _showError('无法初始化相机，请检查相机权限或重启应用');
+      if (_retryCount < _maxRetries) {
+        _retryCount++;
+        print('尝试重新初始化相机: 第 $_retryCount 次');
+        await Future.delayed(Duration(milliseconds: 500 * _retryCount));
+        if (mounted) {
+          _initializeCamera();
+        }
+      } else {
+        if (mounted) {
+          _showError('无法初始化相机，请检查相机权限或重启应用');
+        }
       }
     }
   }
@@ -225,7 +218,9 @@ class _CameraScreenState extends State<CameraScreen>
     } finally {
       _controller = null;
       if (mounted) {
-        setState(() => _isCameraInitialized = false);
+        setState(() {
+          _isCameraInitialized = false;
+        });
       }
     }
   }
