@@ -8,7 +8,8 @@
     <application
         android:label="图像采集"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:enableOnBackInvokedCallback="true">
 
         <!-- 添加以下配置来支持文件共享 -->
         <provider

@@ -83,11 +83,17 @@ class _CameraScreenState extends State<CameraScreen>
 
   @override
   void dispose() {
-    // 在页面销毁时刷新项目列表
-    Future.microtask(() =>
-        Provider.of<ProjectProvider>(context, listen: false).initialize());
-    _controller?.dispose();
-    super.dispose();
+    if (mounted) {
+      // 在页面销毁前刷新项目列表
+      final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
+      projectProvider.initialize().then((_) {
+        _controller?.dispose();
+        super.dispose();
+      });
+    } else {
+      _controller?.dispose();
+      super.dispose();
+    }
   }
 
   @override
