@@ -488,7 +488,7 @@ class _CameraScreenState extends State<CameraScreen>
   // ====== 主拍照方法 ======
 
   // 修改拍照方法
-  Future<void> _takePicture(PhotoMode photoMode) async {
+  Future<void> _takePicture(PhotoMode mode) async {
     if (_controller == null ||
         !_controller!.value.isInitialized ||
         _isCapturing) {
@@ -506,7 +506,14 @@ class _CameraScreenState extends State<CameraScreen>
         throw Exception('未选择项目');
       }
 
-      final String savePath = currentTrack?.path ?? currentProject!.path;
+      // 获取当前路由参数
+      final Map<String, dynamic>? args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      final Vehicle? currentVehicle = args?['vehicle'] as Vehicle?;
+      
+      // 根据当前模式选择保存路径
+      final String savePath = currentTrack?.path ?? 
+                            (currentVehicle?.path ?? currentProject!.path);
+
       final DateTime now = DateTime.now();
       final String timestamp =
           "${now.year}${now.month.toString().padLeft(2, '0')}"
@@ -518,7 +525,7 @@ class _CameraScreenState extends State<CameraScreen>
       final existingPhotos = photoProvider.photos;
 
       // 根据模式处理照片
-      switch (photoMode) {
+      switch (mode) {
         case PhotoMode.start:
           await _handleStartPointPhoto(
               photo.path, savePath, timestamp, existingPhotos);
@@ -548,7 +555,7 @@ class _CameraScreenState extends State<CameraScreen>
       // 显示提示
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${_getModePrefix(photoMode)}已保存')),
+          SnackBar(content: Text('${_getModePrefix(mode)}已保存')),
         );
       }
     } catch (e) {

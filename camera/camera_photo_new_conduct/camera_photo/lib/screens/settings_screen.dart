@@ -33,7 +33,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _loadSettings() async {
     final savedUrl =
         (await SharedPreferences.getInstance()).getString('api_url') ??
-            'http://your-server:5000/upload';
+            'http://localhost:5000';
     final cropEnabled =  false;//await SettingsManager.getCropEnabled();
     final resolution = await SettingsManager.getResolutionPreset();
     final showCenterPoint = await SettingsManager.getShowCenterPoint();

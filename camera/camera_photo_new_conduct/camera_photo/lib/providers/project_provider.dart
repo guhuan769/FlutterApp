@@ -773,7 +773,9 @@ class ProjectProvider with ChangeNotifier {
       projectName: project.name,
     );
 
-    if (!status.isComplete) {
+    // 如果已经在上传中，则不要重复上传
+    if (status.isComplete == false) {
+      print('项目 ${project.name} 正在上传中...');
       return;
     }
 
@@ -795,7 +797,11 @@ class ProjectProvider with ChangeNotifier {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final apiUrl = '${prefs.getString('api_url') ?? 'http://localhost:5000'}/upload';
+      final apiUrl = prefs.getString('api_url');
+      
+      if (apiUrl == null || apiUrl.isEmpty) {
+        throw Exception('请先在设置中配置服务器地址');
+      }
 
       // 收集文件
       final allFiles = await _prepareFilesForUpload(project);
@@ -822,7 +828,7 @@ class ProjectProvider with ChangeNotifier {
       // 上传批次
       final batchResults = await _uploadBatchesConcurrently(
         batches: batches,
-        apiUrl: apiUrl,
+        apiUrl: '$apiUrl/upload',
         project: project,
         type: type,
         value: value,

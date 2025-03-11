@@ -383,46 +383,137 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('确认上传'),
-          content: SingleChildScrollView(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              const Icon(Icons.cloud_upload, color: Colors.blue),
+              const SizedBox(width: 8),
+              const Text('确认上传'),
+            ],
+          ),
+          content: Container(
+            width: MediaQuery.of(context).size.width * 0.8,
+            constraints: const BoxConstraints(maxWidth: 400),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('项目名称: ${project.name}'),
-                const SizedBox(height: 8),
-                Text('照片数量: $totalPhotos'),
-                const SizedBox(height: 8),
-                Text('车辆数量: $totalVehicles'),
-                const SizedBox(height: 16),
-                const Text('请选择上传类型:'),
+                _buildInfoRow(Icons.folder, '项目名称', project.name),
+                const SizedBox(height: 12),
+                _buildInfoRow(Icons.photo_library, '照片数量', '$totalPhotos'),
+                const SizedBox(height: 12),
+                _buildInfoRow(Icons.directions_car, '车辆数量', '$totalVehicles'),
+                const SizedBox(height: 20),
+                const Text(
+                  '请选择上传类型:',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildUploadTypeButton(
+                      context,
+                      icon: Icons.architecture,
+                      label: '模型',
+                      color: Colors.blue,
+                      onTap: () async {
+                        Navigator.of(context).pop();
+                        await _showTypeSelectionDialog(project, UploadType.model);
+                      },
+                    ),
+                    _buildUploadTypeButton(
+                      context,
+                      icon: Icons.build,
+                      label: '工艺',
+                      color: Colors.green,
+                      onTap: () async {
+                        Navigator.of(context).pop();
+                        await _showTypeSelectionDialog(project, UploadType.craft);
+                      },
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
           actions: <Widget>[
             TextButton(
               child: const Text('取消'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: const Text('模型'),
-              onPressed: () async {
-                Navigator.of(context).pop();
-                await _showTypeSelectionDialog(project, UploadType.model);
-              },
-            ),
-            TextButton(
-              child: const Text('工艺'),
-              onPressed: () async {
-                Navigator.of(context).pop();
-                await _showTypeSelectionDialog(project, UploadType.craft);
-              },
+              onPressed: () => Navigator.of(context).pop(),
             ),
           ],
         );
       },
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: Colors.grey[600]),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 14,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUploadTypeButton(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          decoration: BoxDecoration(
+            border: Border.all(color: color.withOpacity(0.5)),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 32),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -438,25 +529,86 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('选择${type == UploadType.model ? "模型" : "工艺"}类型'),
-          content: SizedBox(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(
+                type == UploadType.model ? Icons.architecture : Icons.build,
+                color: type == UploadType.model ? Colors.blue : Colors.green,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '选择${type == UploadType.model ? "模型" : "工艺"}类型',
+                style: const TextStyle(fontSize: 18),
+              ),
+            ],
+          ),
+          content: Container(
             width: double.maxFinite,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: options.map((option) => ListTile(
-                  title: Text(option),
-                  onTap: () async {
-                    Navigator.of(context).pop();
-                    final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
-                    await projectProvider.uploadProject(project, type: type, value: option);
-                  },
-                )).toList(),
+            constraints: const BoxConstraints(maxHeight: 300),
+            child: GridView.count(
+              crossAxisCount: 2,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              shrinkWrap: true,
+              children: options.map((option) => _buildOptionButton(
+                context,
+                option: option,
+                type: type,
+                onTap: () async {
+                  Navigator.of(context).pop();
+                  final projectProvider = Provider.of<ProjectProvider>(
+                    context,
+                    listen: false,
+                  );
+                  await projectProvider.uploadProject(project, type: type, value: option);
+                },
+              )).toList(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              child: const Text('取消'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildOptionButton(
+    BuildContext context, {
+    required String option,
+    required UploadType type,
+    required VoidCallback onTap,
+  }) {
+    final color = type == UploadType.model ? Colors.blue : Colors.green;
+    
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: color.withOpacity(0.5)),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Center(
+            child: Text(
+              option,
+              style: TextStyle(
+                color: color,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -507,6 +659,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     settings: RouteSettings(
                       arguments: {
                         'project': project,
+                        'vehicle': null,
                         'track': null,
                       },
                     ),
@@ -593,6 +746,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         settings: RouteSettings(
                           arguments: {
                             'project': project,
+                            'vehicle': vehicle,
                             'track': null,
                           },
                         ),
@@ -670,6 +824,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         settings: RouteSettings(
                           arguments: {
                             'project': project,
+                            'vehicle': vehicle,
                             'track': track,
                           },
                         ),

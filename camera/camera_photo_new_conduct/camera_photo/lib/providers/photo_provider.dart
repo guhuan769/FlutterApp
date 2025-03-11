@@ -16,7 +16,6 @@ import '../models/project.dart';
 class PhotoProvider with ChangeNotifier {
   List<File> _photos = [];
   Set<File> _selectedPhotos = {};
-  String _apiUrl = 'http://your-server:5000';
   bool _isUploading = false;
   double _uploadProgress = 0;
   String _uploadStatus = '';
@@ -29,7 +28,6 @@ class PhotoProvider with ChangeNotifier {
   bool get isUploading => _isUploading;
   double get uploadProgress => _uploadProgress;
   String get uploadStatus => _uploadStatus;
-  String get apiUrl => _apiUrl;
 
   PhotoProvider() {
     _initializeProvider();
@@ -37,9 +35,7 @@ class PhotoProvider with ChangeNotifier {
 
   Future<void> _initializeProvider() async {
     await loadPhotos();
-    await _loadSavedUrl();
   }
-
 
   Future<void> handlePhoto(XFile photo, String savePath, String photoType) async {
     final now = DateTime.now();
@@ -64,7 +60,6 @@ class PhotoProvider with ChangeNotifier {
     await loadPhotosForProjectOrTrack(savePath);
   }
 
-
   Future<void> _handleStartPhoto(XFile photo, String savePath, String timestamp) async {
     // Find existing start photos
     final startPhotos = _photos.where(
@@ -83,7 +78,6 @@ class PhotoProvider with ChangeNotifier {
     final newPath = path.join(savePath, filename);
     await File(photo.path).copy(newPath);
   }
-
 
   Future<void> _handleMiddlePhoto(XFile photo, String savePath, String timestamp) async {
     final sortedPhotos = PhotoUtils.sortPhotos(_photos);
@@ -136,20 +130,92 @@ class PhotoProvider with ChangeNotifier {
     await File(photo.path).copy(newPath);
   }
 
+  Future<void> uploadPhotosWithConfig(UploadType type, String value) async {
+    if (_selectedPhotos.isEmpty) return;
 
-  Future<void> setApiUrl(String url) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('api_url', url);
-      _apiUrl = url;
+    _isUploading = true;
+    _uploadProgress = 0;
+    _uploadStatus = '准备上传...';
+    notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    final apiUrl = prefs.getString('api_url');
+    
+    if (apiUrl == null || apiUrl.isEmpty) {
+      _uploadStatus = '错误：请先在设置中配置服务器地址';
       notifyListeners();
-    } catch (e) {
-      print('Error setting API URL: $e');
-      throw Exception('Failed to save API URL');
+      await Future.delayed(const Duration(seconds: 2));
+      _isUploading = false;
+      notifyListeners();
+      return;
+    }
+
+    int total = _selectedPhotos.length;
+    int completed = 0;
+
+    try {
+      for (var photo in _selectedPhotos) {
+        _uploadStatus = '正在上传 ${completed + 1}/$total';
+        notifyListeners();
+
+        try {
+          var request = http.MultipartRequest('POST', Uri.parse('$apiUrl/upload'));
+
+          final mimeType = lookupMimeType(photo.path) ?? 'image/jpeg';
+
+          var multipartFile = await http.MultipartFile.fromPath(
+            'file',
+            photo.path,
+            contentType: MediaType.parse(mimeType),
+          );
+
+          // 添加上传类型和值
+          request.fields['type'] = type.name;
+          request.fields['value'] = value;
+
+          request.files.add(multipartFile);
+          request.headers.addAll({
+            'Accept': 'application/json',
+            'Content-Type': 'multipart/form-data',
+          });
+
+          var streamedResponse = await request.send();
+          var response = await http.Response.fromStream(streamedResponse);
+
+          if (response.statusCode == 200) {
+            completed++;
+            _uploadProgress = completed / total;
+            notifyListeners();
+          } else {
+            print('Upload failed with status: ${response.statusCode}');
+            print('Response body: ${response.body}');
+            _uploadStatus = '上传失败: ${photo.path} (${response.statusCode})';
+            notifyListeners();
+            await Future.delayed(const Duration(seconds: 2));
+          }
+        } catch (e) {
+          print('Upload error: $e');
+          _uploadStatus = '上传错误: $e';
+          notifyListeners();
+          await Future.delayed(const Duration(seconds: 2));
+        }
+      }
+
+      if (completed == total) {
+        _uploadStatus = '上传完成！';
+      } else {
+        _uploadStatus = '部分上传失败，完成: $completed/$total';
+      }
+    } finally {
+      await Future.delayed(const Duration(seconds: 2));
+      _isUploading = false;
+      _uploadProgress = 0;
+      _uploadStatus = '';
+      _selectedPhotos.clear();
+      notifyListeners();
     }
   }
 
-  // 在 PhotoProvider 类中更新这个方法
   Future<void> loadPhotos() async {
     try {
       final Directory appDir = await getApplicationDocumentsDirectory();
@@ -231,166 +297,76 @@ class PhotoProvider with ChangeNotifier {
   }
 
   Future<void> uploadSelectedPhotos() async {
-    if (_selectedPhotos.isEmpty) return;
-
-    _isUploading = true;
-    _uploadProgress = 0;
-    _uploadStatus = '准备上传...';
-    notifyListeners();
-
-    final prefs = await SharedPreferences.getInstance();
-    final savedUrl = '${prefs.getString('api_url')}/upload' ?? _apiUrl;
-
-    int total = _selectedPhotos.length;
-    int completed = 0;
+    if (_selectedPhotos.isEmpty || _isUploading) return;
 
     try {
-      for (var photo in _selectedPhotos) {
-        _uploadStatus = '正在上传 ${completed + 1}/$total';
-        notifyListeners();
-
-        try {
-          // 创建multipart请求
-          var request = http.MultipartRequest('POST', Uri.parse(savedUrl));
-
-          // 获取文件MIME类型
-          final mimeType = lookupMimeType(photo.path) ?? 'image/jpeg';
-
-          // 添加文件，保持原始分辨率
-          var multipartFile = await http.MultipartFile.fromPath(
-            'file',
-            photo.path,
-            contentType: MediaType.parse(mimeType),
-          );
-
-          // 添加其他必要的头部信息
-          request.files.add(multipartFile);
-          request.headers.addAll({
-            'Accept': 'application/json',
-            'Content-Type': 'multipart/form-data',
-          });
-
-          // 发送请求
-          var streamedResponse = await request.send();
-          var response = await http.Response.fromStream(streamedResponse);
-
-          if (response.statusCode == 200) {
-            completed++;
-            _uploadProgress = completed / total;
-            notifyListeners();
-          } else {
-            print('Upload failed with status: ${response.statusCode}');
-            print('Response body: ${response.body}');
-            _uploadStatus = '上传失败: ${photo.path} (${response.statusCode})';
-            notifyListeners();
-            await Future.delayed(const Duration(seconds: 2));
-          }
-        } catch (e) {
-          print('Upload error: $e');
-          _uploadStatus = '上传错误: $e';
-          notifyListeners();
-          await Future.delayed(const Duration(seconds: 2));
-        }
-      }
-
-      if (completed == total) {
-        _uploadStatus = '上传完成！';
-      } else {
-        _uploadStatus = '部分上传失败，完成: $completed/$total';
-      }
-    } finally {
-      await Future.delayed(const Duration(seconds: 2));
-      _isUploading = false;
+      _isUploading = true;
       _uploadProgress = 0;
-      _uploadStatus = '';
-      _selectedPhotos.clear();
+      _uploadStatus = '准备上传...';
       notifyListeners();
-    }
-  }
 
-  // 在 PhotoProvider 类中添加以下方法:
-// 在 PhotoProvider 类中修改上传方法：
+      final prefs = await SharedPreferences.getInstance();
+      final apiUrl = prefs.getString('api_url');
+      
+      if (apiUrl == null || apiUrl.isEmpty) {
+        throw Exception('请先在设置中配置服务器地址');
+      }
 
-  Future<void> uploadPhotosWithConfig(UploadType type, String value) async {
-    if (_selectedPhotos.isEmpty) return;
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$apiUrl/upload/photos'),
+      );
 
-    _isUploading = true;
-    _uploadProgress = 0;
-    _uploadStatus = '准备上传...';
-    notifyListeners();
-
-    final prefs = await SharedPreferences.getInstance();
-    final savedUrl = '${prefs.getString('api_url')}/upload' ?? _apiUrl;
-
-    int total = _selectedPhotos.length;
-    int completed = 0;
-
-    try {
+      int count = 0;
       for (var photo in _selectedPhotos) {
-        _uploadStatus = '正在上传 ${completed + 1}/$total';
-        notifyListeners();
-
-        try {
-          var request = http.MultipartRequest('POST', Uri.parse(savedUrl));
-
-          final mimeType = lookupMimeType(photo.path) ?? 'image/jpeg';
-
-          var multipartFile = await http.MultipartFile.fromPath(
-            'file',
-            photo.path,
-            contentType: MediaType.parse(mimeType),
+        if (await photo.exists()) {
+          request.files.add(
+            await http.MultipartFile.fromPath(
+              'photos[]',
+              photo.path,
+              filename: path.basename(photo.path),
+            ),
           );
-
-          // 添加上传类型和值
-          request.fields['type'] = type.name;  // 'model' 或 'craft'
-          request.fields['value'] = value;     // 具体的值
-
-          request.files.add(multipartFile);
-          request.headers.addAll({
-            'Accept': 'application/json',
-            'Content-Type': 'multipart/form-data',
-          });
-
-          var streamedResponse = await request.send();
-          var response = await http.Response.fromStream(streamedResponse);
-
-          if (response.statusCode == 200) {
-            completed++;
-            _uploadProgress = completed / total;
-            notifyListeners();
-          } else {
-            print('Upload failed with status: ${response.statusCode}');
-            print('Response body: ${response.body}');
-            _uploadStatus = '上传失败: ${photo.path} (${response.statusCode})';
-            notifyListeners();
-            await Future.delayed(const Duration(seconds: 2));
-          }
-        } catch (e) {
-          print('Upload error: $e');
-          _uploadStatus = '上传错误: $e';
+          count++;
+          _uploadProgress = count / _selectedPhotos.length;
+          _uploadStatus = '正在准备文件 $count/${_selectedPhotos.length}';
           notifyListeners();
-          await Future.delayed(const Duration(seconds: 2));
         }
       }
 
-      if (completed == total) {
-        _uploadStatus = '上传完成！';
+      _uploadStatus = '正在上传...';
+      notifyListeners();
+
+      var response = await request.send();
+      var responseData = await response.stream.bytesToString();
+
+      if (response.statusCode == 200) {
+        _uploadStatus = '上传成功！';
+        _selectedPhotos.clear();
       } else {
-        _uploadStatus = '部分上传失败，完成: $completed/$total';
+        _uploadStatus = '上传失败: ${response.statusCode}';
+        print('Upload failed: $responseData');
       }
+    } catch (e) {
+      _uploadStatus = '上传错误: $e';
+      print('Upload error: $e');
     } finally {
-      await Future.delayed(const Duration(seconds: 2));
       _isUploading = false;
       _uploadProgress = 0;
       _uploadStatus = '';
-      _selectedPhotos.clear();
       notifyListeners();
     }
   }
 
   Future<void> _loadSavedUrl() async {
     final prefs = await SharedPreferences.getInstance();
-    _apiUrl = prefs.getString('api_url') ?? _apiUrl;
+    final savedUrl = prefs.getString('api_url');
+    if (savedUrl != null && savedUrl.isNotEmpty) {
+      _uploadStatus = '服务器地址已加载';
+    } else {
+      _uploadStatus = '请在设置中配置服务器地址';
+    }
+    notifyListeners();
   }
 
   // 删除特定类型的照片
@@ -434,9 +410,6 @@ class PhotoProvider with ChangeNotifier {
     }
   }
 
-
-
-
   Future<void> loadPhotosForProjectOrTrack(String directoryPath) async {
     try {
       final dir = Directory(directoryPath);
@@ -477,10 +450,14 @@ class PhotoProvider with ChangeNotifier {
       notifyListeners();
 
       final prefs = await SharedPreferences.getInstance();
-      final apiUrl = '${prefs.getString('api_url') ?? _apiUrl}/upload/project';
+      final apiUrl = prefs.getString('api_url');
+      
+      if (apiUrl == null || apiUrl.isEmpty) {
+        throw Exception('请先在设置中配置服务器地址');
+      }
 
       // 创建multipart请求
-      var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
+      var request = http.MultipartRequest('POST', Uri.parse('$apiUrl/upload/project'));
 
       // 添加项目信息
       request.fields['project_info'] = json.encode(project.toJson());
@@ -653,7 +630,27 @@ class PhotoProvider with ChangeNotifier {
     }
   }
 
+  Future<String?> getUploadUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    final apiUrl = prefs.getString('api_url');
+    if (apiUrl == null || apiUrl.isEmpty) {
+      return null;
+    }
+    return '$apiUrl/upload';
+  }
 
+  Future<bool> testConnection() async {
+    try {
+      final url = await getUploadUrl();
+      if (url == null) {
+        return false;
+      }
 
-
+      final response = await http.get(Uri.parse('$url/status'));
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Connection test error: $e');
+      return false;
+    }
+  }
 }
