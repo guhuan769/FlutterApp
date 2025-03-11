@@ -489,9 +489,11 @@ class PhotoProvider with ChangeNotifier {
       List<File> allFiles = [];
       // 项目照片
       allFiles.addAll(project.photos);
-      // 轨迹照片
-      for (var track in project.tracks) {
-        allFiles.addAll(track.photos);
+      // 遍历所有车辆的轨迹照片
+      for (var vehicle in project.vehicles) {
+        for (var track in vehicle.tracks) {
+          allFiles.addAll(track.photos);
+        }
       }
 
       // 添加所有文件

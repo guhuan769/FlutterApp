@@ -1,18 +1,15 @@
 // lib/screens/project_photos_screen.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../providers/photo_provider.dart';
-import '../utils/photo_utils.dart';
-import 'photo_view_screen.dart';
+import 'package:path/path.dart' as path;
 
 class ProjectPhotosScreen extends StatefulWidget {
-  final String path;
+  final String directoryPath;
   final String title;
 
   const ProjectPhotosScreen({
     Key? key,
-    required this.path,
+    required this.directoryPath,
     required this.title,
   }) : super(key: key);
 
@@ -21,208 +18,138 @@ class ProjectPhotosScreen extends StatefulWidget {
 }
 
 class _ProjectPhotosScreenState extends State<ProjectPhotosScreen> {
+  List<File> _photos = [];
+  bool _isLoading = true;
+
   @override
   void initState() {
     super.initState();
-    Future.microtask(() =>
-        Provider.of<PhotoProvider>(context, listen: false)
-            .loadPhotosForProjectOrTrack(widget.path));
+    _loadPhotos();
   }
 
-  String _getPhotoInfo(File photo) {
-    final fileName = photo.path.split('/').last;
-    final photoType = PhotoUtils.getPhotoType(photo.path);
-    final sequence = PhotoUtils.getPhotoSequence(photo.path);
-    return '$photoType\n序号: $sequence\n$fileName';
+  Future<void> _loadPhotos() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final dir = Directory(widget.directoryPath);
+      if (!await dir.exists()) {
+        setState(() {
+          _photos = [];
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final List<File> photos = [];
+      await for (var entity in dir.list(recursive: false)) {
+        if (entity is File &&
+            entity.path.toLowerCase().endsWith('.jpg') &&
+            !path.basename(entity.path).startsWith('.')) {
+          photos.add(entity);
+        }
+      }
+
+      photos.sort((a, b) => b.path.compareTo(a.path));
+
+      setState(() {
+        _photos = photos;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('加载照片失败: $e')),
+        );
+      }
+      setState(() {
+        _photos = [];
+        _isLoading = false;
+      });
+    }
   }
 
-  Widget _buildPhotoItem(BuildContext context, File photo, bool isSelected, int index, PhotoProvider provider) {
-    final photoType = PhotoUtils.getPhotoType(photo.path);
-    final sequence = PhotoUtils.getPhotoSequence(photo.path);
+  Future<void> _deletePhoto(File photo) async {
+    try {
+      await photo.delete();
+      setState(() {
+        _photos.remove(photo);
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('照片已删除')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('删除照片失败: $e')),
+        );
+      }
+    }
+  }
 
-    return Card(
-      elevation: 2,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          GestureDetector(
-            onTap: () {
-              if (provider.isSelectMode) {
-                provider.togglePhotoSelection(photo);
-              } else {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => PhotoViewScreen(
-                      photos: provider.photos,
-                      initialIndex: index,
-                    ),
-                  ),
-                );
-              }
-            },
-            onLongPress: () {
-              if (!provider.isSelectMode) {
-                provider.toggleSelectMode();
-                provider.togglePhotoSelection(photo);
-              }
-            },
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+  void _showPhotoDialog(File photo) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Stack(
               children: [
-                Expanded(
-                  child: Image.file(
-                    photo,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  color: Colors.black.withOpacity(0.7),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        photoType,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        '序号: $sequence',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ],
+                Image.file(photo),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                    ),
+                    onPressed: () => Navigator.pop(context),
                   ),
                 ),
               ],
             ),
-          ),
-          if (provider.isSelectMode)
-            Positioned(
-              top: 8,
-              right: 8,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: isSelected ? Colors.blue : Colors.white,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white,
-                    width: 2,
-                  ),
+            ButtonBar(
+              children: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _showDeleteConfirmationDialog(photo);
+                  },
+                  child: const Text('删除'),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(2),
-                  child: Icon(
-                    isSelected ? Icons.check : Icons.circle_outlined,
-                    size: 20,
-                    color: isSelected ? Colors.white : Colors.grey,
-                  ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('关闭'),
                 ),
-              ),
+              ],
             ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<PhotoProvider>(
-      builder: (context, provider, _) => Scaffold(
-        appBar: AppBar(
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(widget.title),
-              if (provider.photos.isNotEmpty)
-                Text(
-                  '${provider.photos.length} 张照片',
-                  style: const TextStyle(fontSize: 12),
-                ),
-            ],
-          ),
-          leading: provider.isSelectMode
-              ? IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: provider.toggleSelectMode,
-          )
-              : IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => Navigator.pop(context),
-          ),
-          actions: [
-            if (!provider.isSelectMode)
-              IconButton(
-                icon: const Icon(Icons.check_box_outlined),
-                onPressed: provider.toggleSelectMode,
-              ),
-            if (provider.isSelectMode) ...[
-              IconButton(
-                icon: const Icon(Icons.select_all),
-                onPressed: provider.photos.length == provider.selectedPhotos.length
-                    ? provider.clearSelection
-                    : provider.selectAll,
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete),
-                onPressed: provider.selectedPhotos.isEmpty
-                    ? null
-                    : () => _showDeleteConfirmation(context, provider),
-              ),
-            ],
           ],
         ),
-        body: provider.photos.isEmpty
-            ? const Center(child: Text('暂无照片'))
-            : GridView.builder(
-          padding: const EdgeInsets.all(8),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 8,
-            mainAxisSpacing: 8,
-            childAspectRatio: 0.75,
-          ),
-          itemCount: provider.photos.length,
-          itemBuilder: (context, index) {
-            final photo = provider.photos[index];
-            final isSelected = provider.selectedPhotos.contains(photo);
-            return _buildPhotoItem(
-              context,
-              photo,
-              isSelected,
-              index,
-              provider,
-            );
-          },
-        ),
       ),
     );
   }
 
-  Future<void> _showDeleteConfirmation(
-      BuildContext context,
-      PhotoProvider provider,
-      ) async {
-    final result = await showDialog<bool>(
+  void _showDeleteConfirmationDialog(File photo) {
+    showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('确认删除'),
-        content: Text(
-          '确定要删除选中的 ${provider.selectedPhotos.length} 张照片吗？',
-        ),
+        content: const Text('确定要删除这张照片吗？'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(context),
             child: const Text('取消'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () {
+              Navigator.pop(context);
+              _deletePhoto(photo);
+            },
             child: const Text(
               '删除',
               style: TextStyle(color: Colors.red),
@@ -231,10 +158,41 @@ class _ProjectPhotosScreenState extends State<ProjectPhotosScreen> {
         ],
       ),
     );
+  }
 
-    if (result == true && mounted) {
-      await provider.deleteSelectedPhotos();
-      await provider.loadPhotosForProjectOrTrack(widget.path);
-    }
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.title),
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _photos.isEmpty
+              ? const Center(child: Text('暂无照片'))
+              : GridView.builder(
+                  padding: const EdgeInsets.all(4),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    childAspectRatio: 1,
+                    crossAxisSpacing: 4,
+                    mainAxisSpacing: 4,
+                  ),
+                  itemCount: _photos.length,
+                  itemBuilder: (context, index) {
+                    final photo = _photos[index];
+                    return InkWell(
+                      onTap: () => _showPhotoDialog(photo),
+                      child: Hero(
+                        tag: photo.path,
+                        child: Image.file(
+                          photo,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+    );
   }
 }

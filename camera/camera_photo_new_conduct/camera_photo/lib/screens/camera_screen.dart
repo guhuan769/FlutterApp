@@ -38,8 +38,8 @@ class _CameraScreenState extends State<CameraScreen>
     with WidgetsBindingObserver {
   // ====== 相机控制相关变量 ======
   CameraController? _controller;
-  bool _isInitialized = false;
-  bool _isProcessing = false;
+  bool _isCameraInitialized = false;
+  bool _isCapturing = false;
   List<CameraDescription> _cameras = [];
   int _currentCameraIndex = 0;
 
@@ -78,28 +78,7 @@ class _CameraScreenState extends State<CameraScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-
-    // 使用 Future.microtask 来确保在构建完成后初始化
-    Future.microtask(() {
-      // 获取当前项目和轨迹状态
-      final projectProvider =
-          Provider.of<ProjectProvider>(context, listen: false);
-      setState(() {
-        currentProject = projectProvider.currentProject;
-        currentTrack = projectProvider.currentTrack;
-      });
-
-      // 加载照片
-      if (currentProject != null) {
-        final photoProvider =
-            Provider.of<PhotoProvider>(context, listen: false);
-        final path = currentTrack?.path ?? currentProject!.path;
-        photoProvider.loadPhotosForProjectOrTrack(path);
-      }
-
-      // 初始化相机
-      _initializeAll();
-    });
+    _initializeCamera();
   }
 
   @override
@@ -107,6 +86,7 @@ class _CameraScreenState extends State<CameraScreen>
     // 在页面销毁时刷新项目列表
     Future.microtask(() =>
         Provider.of<ProjectProvider>(context, listen: false).initialize());
+    _controller?.dispose();
     super.dispose();
   }
 
@@ -205,7 +185,7 @@ class _CameraScreenState extends State<CameraScreen>
 
       if (mounted) {
         setState(() {
-          _isInitialized = true;
+          _isCameraInitialized = true;
           _currentZoom = 1.0;
           _retryCount = 0;
           _currentResolution = savedResolution;
@@ -243,7 +223,7 @@ class _CameraScreenState extends State<CameraScreen>
     } finally {
       _controller = null;
       if (mounted) {
-        setState(() => _isInitialized = false);
+        setState(() => _isCameraInitialized = false);
       }
     }
   }
@@ -505,11 +485,13 @@ class _CameraScreenState extends State<CameraScreen>
   Future<void> _takePicture(PhotoMode photoMode) async {
     if (_controller == null ||
         !_controller!.value.isInitialized ||
-        _isProcessing) {
+        _isCapturing) {
       return;
     }
 
-    setState(() => _isProcessing = true);
+    setState(() {
+      _isCapturing = true;
+    });
 
     try {
       final XFile photo = await _controller!.takePicture();
@@ -572,7 +554,9 @@ class _CameraScreenState extends State<CameraScreen>
       }
     } finally {
       if (mounted) {
-        setState(() => _isProcessing = false);
+        setState(() {
+          _isCapturing = false;
+        });
       }
     }
   }
@@ -647,10 +631,10 @@ class _CameraScreenState extends State<CameraScreen>
             child: FloatingActionButton(
               backgroundColor: Colors.white.withOpacity(0.2),
               elevation: 0,
-              onPressed: (_isProcessing || !isEnabled)
+              onPressed: (_isCapturing || !isEnabled)
                   ? null
                   : () => _takePicture(mode),
-              child: _isProcessing
+              child: _isCapturing
                   ? const SizedBox(
                       width: 24,
                       height: 24,
@@ -697,7 +681,7 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Future<void> _handleScaleUpdate(ScaleUpdateDetails details) async {
-    if (!_isInitialized || _controller == null) return;
+    if (!_isCameraInitialized || _controller == null) return;
 
     double scale = (_baseScale * details.scale).clamp(
       _minAvailableZoom,
@@ -718,7 +702,7 @@ class _CameraScreenState extends State<CameraScreen>
 
   // ====== 对焦相关方法 ======
   Future<void> _handleTapUp(TapUpDetails details) async {
-    if (!_isInitialized || _controller == null) return;
+    if (!_isCameraInitialized || _controller == null) return;
 
     final Offset tapPosition = details.localPosition;
     final Size previewSize = MediaQuery.of(context).size;
@@ -886,17 +870,25 @@ class _CameraScreenState extends State<CameraScreen>
     // 如果项目未初始化，禁用所有按钮
     if (currentProject == null) return false;
 
-    if (currentTrack == null) {
-      // 项目模式：只允许模型点拍照
-      return mode == PhotoMode.model;
-    } else {
-      // 轨迹模式：允许除模型点外的所有类型
+    if (currentTrack != null) {
+      // 轨迹模式：允许起点、中间点和结束点拍照，禁用模型点
       return mode != PhotoMode.model;
+    } else {
+      // 项目或车辆模式：只允许模型点拍照
+      return mode == PhotoMode.model;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!_isCameraInitialized) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -908,7 +900,7 @@ class _CameraScreenState extends State<CameraScreen>
         fit: StackFit.expand,
         children: [
           // 相机预览
-          if (_isInitialized && _controller != null)
+          if (_isCameraInitialized && _controller != null)
             GestureDetector(
               onScaleStart: _handleScaleStart,
               onScaleUpdate: _handleScaleUpdate,
@@ -922,7 +914,7 @@ class _CameraScreenState extends State<CameraScreen>
 
           // 根据设置显示裁剪框
           if (false)
-            if (_isInitialized && _cropEnabled)
+            if (_isCameraInitialized && _cropEnabled)
               Positioned.fill(
                 child: GestureDetector(
                   onPanStart: _handleCropBoxPanStart,
@@ -938,9 +930,9 @@ class _CameraScreenState extends State<CameraScreen>
                 ),
               ),
           // 显示分辨率指示器
-          if (_isInitialized) _buildResolutionIndicator(),
+          if (_isCameraInitialized) _buildResolutionIndicator(),
           // 中心点指示器
-          if (_isInitialized && _showCenterPoint)
+          if (_isCameraInitialized && _showCenterPoint)
             const Positioned.fill(
               child: CustomPaint(
                 painter: CenterPointPainter(),
@@ -948,7 +940,7 @@ class _CameraScreenState extends State<CameraScreen>
             ),
 
           // 拍照按钮
-          if (_isInitialized)
+          if (_isCameraInitialized)
             Positioned(
               left: 0,
               right: 0,
