@@ -773,8 +773,8 @@ class ProjectProvider with ChangeNotifier {
       projectName: project.name,
     );
 
-    // 如果已经在上传中，则不要重复上传
-    if (status.isComplete == false) {
+    // 如果正在上传中，则不要重复上传
+    if (!status.isComplete && status.uploadTime.isAfter(DateTime.now().subtract(Duration(minutes: 1)))) {
       print('项目 ${project.name} 正在上传中...');
       return;
     }
