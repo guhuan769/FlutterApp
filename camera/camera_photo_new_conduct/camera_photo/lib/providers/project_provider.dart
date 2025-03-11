@@ -773,25 +773,43 @@ class ProjectProvider with ChangeNotifier {
       projectName: project.name,
     );
 
-    // 如果正在上传中，则不要重复上传
-    if (!status.isComplete && status.uploadTime.isAfter(DateTime.now().subtract(Duration(minutes: 1)))) {
-      print('项目 ${project.name} 正在上传中...');
+    // 检查是否真的在上传中
+    final bool isActuallyUploading = !status.isComplete && 
+        status.uploadTime.isAfter(DateTime.now().subtract(Duration(minutes: 1))) &&
+        status.progress > 0;
+
+    // 如果确实在上传中且进度大于0，则不要重复上传
+    if (isActuallyUploading) {
+      // 更新状态以显示给用户
+      status = status.copyWith(
+        status: '项目正在上传中，请等待当前上传完成\n当前进度: ${(status.progress * 100).toStringAsFixed(1)}%',
+      );
+      _uploadStatuses[project.id] = status;
+      notifyListeners();
       return;
     }
 
-    // 更新上传次数和状态
-    status = UploadStatus(
-      projectId: project.id,
-      projectName: project.name,
-      uploadCount: status.uploadCount + 1,
-      isComplete: false,
-      isSuccess: false,
-      progress: 0.0,
-      logs: List.from(status.logs), // 创建日志列表的副本
-    );
+    // 如果上一次上传失败或超时，重置状态
+    if (!status.isComplete || status.uploadTime.isBefore(DateTime.now().subtract(Duration(minutes: 1)))) {
+      status = UploadStatus(
+        projectId: project.id,
+        projectName: project.name,
+        uploadCount: status.uploadCount + 1,
+        isComplete: false,
+        isSuccess: false,
+        progress: 0.0,
+        status: '准备开始新的上传...',
+        logs: [], // 清空之前的日志
+      );
+      _uploadStatuses[project.id] = status;
+      notifyListeners();
+    }
     
     // 添加开始上传日志
     status.addLog('开始上传项目 ${project.name}');
+    status = status.copyWith(
+      status: '正在初始化上传...',
+    );
     _uploadStatuses[project.id] = status;
     notifyListeners();
 
@@ -804,18 +822,20 @@ class ProjectProvider with ChangeNotifier {
       }
 
       // 收集文件
+      status = status.copyWith(
+        status: '正在收集文件...',
+      );
+      _uploadStatuses[project.id] = status;
+      notifyListeners();
+
       final allFiles = await _prepareFilesForUpload(project);
       if (allFiles.isEmpty) {
         throw Exception('没有可上传的文件');
       }
 
       status.addLog('找到 ${allFiles.length} 个文件待上传');
-      status = UploadStatus(
-        projectId: project.id,
-        projectName: project.name,
-        uploadCount: status.uploadCount,
-        status: '准备上传 ${allFiles.length} 张照片',
-        logs: List.from(status.logs),
+      status = status.copyWith(
+        status: '准备上传 ${allFiles.length} 张照片\n正在创建上传批次...',
       );
       _uploadStatuses[project.id] = status;
       notifyListeners();
@@ -833,12 +853,10 @@ class ProjectProvider with ChangeNotifier {
         type: type,
         value: value,
         onProgress: (completed, total) {
-          status = UploadStatus(
-            projectId: project.id,
-            projectName: project.name,
-            uploadCount: status.uploadCount,
-            progress: completed / total,
-            status: '正在上传: $completed/$total',
+          final progress = completed / total;
+          status = status.copyWith(
+            progress: progress,
+            status: '正在上传: $completed/$total 批次\n总进度: ${(progress * 100).toStringAsFixed(1)}%',
             logs: List.from(status.logs),
           );
           status.addLog('已完成批次 $completed/$total');
@@ -856,13 +874,13 @@ class ProjectProvider with ChangeNotifier {
 
       // 更新最终状态
       final isSuccess = totalSuccess == totalFiles;
-      status = UploadStatus(
-        projectId: project.id,
-        projectName: project.name,
-        uploadCount: status.uploadCount,
+      final successRate = (totalSuccess / totalFiles * 100).toStringAsFixed(1);
+      status = status.copyWith(
         isComplete: true,
         isSuccess: isSuccess,
-        status: '上传完成\n成功: $totalSuccess/$totalFiles张照片',
+        status: isSuccess 
+          ? '上传完成！\n成功上传: $totalSuccess/$totalFiles 张照片 (${successRate}%)'
+          : '上传部分完成\n成功上传: $totalSuccess/$totalFiles 张照片 (${successRate}%)\n请检查网络后重试',
         logs: List.from(status.logs),
       );
       status.addLog(
@@ -872,13 +890,10 @@ class ProjectProvider with ChangeNotifier {
 
     } catch (e) {
       print('上传过程错误: $e');
-      status = UploadStatus(
-        projectId: project.id,
-        projectName: project.name,
-        uploadCount: status.uploadCount,
+      status = status.copyWith(
         isComplete: true,
         isSuccess: false,
-        status: '上传失败',
+        status: '上传失败\n错误原因: ${e.toString()}\n请检查网络和服务器设置后重试',
         error: e.toString(),
         logs: List.from(status.logs),
       );
