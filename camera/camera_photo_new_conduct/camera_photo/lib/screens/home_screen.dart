@@ -502,7 +502,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 provider.setCurrentTrack(null);
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const CameraScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const CameraScreen(),
+                    settings: RouteSettings(
+                      arguments: {
+                        'project': project,
+                        'track': null,
+                      },
+                    ),
+                  ),
                 );
               },
             ),
@@ -580,7 +588,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     provider.setCurrentTrack(null);
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const CameraScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const CameraScreen(),
+                        settings: RouteSettings(
+                          arguments: {
+                            'project': project,
+                            'track': null,
+                          },
+                        ),
+                      ),
                     );
                   },
                 ),
@@ -649,7 +665,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     provider.setCurrentTrack(track);
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const CameraScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const CameraScreen(),
+                        settings: RouteSettings(
+                          arguments: {
+                            'project': project,
+                            'track': track,
+                          },
+                        ),
+                      ),
                     );
                   },
                 ),

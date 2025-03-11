@@ -2,6 +2,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as path;
+import '../utils/photo_utils.dart';
 
 class ProjectPhotosScreen extends StatefulWidget {
   final String directoryPath;
@@ -19,7 +20,9 @@ class ProjectPhotosScreen extends StatefulWidget {
 
 class _ProjectPhotosScreenState extends State<ProjectPhotosScreen> {
   List<File> _photos = [];
+  Set<File> _selectedPhotos = {};
   bool _isLoading = true;
+  bool _isSelectMode = false;
 
   @override
   void initState() {
@@ -51,10 +54,11 @@ class _ProjectPhotosScreenState extends State<ProjectPhotosScreen> {
         }
       }
 
-      photos.sort((a, b) => b.path.compareTo(a.path));
+      // 使用 PhotoUtils 进行排序
+      final sortedPhotos = PhotoUtils.sortPhotos(photos);
 
       setState(() {
-        _photos = photos;
+        _photos = sortedPhotos;
         _isLoading = false;
       });
     } catch (e) {
@@ -75,6 +79,7 @@ class _ProjectPhotosScreenState extends State<ProjectPhotosScreen> {
       await photo.delete();
       setState(() {
         _photos.remove(photo);
+        _selectedPhotos.remove(photo);
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -88,6 +93,59 @@ class _ProjectPhotosScreenState extends State<ProjectPhotosScreen> {
         );
       }
     }
+  }
+
+  Future<void> _deleteSelectedPhotos() async {
+    try {
+      for (var photo in _selectedPhotos.toList()) {
+        await photo.delete();
+        _photos.remove(photo);
+      }
+      setState(() {
+        _selectedPhotos.clear();
+        _isSelectMode = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('已删除 ${_selectedPhotos.length} 张照片')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('删除照片失败: $e')),
+        );
+      }
+    }
+  }
+
+  void _toggleSelectMode() {
+    setState(() {
+      _isSelectMode = !_isSelectMode;
+      if (!_isSelectMode) {
+        _selectedPhotos.clear();
+      }
+    });
+  }
+
+  void _togglePhotoSelection(File photo) {
+    setState(() {
+      if (_selectedPhotos.contains(photo)) {
+        _selectedPhotos.remove(photo);
+      } else {
+        _selectedPhotos.add(photo);
+      }
+    });
+  }
+
+  void _selectAllPhotos() {
+    setState(() {
+      if (_selectedPhotos.length == _photos.length) {
+        _selectedPhotos.clear();
+      } else {
+        _selectedPhotos = Set.from(_photos);
+      }
+    });
   }
 
   void _showPhotoDialog(File photo) {
@@ -112,6 +170,13 @@ class _ProjectPhotosScreenState extends State<ProjectPhotosScreen> {
                   ),
                 ),
               ],
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                '类型: ${PhotoUtils.getPhotoType(photo.path)}',
+                style: const TextStyle(fontSize: 16),
+              ),
             ),
             ButtonBar(
               children: [
@@ -160,11 +225,58 @@ class _ProjectPhotosScreenState extends State<ProjectPhotosScreen> {
     );
   }
 
+  void _showDeleteSelectedConfirmationDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('确认删除'),
+        content: Text('确定要删除选中的 ${_selectedPhotos.length} 张照片吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteSelectedPhotos();
+            },
+            child: const Text(
+              '删除',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
+        actions: [
+          if (_photos.isNotEmpty) ...[
+            IconButton(
+              icon: Icon(_isSelectMode ? Icons.close : Icons.select_all),
+              onPressed: _toggleSelectMode,
+              tooltip: _isSelectMode ? '退出选择' : '进入选择模式',
+            ),
+            if (_isSelectMode) ...[
+              IconButton(
+                icon: const Icon(Icons.select_all),
+                onPressed: _selectAllPhotos,
+                tooltip: _selectedPhotos.length == _photos.length ? '取消全选' : '全选',
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete),
+                onPressed: _selectedPhotos.isEmpty ? null : _showDeleteSelectedConfirmationDialog,
+                tooltip: '删除选中',
+              ),
+            ],
+          ],
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -181,15 +293,62 @@ class _ProjectPhotosScreenState extends State<ProjectPhotosScreen> {
                   itemCount: _photos.length,
                   itemBuilder: (context, index) {
                     final photo = _photos[index];
-                    return InkWell(
-                      onTap: () => _showPhotoDialog(photo),
-                      child: Hero(
-                        tag: photo.path,
-                        child: Image.file(
-                          photo,
-                          fit: BoxFit.cover,
+                    final isSelected = _selectedPhotos.contains(photo);
+                    return Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        InkWell(
+                          onTap: _isSelectMode
+                              ? () => _togglePhotoSelection(photo)
+                              : () => _showPhotoDialog(photo),
+                          child: Hero(
+                            tag: photo.path,
+                            child: Image.file(
+                              photo,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
                         ),
-                      ),
+                        if (_isSelectMode)
+                          Positioned(
+                            top: 4,
+                            right: 4,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: isSelected ? Colors.blue : Colors.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: isSelected ? Colors.blue : Colors.grey,
+                                ),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(2),
+                                child: Icon(
+                                  isSelected ? Icons.check : Icons.circle_outlined,
+                                  size: 20,
+                                  color: isSelected ? Colors.white : Colors.grey,
+                                ),
+                              ),
+                            ),
+                          ),
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            color: Colors.black54,
+                            child: Text(
+                              PhotoUtils.getPhotoType(photo.path),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     );
                   },
                 ),
