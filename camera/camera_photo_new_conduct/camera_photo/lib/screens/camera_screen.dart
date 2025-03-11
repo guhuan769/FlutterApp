@@ -98,6 +98,16 @@ class _CameraScreenState extends State<CameraScreen>
   void didChangeDependencies() {
     super.didChangeDependencies();
     _projectProvider = Provider.of<ProjectProvider>(context, listen: false);
+    
+    // 获取当前项目和轨迹信息
+    final Map<String, dynamic>? args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    if (args != null) {
+      setState(() {
+        currentProject = args['project'] as Project?;
+        currentTrack = args['track'] as Track?;
+      });
+    }
+    
     if (_cropBoxPosition == Offset.zero) {
       final size = MediaQuery.of(context).size;
       _cropBoxPosition = Offset(
@@ -132,13 +142,12 @@ class _CameraScreenState extends State<CameraScreen>
   Future<void> _loadSettings() async {
     try {
       final cropEnabled = await SettingsManager.getCropEnabled();
-      final resolution = await SettingsManager.getResolutionPreset();
       final showCenterPoint = await SettingsManager.getShowCenterPoint();
 
       if (mounted) {
         setState(() {
           _cropEnabled = cropEnabled;
-          _currentResolution = resolution;
+          _currentResolution = ResolutionPreset.max; // 始终使用最高分辨率
           _showCenterPoint = showCenterPoint;
         });
       }
@@ -609,6 +618,7 @@ class _CameraScreenState extends State<CameraScreen>
   // 修改拍照按钮构建方法
   Widget _buildCaptureButton(PhotoMode mode, String label) {
     final bool isEnabled = _isButtonEnabled(mode);
+    print('构建按钮: $label, 启用状态: $isEnabled');
 
     return Opacity(
       opacity: isEnabled ? 1.0 : 0.3,
@@ -621,16 +631,14 @@ class _CameraScreenState extends State<CameraScreen>
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
-                color: Colors.white,
+                color: isEnabled ? Colors.white : Colors.grey,
                 width: 2,
               ),
             ),
             child: FloatingActionButton(
-              backgroundColor: Colors.white.withOpacity(0.2),
-              elevation: 0,
-              onPressed: (_isCapturing || !isEnabled)
-                  ? null
-                  : () => _takePicture(mode),
+              backgroundColor: isEnabled ? Colors.white.withOpacity(0.2) : Colors.grey.withOpacity(0.2),
+              elevation: isEnabled ? 2 : 0,
+              onPressed: (_isCapturing || !isEnabled) ? null : () => _takePicture(mode),
               child: _isCapturing
                   ? const SizedBox(
                       width: 24,
@@ -641,8 +649,8 @@ class _CameraScreenState extends State<CameraScreen>
                     )
                   : Container(
                       margin: const EdgeInsets.all(2),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
+                      decoration: BoxDecoration(
+                        color: isEnabled ? Colors.white : Colors.grey,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -651,8 +659,8 @@ class _CameraScreenState extends State<CameraScreen>
           const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: isEnabled ? Colors.white : Colors.grey,
               fontSize: 12,
             ),
           ),
@@ -865,14 +873,21 @@ class _CameraScreenState extends State<CameraScreen>
   // 修改按钮启用状态检查
   bool _isButtonEnabled(PhotoMode mode) {
     // 如果项目未初始化，禁用所有按钮
-    if (currentProject == null) return false;
+    if (currentProject == null) {
+      print('项目未初始化，禁用所有按钮');
+      return false;
+    }
 
     if (currentTrack != null) {
       // 轨迹模式：允许起点、中间点和结束点拍照，禁用模型点
-      return mode != PhotoMode.model;
+      final bool enabled = mode != PhotoMode.model;
+      print('轨迹模式 - ${mode.toString()}: $enabled');
+      return enabled;
     } else {
       // 项目或车辆模式：只允许模型点拍照
-      return mode == PhotoMode.model;
+      final bool enabled = mode == PhotoMode.model;
+      print('项目/车辆模式 - ${mode.toString()}: $enabled');
+      return enabled;
     }
   }
 
