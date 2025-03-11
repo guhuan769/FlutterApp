@@ -43,6 +43,9 @@ class _CameraScreenState extends State<CameraScreen>
   List<CameraDescription> _cameras = [];
   int _currentCameraIndex = 0;
 
+  // 添加 ProjectProvider 引用
+  late ProjectProvider _projectProvider;
+
   // ====== 缩放相关变量 ======
   double _minAvailableZoom = 1.0;
   double _maxAvailableZoom = 1.0;
@@ -83,22 +86,15 @@ class _CameraScreenState extends State<CameraScreen>
 
   @override
   void dispose() {
-    if (mounted) {
-      // 在页面销毁前刷新项目列表
-      final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
-      projectProvider.initialize().then((_) {
-        _controller?.dispose();
-        super.dispose();
-      });
-    } else {
-      _controller?.dispose();
-      super.dispose();
-    }
+    _controller?.dispose();
+    _projectProvider.initialize();
+    super.dispose();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _projectProvider = Provider.of<ProjectProvider>(context, listen: false);
     if (_cropBoxPosition == Offset.zero) {
       final size = MediaQuery.of(context).size;
       _cropBoxPosition = Offset(
