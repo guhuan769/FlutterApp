@@ -173,24 +173,41 @@ namespace PlyFileProcessor.Controllers
                             }
                         }
 
-                        // 确定保存路径
+                        // 修改这里：根据不同类型确定保存路径
                         string savePath;
-                        if (fileInfo.GetValueOrDefault("type") == "track")
-                        {
-                            var trackName = fileInfo.GetValueOrDefault("trackName", "unknown_track");
-                            var trackDir = Path.Combine(projectDir, "tracks", trackName);
-                            Directory.CreateDirectory(trackDir);
-                            savePath = Path.Combine(trackDir,
-                                Path.GetFileName(fileInfo.GetValueOrDefault("relativePath", file.FileName)));
+                        var fileType = fileInfo.GetValueOrDefault("type", "project");
 
-                            _logger.LogInformation("文件 {FileName} 将保存为track: {TrackName}", file.FileName, trackName);
-                        }
-                        else
+                        switch (fileType)
                         {
-                            savePath = Path.Combine(projectDir,
-                                Path.GetFileName(fileInfo.GetValueOrDefault("relativePath", file.FileName)));
+                            case "vehicle":
+                                // 车辆照片保存在vehicles/车辆名称目录下
+                                var vehicleName = fileInfo.GetValueOrDefault("vehicleName", "unknown_vehicle");
+                                var vehicleDir = Path.Combine(projectDir, "vehicles", vehicleName);
+                                Directory.CreateDirectory(vehicleDir);
+                                savePath = Path.Combine(vehicleDir,
+                                    Path.GetFileName(fileInfo.GetValueOrDefault("relativePath", file.FileName)));
+                                _logger.LogInformation("文件 {FileName} 将保存为vehicle: {VehicleName}",
+                                    file.FileName, vehicleName);
+                                break;
 
-                            _logger.LogInformation("文件 {FileName} 将保存到项目根目录", file.FileName);
+                            case "track":
+                                // 轨迹照片保存在vehicles/车辆名称/tracks/轨迹名称目录下
+                                var trackVehicleName = fileInfo.GetValueOrDefault("vehicleName", "unknown_vehicle");
+                                var trackName = fileInfo.GetValueOrDefault("trackName", "unknown_track");
+                                var trackDir = Path.Combine(projectDir, "vehicles", trackVehicleName, "tracks", trackName);
+                                Directory.CreateDirectory(trackDir);
+                                savePath = Path.Combine(trackDir,
+                                    Path.GetFileName(fileInfo.GetValueOrDefault("relativePath", file.FileName)));
+                                _logger.LogInformation("文件 {FileName} 将保存为track: {VehicleName}/{TrackName}",
+                                    file.FileName, trackVehicleName, trackName);
+                                break;
+
+                            default: // "project" 或其他类型
+                                     // 项目照片保存在项目根目录
+                                savePath = Path.Combine(projectDir,
+                                    Path.GetFileName(fileInfo.GetValueOrDefault("relativePath", file.FileName)));
+                                _logger.LogInformation("文件 {FileName} 将保存到项目根目录", file.FileName);
+                                break;
                         }
 
                         // 创建必要的目录
