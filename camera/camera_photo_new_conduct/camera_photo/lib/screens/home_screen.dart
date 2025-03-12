@@ -1015,7 +1015,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   );
                 }
-              },
+              }
+            },
             child: const Text('删除', style: TextStyle(color: Colors.red)),
           ),
         ],
