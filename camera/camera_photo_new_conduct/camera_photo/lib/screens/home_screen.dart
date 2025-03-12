@@ -56,9 +56,23 @@ class _HomeScreenState extends State<HomeScreen> {
       // 打印扫描结果，方便调试
       print('扫描到的二维码内容: $result');
 
-      // 直接使用扫描到的内容创建项目
+      // 尝试解码UTF-8内容
       try {
-        final projectName = result.toString().trim();
+        String projectName = result.toString().trim();
+        
+        // 如果内容看起来像JSON，尝试解析它
+        if (projectName.startsWith('{') && projectName.endsWith('}')) {
+          try {
+            final Map<String, dynamic> jsonData = json.decode(projectName);
+            if (jsonData.containsKey('name')) {
+              projectName = jsonData['name'].toString();
+            }
+          } catch (e) {
+            print('JSON解析失败，使用原始内容: $e');
+          }
+        }
+
+        // 创建项目
         await Provider.of<ProjectProvider>(context, listen: false)
             .createProject(projectName);
 
@@ -78,12 +92,12 @@ class _HomeScreenState extends State<HomeScreen> {
       } catch (e) {
         if (!mounted) return;
         
-        // 显示创建失败提示
+        // 显示创建失败提示，并提供更详细的错误信息
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('创建项目失败，请重试'),
+            content: Text('创建项目失败: ${e.toString()}'),
             backgroundColor: Colors.red,
-            duration: const Duration(seconds: 2),
+            duration: const Duration(seconds: 3),
             action: SnackBarAction(
               label: '重新扫描',
               textColor: Colors.white,
@@ -98,9 +112,9 @@ class _HomeScreenState extends State<HomeScreen> {
       // 显示扫描错误提示
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('扫描失败，请重试'),
+          content: Text('扫描失败: ${e.toString()}'),
           backgroundColor: Colors.red,
-          duration: const Duration(seconds: 2),
+          duration: const Duration(seconds: 3),
           action: SnackBarAction(
             label: '重新扫描',
             textColor: Colors.white,
