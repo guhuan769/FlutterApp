@@ -701,7 +701,7 @@ class _HomeScreenState extends State<HomeScreen> {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
-          '${project.vehicles.length} 辆车 · ${_getTotalPhotos(project)} 张照片',
+          '${project.vehicles.length} 辆车 · ${_getTotalPhotos(project)} 张项目照片',
           style: TextStyle(color: Colors.grey[600]),
         ),
         trailing: Row(
@@ -777,7 +777,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      '${vehicle.tracks.length}轨迹 · ${_getVehiclePhotos(vehicle)}张照片',
+                      '${vehicle.tracks.length}条轨迹 · ${_getVehiclePhotos(vehicle)}张车辆照片',
                       style: TextStyle(
                         color: Colors.grey[600],
                         fontSize: 12,
@@ -860,7 +860,7 @@ class _HomeScreenState extends State<HomeScreen> {
             overflow: TextOverflow.ellipsis,
           ),
           subtitle: Text(
-            '${track.photos.length}张照片',
+            '${track.photos.length}张轨迹照片',
             style: TextStyle(
               color: Colors.grey[600],
               fontSize: 12,
@@ -1262,25 +1262,16 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // 添加获取项目总照片数的辅助方法
+  // 修改获取项目照片数的方法，只统计项目目录下的照片
   int _getTotalPhotos(Project project) {
-    int total = project.photos.length;
-    for (var vehicle in project.vehicles) {
-      total += vehicle.photos.length;
-      for (var track in vehicle.tracks) {
-        total += track.photos.length;
-      }
-    }
-    return total;
+    // 只返回项目直接目录下的照片数量
+    return project.photos.length;
   }
 
-  // 添加获取车辆总照片数的辅助方法
+  // 修改获取车辆照片数的方法，只统计车辆目录下的照片
   int _getVehiclePhotos(Vehicle vehicle) {
-    int total = vehicle.photos.length;
-    for (var track in vehicle.tracks) {
-      total += track.photos.length;
-    }
-    return total;
+    // 只返回车辆直接目录下的照片数量
+    return vehicle.photos.length;
   }
 
   @override
