@@ -427,7 +427,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     _showDeleteConfirmationDialog(
                       title: '确认删除',
                       content: '确定要删除项目 "${project.name}" 吗？\n该操作将删除项目下的所有车辆、照片和轨迹数据。',
-                      onConfirm: () => provider.deleteProject(project.id),
+                      onConfirm: () async => await provider.deleteProject(project.id),
                     );
                   },
                 ),
@@ -981,13 +981,32 @@ class _HomeScreenState extends State<HomeScreen> {
             child: const Text('取消'),
           ),
           TextButton(
-            onPressed: () {
-              // 先关闭确认对话框
-              Navigator.pop(dialogContext);
-              // 再关闭底部菜单（如果有）
-              Navigator.pop(context);
-              // 最后执行删除操作
-              onConfirm();
+            onPressed: () async {
+              try {
+                // 先关闭确认对话框
+                Navigator.pop(dialogContext);
+                // 执行删除操作
+                await onConfirm();
+                // 删除成功后刷新列表
+                if (mounted) {
+                  provider.initialize();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('删除成功'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('删除失败: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
             },
             child: const Text('删除', style: TextStyle(color: Colors.red)),
           ),
@@ -1162,7 +1181,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   _showDeleteConfirmationDialog(
                     title: '确认删除',
                     content: '确定要删除车辆 "${vehicle.name}" 吗？\n该操作将删除该车辆下的所有照片和轨迹数据。',
-                    onConfirm: () => provider.deleteVehicle(project.id, vehicle.id),
+                    onConfirm: () async => await provider.deleteVehicle(project.id, vehicle.id),
                   );
                 },
               ),
@@ -1231,7 +1250,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   _showDeleteConfirmationDialog(
                     title: '确认删除',
                     content: '确定要删除轨迹 "${track.name}" 吗？\n该操作将删除该轨迹下的所有照片。',
-                    onConfirm: () => provider.deleteTrack(vehicle.id, track.id),
+                    onConfirm: () async => await provider.deleteTrack(vehicle.id, track.id),
                   );
                 },
               ),
