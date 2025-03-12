@@ -12,6 +12,7 @@ import 'project_photos_screen.dart';
 import 'camera_screen.dart';
 import 'qr_generator_screen.dart';
 import 'qr_test_page.dart'; // 仅在开发测试时使用
+import 'dart:convert';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -41,14 +42,74 @@ class _HomeScreenState extends State<HomeScreen> {
 
 // 跳转到二维码扫描页面
   void _navigateToQRScanner() async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const QRScannerScreen()),
-    );
+    try {
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const QRScannerScreen()),
+      );
 
-    if (result == true) {
-      // 扫描成功并创建了项目，刷新项目列表
-      Provider.of<ProjectProvider>(context, listen: false).initialize();
+      // 如果扫描被取消或返回null
+      if (result == null) {
+        return;
+      }
+
+      // 验证二维码格式
+      if (result is String) {
+        // 尝试解析二维码内容
+        try {
+          final Map<String, dynamic> qrData = json.decode(result);
+          
+          // 验证必要字段
+          if (!qrData.containsKey('name')) {
+            throw FormatException('二维码缺少必要信息');
+          }
+
+          // 创建项目
+          final projectName = qrData['name'] as String;
+          await Provider.of<ProjectProvider>(context, listen: false)
+              .createProject(projectName);
+
+          if (!mounted) return;
+          
+          // 显示成功提示
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('项目 "$projectName" 创建成功')),
+          );
+
+          // 刷新项目列表
+          Provider.of<ProjectProvider>(context, listen: false).initialize();
+        } catch (e) {
+          if (!mounted) return;
+          
+          // 显示格式错误提示
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('二维码格式无效，请确保扫描正确的项目二维码'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } else {
+        if (!mounted) return;
+        
+        // 显示类型错误提示
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('扫描结果类型错误'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      
+      // 显示通用错误提示
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('扫描出错: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
