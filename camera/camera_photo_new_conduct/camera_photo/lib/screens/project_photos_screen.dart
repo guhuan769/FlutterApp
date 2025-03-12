@@ -173,9 +173,18 @@ class _ProjectPhotosScreenState extends State<ProjectPhotosScreen> {
             ),
             Padding(
               padding: const EdgeInsets.all(8.0),
-              child: Text(
-                '类型: ${PhotoUtils.getPhotoType(photo.path)}',
-                style: const TextStyle(fontSize: 16),
+              child: Column(
+                children: [
+                  Text(
+                    _formatPhotoName(photo.path).replaceAll('\n', ' '),
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '拍摄时间: ${_getPhotoDateTime(photo)}',
+                    style: const TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                ],
               ),
             ),
             ButtonBar(
@@ -339,7 +348,7 @@ class _ProjectPhotosScreenState extends State<ProjectPhotosScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 4),
                             color: Colors.black54,
                             child: Text(
-                              PhotoUtils.getPhotoType(photo.path),
+                              _formatPhotoName(photo.path),
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 color: Colors.white,
@@ -353,5 +362,30 @@ class _ProjectPhotosScreenState extends State<ProjectPhotosScreen> {
                   },
                 ),
     );
+  }
+
+  // 格式化照片名称，显示类型和序号
+  String _formatPhotoName(String photoPath) {
+    final fileName = path.basename(photoPath);
+    final RegExp pattern = RegExp(r'(.*?)_(\d+)');
+    final match = pattern.firstMatch(fileName);
+    
+    if (match != null) {
+      final prefix = match.group(1);
+      final number = match.group(2);
+      return '$prefix\n#$number';
+    }
+    return fileName;
+  }
+
+  // 获取照片的拍摄时间
+  String _getPhotoDateTime(File photo) {
+    try {
+      final DateTime dateTime = photo.lastModifiedSync();
+      return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')} '
+          '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}:${dateTime.second.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return '未知';
+    }
   }
 }

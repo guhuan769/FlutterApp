@@ -509,6 +509,7 @@ class _CameraScreenState extends State<CameraScreen>
       // 获取当前路由参数
       final Map<String, dynamic>? args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       final Vehicle? currentVehicle = args?['vehicle'] as Vehicle?;
+      final String? photoType = args?['photoType'] as String?;
       
       // 根据当前模式选择保存路径
       final String savePath = currentTrack?.path ?? 
@@ -524,24 +525,69 @@ class _CameraScreenState extends State<CameraScreen>
       await photoProvider.loadPhotosForProjectOrTrack(savePath);
       final existingPhotos = photoProvider.photos;
 
-      // 根据模式处理照片
-      switch (mode) {
-        case PhotoMode.start:
-          await _handleStartPointPhoto(
-              photo.path, savePath, timestamp, existingPhotos);
-          break;
-        case PhotoMode.middle:
-          await _handleMiddlePointPhoto(
-              photo.path, savePath, timestamp, existingPhotos);
-          break;
-        case PhotoMode.model:
-          await _handleModelPointPhoto(
-              photo.path, savePath, timestamp, existingPhotos);
-          break;
-        case PhotoMode.end:
-          await _handleEndPointPhoto(
-              photo.path, savePath, timestamp, existingPhotos);
-          break;
+      // 确定照片类型
+      String actualPhotoType;
+      if (photoType != null) {
+        // 如果路由参数中有指定照片类型，优先使用
+        actualPhotoType = photoType;
+      } else {
+        // 否则根据模式确定照片类型
+        switch (mode) {
+          case PhotoMode.start:
+            actualPhotoType = START_PHOTO;
+            break;
+          case PhotoMode.middle:
+            actualPhotoType = MIDDLE_PHOTO;
+            break;
+          case PhotoMode.model:
+            actualPhotoType = MODEL_PHOTO;
+            break;
+          case PhotoMode.end:
+            actualPhotoType = END_PHOTO;
+            break;
+        }
+      }
+
+      // 查找同类型的照片
+      final sameTypePhotos = existingPhotos
+          .where((p) => path.basename(p.path).startsWith(actualPhotoType))
+          .toList();
+      
+      // 确定序号
+      int sequence = 1;
+      if (sameTypePhotos.isNotEmpty) {
+        // 提取序号并找到最大值
+        final RegExp regex = RegExp(r'_(\d+)');
+        List<int> sequences = [];
+        
+        for (var p in sameTypePhotos) {
+          final fileName = path.basename(p.path);
+          final match = regex.firstMatch(fileName);
+          if (match != null) {
+            final seqStr = match.group(1);
+            if (seqStr != null) {
+              sequences.add(int.tryParse(seqStr) ?? 0);
+            }
+          }
+        }
+        
+        if (sequences.isNotEmpty) {
+          sequences.sort();
+          sequence = sequences.last + 1;
+        }
+      }
+      
+      // 生成新文件名 (确保序号是两位数)
+      final String formattedSequence = sequence.toString().padLeft(2, '0');
+      final String fileName = '${actualPhotoType}_$formattedSequence.jpg';
+      final String newPath = path.join(savePath, fileName);
+      
+      // 保存照片
+      await File(photo.path).copy(newPath);
+      
+      // 如果需要裁剪，处理图片
+      if (_cropEnabled) {
+        await _processImage(newPath);
       }
 
       // 强制重新加载照片列表
@@ -555,7 +601,7 @@ class _CameraScreenState extends State<CameraScreen>
       // 显示提示
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${_getModePrefix(mode)}已保存')),
+          SnackBar(content: Text('$actualPhotoType #$formattedSequence 已保存')),
         );
       }
     } catch (e) {

@@ -706,7 +706,7 @@ class _HomeScreenState extends State<HomeScreen> {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
-          '$modelPhotos 张模型照片',
+          '${project.vehicles.length} 辆车, $modelPhotos 张模型照片',
           style: TextStyle(color: Colors.grey[600]),
         ),
         trailing: Row(
@@ -738,6 +738,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         'project': project,
                         'vehicle': null,
                         'track': null,
+                        'photoType': '模型点拍照',
                       },
                     ),
                   ),
@@ -785,7 +786,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      '$modelPhotos 张模型照片',
+                      '${vehicle.tracks.length} 条轨迹, $modelPhotos 张模型照片',
                       style: TextStyle(color: Colors.grey[600]),
                     ),
                   ],
@@ -825,6 +826,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             'project': project,
                             'vehicle': vehicle,
                             'track': null,
+                            'photoType': '模型点拍照',
                           },
                         ),
                       ),
@@ -890,10 +892,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     '${project.name} - ${vehicle.name} - ${track.name}的照片',
                   ),
                 ),
-                _buildIconButton(
-                  icon: Icons.camera_alt,
+                PopupMenuButton<String>(
+                  icon: Icon(Icons.camera_alt, size: 20),
                   tooltip: '拍摄照片',
-                  onPressed: () {
+                  onSelected: (String photoType) {
                     final provider = Provider.of<ProjectProvider>(context, listen: false);
                     provider.setCurrentProject(project);
                     provider.setCurrentVehicle(vehicle);
@@ -907,11 +909,26 @@ class _HomeScreenState extends State<HomeScreen> {
                             'project': project,
                             'vehicle': vehicle,
                             'track': track,
+                            'photoType': photoType,
                           },
                         ),
                       ),
                     );
                   },
+                  itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                    const PopupMenuItem<String>(
+                      value: '起始点拍照',
+                      child: Text('起始点拍照'),
+                    ),
+                    const PopupMenuItem<String>(
+                      value: '中间点拍照',
+                      child: Text('中间点拍照'),
+                    ),
+                    const PopupMenuItem<String>(
+                      value: '结束点拍照',
+                      child: Text('结束点拍照'),
+                    ),
+                  ],
                 ),
                 _buildIconButton(
                   icon: Icons.more_vert,
