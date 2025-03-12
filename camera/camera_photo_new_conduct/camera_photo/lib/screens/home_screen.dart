@@ -13,6 +13,8 @@ import 'camera_screen.dart';
 import 'qr_generator_screen.dart';
 import 'qr_test_page.dart'; // 仅在开发测试时使用
 import 'dart:convert';
+import 'package:path/path.dart' as path;
+import 'package:file/file.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -685,6 +687,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildProjectItem(Project project) {
+    final modelPhotos = project.photos.where((photo) => 
+      path.basename(photo.path).startsWith('模型点拍照')).length;
+    
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: ExpansionTile(
@@ -701,7 +706,7 @@ class _HomeScreenState extends State<HomeScreen> {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
-          '${project.vehicles.length} 辆车 · ${_getTotalPhotos(project)} 张项目照片',
+          '$modelPhotos 张模型照片',
           style: TextStyle(color: Colors.grey[600]),
         ),
         trailing: Row(
@@ -752,6 +757,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildVehicleItem(Project project, Vehicle vehicle) {
+    final modelPhotos = vehicle.photos.where((photo) => 
+      path.basename(photo.path).startsWith('模型点拍照')).length;
+    
     return Padding(
       padding: const EdgeInsets.only(left: 16.0),
       child: Card(
@@ -777,11 +785,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      '${vehicle.tracks.length}条轨迹 · ${_getVehiclePhotos(vehicle)}张车辆照片',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 12,
-                      ),
+                      '$modelPhotos 张模型照片',
+                      style: TextStyle(color: Colors.grey[600]),
                     ),
                   ],
                 ),
@@ -841,6 +846,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildTrackItem(Project project, Vehicle vehicle, Track track) {
+    final startPhotos = track.photos.where((photo) => 
+      path.basename(photo.path).startsWith('起始点拍照')).length;
+    final middlePhotos = track.photos.where((photo) => 
+      path.basename(photo.path).startsWith('中间点拍照')).length;
+    final endPhotos = track.photos.where((photo) => 
+      path.basename(photo.path).startsWith('结束点拍照')).length;
+    
     return Padding(
       padding: const EdgeInsets.only(left: 16.0),
       child: Card(
@@ -860,11 +872,8 @@ class _HomeScreenState extends State<HomeScreen> {
             overflow: TextOverflow.ellipsis,
           ),
           subtitle: Text(
-            '${track.photos.length}张轨迹照片',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 12,
-            ),
+            '起始点: $startPhotos, 中间点: $middlePhotos, 结束点: $endPhotos',
+            style: TextStyle(color: Colors.grey[600]),
           ),
           trailing: Container(
             width: 108,
@@ -1006,8 +1015,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   );
                 }
-              }
-            },
+              },
             child: const Text('删除', style: TextStyle(color: Colors.red)),
           ),
         ],
@@ -1272,6 +1280,20 @@ class _HomeScreenState extends State<HomeScreen> {
   int _getVehiclePhotos(Vehicle vehicle) {
     // 只返回车辆直接目录下的照片数量
     return vehicle.photos.length;
+  }
+
+  // 在 home_screen.dart 中添加照片名称格式化方法
+  String _formatPhotoName(String photoPath) {
+    final fileName = path.basename(photoPath);
+    final RegExp pattern = RegExp(r'(.*?)_(\d+)\.jpg$');
+    final match = pattern.firstMatch(fileName);
+    
+    if (match != null) {
+      final prefix = match.group(1);
+      final number = match.group(2);
+      return '$prefix #$number';
+    }
+    return fileName;
   }
 
   @override
