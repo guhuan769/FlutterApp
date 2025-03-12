@@ -337,6 +337,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _showProjectOptions(Project project) async {
+    final provider = Provider.of<ProjectProvider>(context, listen: false);
+    
     await showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -425,10 +427,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     _showDeleteConfirmationDialog(
                       title: '确认删除',
                       content: '确定要删除项目 "${project.name}" 吗？\n该操作将删除项目下的所有车辆、照片和轨迹数据。',
-                      onConfirm: () => Provider.of<ProjectProvider>(
-                        context,
-                        listen: false,
-                      ).deleteProject(project.id),
+                      onConfirm: () => provider.deleteProject(project.id),
                     );
                   },
                 ),
@@ -966,22 +965,29 @@ class _HomeScreenState extends State<HomeScreen> {
   void _showDeleteConfirmationDialog({
     required String title,
     required String content,
-    required VoidCallback onConfirm,
+    required Function onConfirm,
   }) {
+    // 在对话框弹出前先获取 Provider
+    final provider = Provider.of<ProjectProvider>(context, listen: false);
+    
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: Text(title),
         content: Text(content),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('取消'),
           ),
           TextButton(
             onPressed: () {
-              onConfirm();
+              // 先关闭确认对话框
+              Navigator.pop(dialogContext);
+              // 再关闭底部菜单（如果有）
               Navigator.pop(context);
+              // 最后执行删除操作
+              onConfirm();
             },
             child: const Text('删除', style: TextStyle(color: Colors.red)),
           ),
@@ -1091,12 +1097,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showVehicleOptions(Project project, Vehicle vehicle) {
+    final provider = Provider.of<ProjectProvider>(context, listen: false);
+    
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (context) => SafeArea(
+      builder: (bottomSheetContext) => SafeArea(
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1126,7 +1134,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 title: const Text('重命名'),
                 subtitle: const Text('修改车辆名称'),
                 onTap: () {
-                  Navigator.pop(context);
+                  Navigator.pop(bottomSheetContext);
                   _showCreateDialog(
                     title: '重命名车辆',
                     onConfirm: (name) => Provider.of<ProjectProvider>(
@@ -1141,7 +1149,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 title: const Text('添加轨迹'),
                 subtitle: const Text('为该车辆添加新的轨迹'),
                 onTap: () {
-                  Navigator.pop(context);
+                  Navigator.pop(bottomSheetContext);
                   _showCreateTrackDialog(project, vehicle);
                 },
               ),
@@ -1150,14 +1158,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 title: const Text('删除', style: TextStyle(color: Colors.red)),
                 subtitle: const Text('永久删除车辆及其所有数据'),
                 onTap: () {
-                  Navigator.pop(context);
+                  Navigator.pop(bottomSheetContext);
                   _showDeleteConfirmationDialog(
                     title: '确认删除',
                     content: '确定要删除车辆 "${vehicle.name}" 吗？\n该操作将删除该车辆下的所有照片和轨迹数据。',
-                    onConfirm: () => Provider.of<ProjectProvider>(
-                      context,
-                      listen: false,
-                    ).deleteVehicle(project.id, vehicle.id),
+                    onConfirm: () => provider.deleteVehicle(project.id, vehicle.id),
                   );
                 },
               ),
@@ -1170,12 +1175,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showTrackOptions(Project project, Vehicle vehicle, Track track) {
+    final provider = Provider.of<ProjectProvider>(context, listen: false);
+    
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (context) => SafeArea(
+      builder: (bottomSheetContext) => SafeArea(
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1205,7 +1212,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 title: const Text('重命名'),
                 subtitle: const Text('修改轨迹名称'),
                 onTap: () {
-                  Navigator.pop(context);
+                  Navigator.pop(bottomSheetContext);
                   _showCreateDialog(
                     title: '重命名轨迹',
                     onConfirm: (name) => Provider.of<ProjectProvider>(
@@ -1220,14 +1227,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 title: const Text('删除', style: TextStyle(color: Colors.red)),
                 subtitle: const Text('永久删除轨迹及其所有数据'),
                 onTap: () {
-                  Navigator.pop(context);
+                  Navigator.pop(bottomSheetContext);
                   _showDeleteConfirmationDialog(
                     title: '确认删除',
                     content: '确定要删除轨迹 "${track.name}" 吗？\n该操作将删除该轨迹下的所有照片。',
-                    onConfirm: () => Provider.of<ProjectProvider>(
-                      context,
-                      listen: false,
-                    ).deleteTrack(vehicle.id, track.id),
+                    onConfirm: () => provider.deleteTrack(vehicle.id, track.id),
                   );
                 },
               ),
