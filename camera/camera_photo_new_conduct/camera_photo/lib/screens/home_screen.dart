@@ -49,65 +49,63 @@ class _HomeScreenState extends State<HomeScreen> {
       );
 
       // 如果扫描被取消或返回null
-      if (result == null) {
+      if (result == null || result.toString().trim().isEmpty) {
         return;
       }
 
-      // 验证二维码格式
-      if (result is String) {
-        // 尝试解析二维码内容
-        try {
-          final Map<String, dynamic> qrData = json.decode(result);
-          
-          // 验证必要字段
-          if (!qrData.containsKey('name')) {
-            throw FormatException('二维码缺少必要信息');
-          }
+      // 打印扫描结果，方便调试
+      print('扫描到的二维码内容: $result');
 
-          // 创建项目
-          final projectName = qrData['name'] as String;
-          await Provider.of<ProjectProvider>(context, listen: false)
-              .createProject(projectName);
+      // 直接使用扫描到的内容创建项目
+      try {
+        final projectName = result.toString().trim();
+        await Provider.of<ProjectProvider>(context, listen: false)
+            .createProject(projectName);
 
-          if (!mounted) return;
-          
-          // 显示成功提示
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('项目 "$projectName" 创建成功')),
-          );
-
-          // 刷新项目列表
-          Provider.of<ProjectProvider>(context, listen: false).initialize();
-        } catch (e) {
-          if (!mounted) return;
-          
-          // 显示格式错误提示
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('二维码格式无效，请确保扫描正确的项目二维码'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      } else {
         if (!mounted) return;
         
-        // 显示类型错误提示
+        // 显示成功提示
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('扫描结果类型错误'),
+          SnackBar(
+            content: Text('已创建项目: "$projectName"'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+
+        // 刷新项目列表
+        Provider.of<ProjectProvider>(context, listen: false).initialize();
+      } catch (e) {
+        if (!mounted) return;
+        
+        // 显示创建失败提示
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('创建项目失败，请重试'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+            action: SnackBarAction(
+              label: '重新扫描',
+              textColor: Colors.white,
+              onPressed: _navigateToQRScanner,
+            ),
           ),
         );
       }
     } catch (e) {
       if (!mounted) return;
       
-      // 显示通用错误提示
+      // 显示扫描错误提示
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('扫描出错: ${e.toString()}'),
+          content: const Text('扫描失败，请重试'),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 2),
+          action: SnackBarAction(
+            label: '重新扫描',
+            textColor: Colors.white,
+            onPressed: _navigateToQRScanner,
+          ),
         ),
       );
     }
