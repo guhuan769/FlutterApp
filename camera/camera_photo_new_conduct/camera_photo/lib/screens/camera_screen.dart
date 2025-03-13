@@ -272,12 +272,12 @@ class _CameraScreenState extends State<CameraScreen>
 
   // ====== 照片处理方法 ======
 
-  Future<void> _handleStartPointPhoto(String sourcePath, String savePath,
+  Future<String> _handleStartPointPhoto(String sourcePath, String savePath,
       String timestamp, List<File> existingPhotos) async {
     try {
       // 查找现有的起始点照片
       final startPhotos = existingPhotos
-          .where((p) => PhotoUtils.getPhotoType(p.path) == PhotoUtils.START_PHOTO)
+          .where((p) => path.basename(p.path).startsWith(START_PHOTO))
           .toList();
       
       int sequence;
@@ -285,35 +285,49 @@ class _CameraScreenState extends State<CameraScreen>
         // 如果没有起始点照片，使用序号1
         sequence = 1;
       } else {
-        // 找到最大序号并加1
-        startPhotos.sort((a, b) => 
-          PhotoUtils.getPhotoSequence(a.path).compareTo(
-            PhotoUtils.getPhotoSequence(b.path)
-          )
-        );
-        sequence = PhotoUtils.getPhotoSequence(startPhotos.last.path) + 1;
+        // 提取序号并找到最大值
+        final RegExp regex = RegExp(r'_(\d+)');
+        List<int> sequences = [];
+        
+        for (var p in startPhotos) {
+          final fileName = path.basename(p.path);
+          final match = regex.firstMatch(fileName);
+          if (match != null) {
+            final seqStr = match.group(1);
+            if (seqStr != null) {
+              sequences.add(int.tryParse(seqStr) ?? 0);
+            }
+          }
+        }
+        
+        if (sequences.isNotEmpty) {
+          sequences.sort();
+          sequence = sequences.last + 1;
+        } else {
+          sequence = 1;
+        }
       }
 
-      // 生成新文件名
-      final String filename =
-          PhotoUtils.generateFileName(PhotoUtils.START_PHOTO, sequence, timestamp);
-      final String newPath = path.join(savePath, filename);
-      await File(sourcePath).copy(newPath);
+      // 生成新文件名 (确保序号是两位数)
+      final String formattedSequence = sequence.toString().padLeft(2, '0');
+      final String fileName = '${START_PHOTO}_$formattedSequence.jpg';
+      final String newPath = path.join(savePath, fileName);
       
-      // 不需要重新排序，只需要重新加载照片列表
-      // 因为我们已经确保了照片的命名和排序规则
+      // 保存照片
+      await File(sourcePath).copy(newPath);
+      return newPath;
     } catch (e) {
       print('处理起始点照片失败: $e');
       rethrow;
     }
   }
 
-  Future<void> _handleMiddlePointPhoto(String sourcePath, String savePath,
+  Future<String> _handleMiddlePointPhoto(String sourcePath, String savePath,
       String timestamp, List<File> existingPhotos) async {
     try {
       // 查找现有的中间点照片
       final middlePhotos = existingPhotos
-          .where((p) => PhotoUtils.getPhotoType(p.path) == PhotoUtils.MIDDLE_PHOTO)
+          .where((p) => path.basename(p.path).startsWith(MIDDLE_PHOTO))
           .toList();
       
       int sequence;
@@ -321,33 +335,49 @@ class _CameraScreenState extends State<CameraScreen>
         // 如果没有中间点照片，使用序号1
         sequence = 1;
       } else {
-        // 找到最大序号并加1
-        middlePhotos.sort((a, b) => 
-          PhotoUtils.getPhotoSequence(a.path).compareTo(
-            PhotoUtils.getPhotoSequence(b.path)
-          )
-        );
-        sequence = PhotoUtils.getPhotoSequence(middlePhotos.last.path) + 1;
+        // 提取序号并找到最大值
+        final RegExp regex = RegExp(r'_(\d+)');
+        List<int> sequences = [];
+        
+        for (var p in middlePhotos) {
+          final fileName = path.basename(p.path);
+          final match = regex.firstMatch(fileName);
+          if (match != null) {
+            final seqStr = match.group(1);
+            if (seqStr != null) {
+              sequences.add(int.tryParse(seqStr) ?? 0);
+            }
+          }
+        }
+        
+        if (sequences.isNotEmpty) {
+          sequences.sort();
+          sequence = sequences.last + 1;
+        } else {
+          sequence = 1;
+        }
       }
 
-      final String filename = PhotoUtils.generateFileName(
-          PhotoUtils.MIDDLE_PHOTO, sequence, timestamp);
-      final String newPath = path.join(savePath, filename);
-      await File(sourcePath).copy(newPath);
+      // 生成新文件名 (确保序号是两位数)
+      final String formattedSequence = sequence.toString().padLeft(2, '0');
+      final String fileName = '${MIDDLE_PHOTO}_$formattedSequence.jpg';
+      final String newPath = path.join(savePath, fileName);
       
-      // 不需要重新排序，只需要重新加载照片列表
+      // 保存照片
+      await File(sourcePath).copy(newPath);
+      return newPath;
     } catch (e) {
       print('处理中间点照片失败: $e');
       rethrow;
     }
   }
 
-  Future<void> _handleModelPointPhoto(String sourcePath, String savePath,
+  Future<String> _handleModelPointPhoto(String sourcePath, String savePath,
       String timestamp, List<File> existingPhotos) async {
     try {
       // 查找现有的模型点照片
       final modelPhotos = existingPhotos
-          .where((p) => PhotoUtils.getPhotoType(p.path) == PhotoUtils.MODEL_PHOTO)
+          .where((p) => path.basename(p.path).startsWith(MODEL_PHOTO))
           .toList();
       
       int sequence;
@@ -355,33 +385,49 @@ class _CameraScreenState extends State<CameraScreen>
         // 如果没有模型点照片，使用序号1
         sequence = 1;
       } else {
-        // 找到最大序号并加1
-        modelPhotos.sort((a, b) => 
-          PhotoUtils.getPhotoSequence(a.path).compareTo(
-            PhotoUtils.getPhotoSequence(b.path)
-          )
-        );
-        sequence = PhotoUtils.getPhotoSequence(modelPhotos.last.path) + 1;
+        // 提取序号并找到最大值
+        final RegExp regex = RegExp(r'_(\d+)');
+        List<int> sequences = [];
+        
+        for (var p in modelPhotos) {
+          final fileName = path.basename(p.path);
+          final match = regex.firstMatch(fileName);
+          if (match != null) {
+            final seqStr = match.group(1);
+            if (seqStr != null) {
+              sequences.add(int.tryParse(seqStr) ?? 0);
+            }
+          }
+        }
+        
+        if (sequences.isNotEmpty) {
+          sequences.sort();
+          sequence = sequences.last + 1;
+        } else {
+          sequence = 1;
+        }
       }
 
-      final String filename = PhotoUtils.generateFileName(
-          PhotoUtils.MODEL_PHOTO, sequence, timestamp);
-      final String newPath = path.join(savePath, filename);
-      await File(sourcePath).copy(newPath);
+      // 生成新文件名 (确保序号是两位数)
+      final String formattedSequence = sequence.toString().padLeft(2, '0');
+      final String fileName = '${MODEL_PHOTO}_$formattedSequence.jpg';
+      final String newPath = path.join(savePath, fileName);
       
-      // 不需要重新排序，只需要重新加载照片列表
+      // 保存照片
+      await File(sourcePath).copy(newPath);
+      return newPath;
     } catch (e) {
       print('处理模型点照片失败: $e');
       rethrow;
     }
   }
 
-  Future<void> _handleEndPointPhoto(String sourcePath, String savePath,
+  Future<String> _handleEndPointPhoto(String sourcePath, String savePath,
       String timestamp, List<File> existingPhotos) async {
     try {
       // 查找现有的结束点照片
       final endPhotos = existingPhotos
-          .where((p) => PhotoUtils.getPhotoType(p.path) == PhotoUtils.END_PHOTO)
+          .where((p) => path.basename(p.path).startsWith(END_PHOTO))
           .toList();
       
       int sequence;
@@ -389,22 +435,37 @@ class _CameraScreenState extends State<CameraScreen>
         // 如果没有结束点照片，使用序号1
         sequence = 1;
       } else {
-        // 找到最大序号并加1
-        endPhotos.sort((a, b) => 
-          PhotoUtils.getPhotoSequence(a.path).compareTo(
-            PhotoUtils.getPhotoSequence(b.path)
-          )
-        );
-        sequence = PhotoUtils.getPhotoSequence(endPhotos.last.path) + 1;
+        // 提取序号并找到最大值
+        final RegExp regex = RegExp(r'_(\d+)');
+        List<int> sequences = [];
+        
+        for (var p in endPhotos) {
+          final fileName = path.basename(p.path);
+          final match = regex.firstMatch(fileName);
+          if (match != null) {
+            final seqStr = match.group(1);
+            if (seqStr != null) {
+              sequences.add(int.tryParse(seqStr) ?? 0);
+            }
+          }
+        }
+        
+        if (sequences.isNotEmpty) {
+          sequences.sort();
+          sequence = sequences.last + 1;
+        } else {
+          sequence = 1;
+        }
       }
 
-      // 生成新文件名
-      final String filename =
-          PhotoUtils.generateFileName(PhotoUtils.END_PHOTO, sequence, timestamp);
-      final String newPath = path.join(savePath, filename);
-      await File(sourcePath).copy(newPath);
+      // 生成新文件名 (确保序号是两位数)
+      final String formattedSequence = sequence.toString().padLeft(2, '0');
+      final String fileName = '${END_PHOTO}_$formattedSequence.jpg';
+      final String newPath = path.join(savePath, fileName);
       
-      // 不需要重新排序，只需要重新加载照片列表
+      // 保存照片
+      await File(sourcePath).copy(newPath);
+      return newPath;
     } catch (e) {
       print('处理结束点照片失败: $e');
       rethrow;
@@ -435,13 +496,19 @@ class _CameraScreenState extends State<CameraScreen>
     try {
       File imageFile = File(imagePath);
       if (await imageFile.exists()) {
+        print('开始裁剪图片: $imagePath');
         File croppedFile = await _cropImage(imagePath);
         if (await croppedFile.exists()) {
           // 如果裁剪成功，用裁剪后的图片替换原图
           await imageFile.delete();
           await croppedFile.copy(imagePath);
           await croppedFile.delete();
+          print('裁剪完成: $imagePath');
+        } else {
+          print('裁剪失败: 裁剪后的文件不存在');
         }
+      } else {
+        print('裁剪失败: 原图不存在 $imagePath');
       }
     } catch (e) {
       print('处理图片失败: $e');
@@ -548,46 +615,51 @@ class _CameraScreenState extends State<CameraScreen>
         }
       }
 
-      // 查找同类型的照片
-      final sameTypePhotos = existingPhotos
-          .where((p) => path.basename(p.path).startsWith(actualPhotoType))
-          .toList();
+      // 根据照片类型处理照片
+      String newFilePath = "";
+      int photoSequence = 0;
       
-      // 确定序号
-      int sequence = 1;
-      if (sameTypePhotos.isNotEmpty) {
-        // 提取序号并找到最大值
-        final RegExp regex = RegExp(r'_(\d+)');
-        List<int> sequences = [];
-        
-        for (var p in sameTypePhotos) {
-          final fileName = path.basename(p.path);
-          final match = regex.firstMatch(fileName);
-          if (match != null) {
-            final seqStr = match.group(1);
-            if (seqStr != null) {
-              sequences.add(int.tryParse(seqStr) ?? 0);
-            }
-          }
+      if (actualPhotoType == START_PHOTO) {
+        newFilePath = await _handleStartPointPhoto(photo.path, savePath, timestamp, existingPhotos);
+        // 从文件名中提取序号
+        final fileName = path.basename(newFilePath);
+        final RegExp regex = RegExp(r'_(\d+)\.jpg$');
+        final match = regex.firstMatch(fileName);
+        if (match != null && match.group(1) != null) {
+          photoSequence = int.tryParse(match.group(1)!) ?? 0;
         }
-        
-        if (sequences.isNotEmpty) {
-          sequences.sort();
-          sequence = sequences.last + 1;
+      } else if (actualPhotoType == MIDDLE_PHOTO) {
+        newFilePath = await _handleMiddlePointPhoto(photo.path, savePath, timestamp, existingPhotos);
+        // 从文件名中提取序号
+        final fileName = path.basename(newFilePath);
+        final RegExp regex = RegExp(r'_(\d+)\.jpg$');
+        final match = regex.firstMatch(fileName);
+        if (match != null && match.group(1) != null) {
+          photoSequence = int.tryParse(match.group(1)!) ?? 0;
+        }
+      } else if (actualPhotoType == MODEL_PHOTO) {
+        newFilePath = await _handleModelPointPhoto(photo.path, savePath, timestamp, existingPhotos);
+        // 从文件名中提取序号
+        final fileName = path.basename(newFilePath);
+        final RegExp regex = RegExp(r'_(\d+)\.jpg$');
+        final match = regex.firstMatch(fileName);
+        if (match != null && match.group(1) != null) {
+          photoSequence = int.tryParse(match.group(1)!) ?? 0;
+        }
+      } else if (actualPhotoType == END_PHOTO) {
+        newFilePath = await _handleEndPointPhoto(photo.path, savePath, timestamp, existingPhotos);
+        // 从文件名中提取序号
+        final fileName = path.basename(newFilePath);
+        final RegExp regex = RegExp(r'_(\d+)\.jpg$');
+        final match = regex.firstMatch(fileName);
+        if (match != null && match.group(1) != null) {
+          photoSequence = int.tryParse(match.group(1)!) ?? 0;
         }
       }
-      
-      // 生成新文件名 (确保序号是两位数)
-      final String formattedSequence = sequence.toString().padLeft(2, '0');
-      final String fileName = '${actualPhotoType}_$formattedSequence.jpg';
-      final String newPath = path.join(savePath, fileName);
-      
-      // 保存照片
-      await File(photo.path).copy(newPath);
-      
+
       // 如果需要裁剪，处理图片
-      if (_cropEnabled) {
-        await _processImage(newPath);
+      if (_cropEnabled && newFilePath.isNotEmpty) {
+        await _processImage(newFilePath);
       }
 
       // 强制重新加载照片列表
@@ -600,8 +672,19 @@ class _CameraScreenState extends State<CameraScreen>
 
       // 显示提示
       if (mounted) {
+        String successMessage;
+        if (actualPhotoType == START_PHOTO) {
+          successMessage = '起始点照片已保存 (序号: ${photoSequence.toString().padLeft(2, '0')})';
+        } else if (actualPhotoType == MIDDLE_PHOTO) {
+          successMessage = '中间点照片已保存 (序号: ${photoSequence.toString().padLeft(2, '0')})';
+        } else if (actualPhotoType == END_PHOTO) {
+          successMessage = '结束点照片已保存 (序号: ${photoSequence.toString().padLeft(2, '0')})';
+        } else {
+          successMessage = '模型点照片已保存 (序号: ${photoSequence.toString().padLeft(2, '0')})';
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$actualPhotoType #$formattedSequence 已保存')),
+          SnackBar(content: Text(successMessage)),
         );
       }
     } catch (e) {
@@ -689,6 +772,7 @@ class _CameraScreenState extends State<CameraScreen>
               ),
             ),
             child: FloatingActionButton(
+              heroTag: 'camera_${mode.toString()}',
               backgroundColor: isEnabled ? Colors.white.withOpacity(0.2) : Colors.grey.withOpacity(0.2),
               elevation: isEnabled ? 2 : 0,
               onPressed: (_isCapturing || !isEnabled) ? null : () => _takePicture(mode),

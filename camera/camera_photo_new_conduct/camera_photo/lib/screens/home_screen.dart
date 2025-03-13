@@ -15,6 +15,8 @@ import 'qr_test_page.dart'; // 仅在开发测试时使用
 import 'dart:convert';
 import 'package:path/path.dart' as path;
 import 'package:file/file.dart';
+import 'package:camera_photo/providers/project_provider.dart';
+import 'package:camera_photo/providers/photo_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -27,12 +29,25 @@ class _HomeScreenState extends State<HomeScreen> {
   final _nameController = TextEditingController();
   // 添加滚动控制器用于上传状态面板
   final ScrollController _statusScrollController = ScrollController();
+  late ProjectProvider _projectProvider;
+  late PhotoProvider _photoProvider;
+  // 添加ScaffoldMessengerState引用
+  ScaffoldMessengerState? _scaffoldMessenger;
 
   @override
   void initState() {
     super.initState();
     Future.microtask(() =>
         Provider.of<ProjectProvider>(context, listen: false).initialize());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _projectProvider = Provider.of<ProjectProvider>(context, listen: false);
+    _photoProvider = Provider.of<PhotoProvider>(context, listen: false);
+    // 保存ScaffoldMessenger引用
+    _scaffoldMessenger = ScaffoldMessenger.of(context);
   }
 
   @override
@@ -81,13 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
         if (!mounted) return;
         
         // 显示成功提示
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('已创建项目: "$projectName"'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        _showSnackBar('已创建项目: "$projectName"');
 
         // 刷新项目列表
         Provider.of<ProjectProvider>(context, listen: false).initialize();
@@ -95,35 +104,13 @@ class _HomeScreenState extends State<HomeScreen> {
         if (!mounted) return;
         
         // 显示创建失败提示，并提供更详细的错误信息
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('创建项目失败: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-            action: SnackBarAction(
-              label: '重新扫描',
-              textColor: Colors.white,
-              onPressed: _navigateToQRScanner,
-            ),
-          ),
-        );
+        _showSnackBar('创建项目失败: ${e.toString()}');
       }
     } catch (e) {
       if (!mounted) return;
       
       // 显示扫描错误提示
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('扫描失败: ${e.toString()}'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
-          action: SnackBarAction(
-            label: '重新扫描',
-            textColor: Colors.white,
-            onPressed: _navigateToQRScanner,
-          ),
-        ),
-      );
+      _showSnackBar('扫描失败: ${e.toString()}');
     }
   }
 
@@ -326,9 +313,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               } catch (e) {
                 if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('创建轨迹失败: $e')),
-                );
+                _showSnackBar('创建轨迹失败: $e');
               }
             },
             child: const Text('确定'),
@@ -709,48 +694,77 @@ class _HomeScreenState extends State<HomeScreen> {
           '${project.vehicles.length} 辆车, $modelPhotos 张模型照片',
           style: TextStyle(color: Colors.grey[600]),
         ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.photo_library),
-              tooltip: '查看照片',
-              onPressed: () => _showPhotos(
-                context,
-                project.path,
-                '${project.name}的照片',
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.camera_alt),
-              tooltip: '拍摄照片',
-              onPressed: () {
-                final provider = Provider.of<ProjectProvider>(context, listen: false);
-                provider.setCurrentProject(project);
-                provider.setCurrentVehicle(null);
-                provider.setCurrentTrack(null);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const CameraScreen(),
-                    settings: RouteSettings(
-                      arguments: {
-                        'project': project,
-                        'vehicle': null,
-                        'track': null,
-                        'photoType': '模型点拍照',
-                      },
-                    ),
+        trailing: SizedBox(
+          width: 96,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Flexible(
+                child: IconButton(
+                  icon: const Icon(Icons.photo_library, size: 20),
+                  tooltip: '查看照片',
+                  onPressed: () => _showPhotos(
+                    context,
+                    project.path,
+                    '${project.name}的照片',
                   ),
-                );
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.more_vert),
-              tooltip: '更多选项',
-              onPressed: () => _showProjectOptions(project),
-            ),
-          ],
+                  constraints: BoxConstraints.tightFor(width: 26, height: 36),
+                  padding: EdgeInsets.zero,
+                ),
+              ),
+              Flexible(
+                child: IconButton(
+                  icon: const Icon(Icons.camera_alt, size: 20),
+                  tooltip: '拍摄照片',
+                  onPressed: () {
+                    final provider = Provider.of<ProjectProvider>(context, listen: false);
+                    provider.setCurrentProject(project);
+                    provider.setCurrentVehicle(null);
+                    provider.setCurrentTrack(null);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const CameraScreen(),
+                        settings: RouteSettings(
+                          arguments: {
+                            'project': project,
+                            'vehicle': null,
+                            'track': null,
+                            'photoType': '模型点拍照',
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                  constraints: BoxConstraints.tightFor(width: 26, height: 36),
+                  padding: EdgeInsets.zero,
+                ),
+              ),
+              Flexible(
+                child: PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert, size: 20),
+                  padding: EdgeInsets.zero,
+                  tooltip: '更多操作',
+                  constraints: BoxConstraints.tightFor(width: 26, height: 36),
+                  itemBuilder: (context) => [
+                    const PopupMenuItem<String>(
+                      value: '查看照片',
+                      child: Text('查看照片'),
+                    ),
+                    const PopupMenuItem<String>(
+                      value: '拍摄照片',
+                      child: Text('拍摄照片'),
+                    ),
+                    const PopupMenuItem<String>(
+                      value: '更多选项',
+                      child: Text('更多选项'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
         children: project.vehicles.map((vehicle) => _buildVehicleItem(project, vehicle)).toList(),
       ),
@@ -794,49 +808,74 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          trailing: Container(
-            width: 108,
+          trailing: SizedBox(
+            width: 96,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                _buildIconButton(
-                  icon: Icons.photo_library,
-                  tooltip: '查看照片',
-                  onPressed: () => _showPhotos(
-                    context,
-                    vehicle.path,
-                    '${project.name} - ${vehicle.name}的照片',
+                Flexible(
+                  child: IconButton(
+                    icon: const Icon(Icons.photo_library, size: 20),
+                    tooltip: '查看照片',
+                    onPressed: () => _showPhotos(
+                      context,
+                      vehicle.path,
+                      '${project.name} - ${vehicle.name}的照片',
+                    ),
+                    constraints: BoxConstraints.tightFor(width: 26, height: 36),
+                    padding: EdgeInsets.zero,
                   ),
                 ),
-                _buildIconButton(
-                  icon: Icons.camera_alt,
-                  tooltip: '拍摄照片',
-                  onPressed: () {
-                    final provider = Provider.of<ProjectProvider>(context, listen: false);
-                    provider.setCurrentProject(project);
-                    provider.setCurrentVehicle(vehicle);
-                    provider.setCurrentTrack(null);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const CameraScreen(),
-                        settings: RouteSettings(
-                          arguments: {
-                            'project': project,
-                            'vehicle': vehicle,
-                            'track': null,
-                            'photoType': '模型点拍照',
-                          },
+                Flexible(
+                  child: IconButton(
+                    icon: const Icon(Icons.camera_alt, size: 20),
+                    tooltip: '拍摄照片',
+                    onPressed: () {
+                      final provider = Provider.of<ProjectProvider>(context, listen: false);
+                      provider.setCurrentProject(project);
+                      provider.setCurrentVehicle(vehicle);
+                      provider.setCurrentTrack(null);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const CameraScreen(),
+                          settings: RouteSettings(
+                            arguments: {
+                              'project': project,
+                              'vehicle': vehicle,
+                              'track': null,
+                              'photoType': '模型点拍照',
+                            },
+                          ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                    constraints: BoxConstraints.tightFor(width: 26, height: 36),
+                    padding: EdgeInsets.zero,
+                  ),
                 ),
-                _buildIconButton(
-                  icon: Icons.more_vert,
-                  tooltip: '更多选项',
-                  onPressed: () => _showVehicleOptions(project, vehicle),
+                Flexible(
+                  child: PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, size: 20),
+                    padding: EdgeInsets.zero,
+                    tooltip: '更多操作',
+                    constraints: BoxConstraints.tightFor(width: 26, height: 36),
+                    itemBuilder: (context) => [
+                      const PopupMenuItem<String>(
+                        value: '查看照片',
+                        child: Text('查看照片'),
+                      ),
+                      const PopupMenuItem<String>(
+                        value: '拍摄照片',
+                        child: Text('拍摄照片'),
+                      ),
+                      const PopupMenuItem<String>(
+                        value: '更多选项',
+                        child: Text('更多选项'),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -877,87 +916,65 @@ class _HomeScreenState extends State<HomeScreen> {
             '起始点: $startPhotos, 中间点: $middlePhotos, 结束点: $endPhotos',
             style: TextStyle(color: Colors.grey[600]),
           ),
-          trailing: Container(
-            width: 108,
+          trailing: SizedBox(
+            width: 96,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                _buildIconButton(
-                  icon: Icons.photo_library,
-                  tooltip: '查看照片',
-                  onPressed: () => _showPhotos(
-                    context,
-                    track.path,
-                    '${project.name} - ${vehicle.name} - ${track.name}的照片',
+                Flexible(
+                  child: IconButton(
+                    icon: const Icon(Icons.photo_library, size: 20),
+                    tooltip: '查看照片',
+                    onPressed: () => _showPhotos(
+                      context,
+                      track.path,
+                      '${project.name} - ${vehicle.name} - ${track.name}的照片',
+                    ),
+                    constraints: BoxConstraints.tightFor(width: 26, height: 36),
+                    padding: EdgeInsets.zero,
                   ),
                 ),
-                PopupMenuButton<String>(
-                  icon: Icon(Icons.camera_alt, size: 20),
-                  tooltip: '拍摄照片',
-                  onSelected: (String photoType) {
-                    final provider = Provider.of<ProjectProvider>(context, listen: false);
-                    provider.setCurrentProject(project);
-                    provider.setCurrentVehicle(vehicle);
-                    provider.setCurrentTrack(track);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const CameraScreen(),
-                        settings: RouteSettings(
-                          arguments: {
-                            'project': project,
-                            'vehicle': vehicle,
-                            'track': track,
-                            'photoType': photoType,
-                          },
+                Flexible(
+                  child: IconButton(
+                    icon: const Icon(Icons.camera_alt, size: 20),
+                    tooltip: '拍摄轨迹照片',
+                    onPressed: () {
+                      final provider = Provider.of<ProjectProvider>(context, listen: false);
+                      provider.setCurrentProject(project);
+                      provider.setCurrentVehicle(vehicle);
+                      provider.setCurrentTrack(track);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const CameraScreen(),
+                          settings: RouteSettings(
+                            arguments: {
+                              'project': project,
+                              'vehicle': vehicle,
+                              'track': track,
+                            },
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                  itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                    const PopupMenuItem<String>(
-                      value: '起始点拍照',
-                      child: Text('起始点拍照'),
-                    ),
-                    const PopupMenuItem<String>(
-                      value: '中间点拍照',
-                      child: Text('中间点拍照'),
-                    ),
-                    const PopupMenuItem<String>(
-                      value: '结束点拍照',
-                      child: Text('结束点拍照'),
-                    ),
-                  ],
+                      );
+                    },
+                    constraints: BoxConstraints.tightFor(width: 26, height: 36),
+                    padding: EdgeInsets.zero,
+                  ),
                 ),
-                _buildIconButton(
-                  icon: Icons.more_vert,
-                  tooltip: '更多选项',
-                  onPressed: () => _showTrackOptions(project, vehicle, track),
+                Flexible(
+                  child: IconButton(
+                    icon: const Icon(Icons.more_vert, size: 20),
+                    tooltip: '更多选项',
+                    onPressed: () => _showTrackOptions(project, vehicle, track),
+                    constraints: BoxConstraints.tightFor(width: 26, height: 36),
+                    padding: EdgeInsets.zero,
+                  ),
                 ),
               ],
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  // 添加一个通用的IconButton构建方法
-  Widget _buildIconButton({
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback onPressed,
-  }) {
-    return SizedBox(
-      width: 36,
-      height: 36,
-      child: IconButton(
-        icon: Icon(icon, size: 20),
-        tooltip: tooltip,
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints(),
-        onPressed: onPressed,
       ),
     );
   }
@@ -970,18 +987,11 @@ class _HomeScreenState extends State<HomeScreen> {
           final provider = Provider.of<ProjectProvider>(context, listen: false);
           await provider.createVehicle(name, project.id);
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('车辆 "$name" 创建成功')),
-            );
+            _showSnackBar('车辆 "$name" 创建成功');
           }
         } catch (e) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('创建车辆失败: $e'),
-                backgroundColor: Colors.red,
-              ),
-            );
+            _showSnackBar('创建车辆失败: $e');
           }
         }
       },
@@ -1016,21 +1026,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 // 删除成功后刷新列表
                 if (mounted) {
                   provider.initialize();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('删除成功'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
+                  _showSnackBar('删除成功');
                 }
               } catch (e) {
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('删除失败: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
+                  _showSnackBar('删除失败: $e');
                 }
               }
             },
@@ -1101,12 +1101,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 _nameController.clear();
               } else {
                 // 显示错误提示
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('项目名称不能为空'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
+                _showSnackBar('项目名称不能为空');
               }
             },
             child: const Text('确认'),
@@ -1124,18 +1119,11 @@ class _HomeScreenState extends State<HomeScreen> {
       await provider.createProject(name);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('项目 "$name" 创建成功')),
-        );
+        _showSnackBar('项目 "$name" 创建成功');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('创建项目失败: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _showSnackBar('创建项目失败: $e');
       }
       print('创建项目错误: $e');
     }
@@ -1314,6 +1302,15 @@ class _HomeScreenState extends State<HomeScreen> {
     return fileName;
   }
 
+  // 使用保存的引用显示SnackBar
+  void _showSnackBar(String message) {
+    if (_scaffoldMessenger != null && mounted) {
+      _scaffoldMessenger!.showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<ProjectProvider>(
@@ -1370,6 +1367,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
           floatingActionButton: FloatingActionButton(
+            heroTag: 'home_add_project',
             onPressed: _showCreateOptions,
             child: const Icon(Icons.add),
           ),
