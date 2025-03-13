@@ -47,7 +47,8 @@ class SettingsManager {
     }
 
     // 如果没有保存过自定义分辨率，使用默认值
-    return ResolutionPreset.ultraHigh;
+    // ResolutionPreset.ultraHigh;
+    return ResolutionPreset.max;
   }
 
   static Future<void> setResolutionPreset(ResolutionPreset preset) async {
