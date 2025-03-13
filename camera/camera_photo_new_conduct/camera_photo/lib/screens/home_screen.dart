@@ -1382,6 +1382,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     // 在对话框弹出前先获取 Provider
     final provider = Provider.of<ProjectProvider>(context, listen: false);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     
     showDialog(
       context: context,
@@ -1401,14 +1402,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 // 执行删除操作
                 await onConfirm();
                 // 删除成功后刷新列表
-                if (mounted) {
-                  provider.initialize();
-                  _showSnackBar('删除成功');
-                }
+                provider.initialize();
+                scaffoldMessenger.showSnackBar(
+                  const SnackBar(content: Text('删除成功')),
+                );
               } catch (e) {
-                if (mounted) {
-                  _showSnackBar('删除失败: $e');
-                }
+                scaffoldMessenger.showSnackBar(
+                  SnackBar(content: Text('删除失败: $e')),
+                );
               }
             },
             child: const Text('删除', style: TextStyle(color: Colors.red)),
@@ -1507,112 +1508,117 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showVehicleOptions(Project project, Vehicle vehicle) {
+    final provider = Provider.of<ProjectProvider>(context, listen: false);
+    
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       builder: (BuildContext context) {
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                margin: const EdgeInsets.only(bottom: 16),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
+        return SafeArea(
+          child: SingleChildScrollView(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade50,
-                    borderRadius: BorderRadius.circular(8),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
-                  child: const Icon(Icons.directions_car, color: Colors.green),
-                ),
-                title: Text(
-                  vehicle.name,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.directions_car, color: Colors.green),
+                    ),
+                    title: Text(
+                      vehicle.name,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    subtitle: Text(
+                      '${vehicle.tracks.length} 条轨迹, ${_getVehiclePhotos(vehicle)} 张照片',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                      ),
+                    ),
                   ),
-                ),
-                subtitle: Text(
-                  '${vehicle.tracks.length} 条轨迹, ${_getVehiclePhotos(vehicle)} 张照片',
-                  style: TextStyle(
-                    color: Colors.grey[600],
+                  const Divider(height: 32),
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.add_circle, color: Colors.blue),
+                    ),
+                    title: const Text('添加轨迹'),
+                    subtitle: const Text('为该车辆添加新的轨迹'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showCreateTrackDialog(project, vehicle);
+                    },
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.edit, color: Colors.orange),
+                    ),
+                    title: const Text('重命名'),
+                    subtitle: const Text('修改车辆名称'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showCreateDialog(
+                        title: '重命名车辆',
+                        onConfirm: (name) => provider.renameVehicle(project.id, vehicle.id, name),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.delete, color: Colors.red),
+                    ),
+                    title: const Text('删除车辆'),
+                    subtitle: const Text('永久删除车辆及其所有数据'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showDeleteConfirmationDialog(
+                        title: '确认删除',
+                        content: '确定要删除车辆 "${vehicle.name}" 吗？\n该操作将删除该车辆下的所有照片和轨迹数据。',
+                        onConfirm: () => provider.deleteVehicle(project.id, vehicle.id),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                ],
               ),
-              const Divider(height: 32),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.add_circle, color: Colors.blue),
-                ),
-                title: const Text('添加轨迹'),
-                subtitle: const Text('为该车辆添加新的轨迹'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showCreateTrackDialog(project, vehicle);
-                },
-              ),
-              const SizedBox(height: 8),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.edit, color: Colors.orange),
-                ),
-                title: const Text('重命名'),
-                subtitle: const Text('修改车辆名称'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showCreateDialog(
-                    title: '重命名车辆',
-                    onConfirm: (name) => Provider.of<ProjectProvider>(context, listen: false)
-                        .renameVehicle(project.id, vehicle.id, name),
-                  );
-                },
-              ),
-              const SizedBox(height: 8),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.delete, color: Colors.red),
-                ),
-                title: const Text('删除车辆'),
-                subtitle: const Text('永久删除车辆及其所有数据'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showDeleteConfirmationDialog(
-                    title: '确认删除',
-                    content: '确定要删除车辆 "${vehicle.name}" 吗？\n该操作将删除该车辆下的所有照片和轨迹数据。',
-                    onConfirm: () async => await Provider.of<ProjectProvider>(context, listen: false)
-                        .deleteVehicle(project.id, vehicle.id),
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-            ],
+            ),
           ),
         );
       },
@@ -1620,45 +1626,74 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showTrackOptions(Project project, Vehicle vehicle, Track track) {
+    final provider = Provider.of<ProjectProvider>(context, listen: false);
+    
     showModalBottomSheet(
       context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: Text(track.name),
-              subtitle: Text('${track.photos.length} 张照片'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.edit),
-              title: const Text('重命名轨迹'),
-              onTap: () {
-                Navigator.pop(context);
-                _showCreateDialog(
-                  title: '重命名轨迹',
-                  onConfirm: (name) => Provider.of<ProjectProvider>(context, listen: false)
-                      .renameTrack(vehicle.id, track.id, name),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete),
-              title: const Text('删除轨迹'),
-              onTap: () {
-                Navigator.pop(context);
-                _showDeleteConfirmationDialog(
-                  title: '确认删除',
-                  content: '确定要删除轨迹 "${track.name}" 吗？',
-                  onConfirm: () async {
-                    await Provider.of<ProjectProvider>(context, listen: false)
-                        .deleteTrack(vehicle.id, track.id);
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: SingleChildScrollView(
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                ListTile(
+                  title: Text(track.name),
+                  subtitle: Text('${track.photos.length} 张照片'),
+                ),
+                const Divider(height: 32),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.edit, color: Colors.orange),
+                  ),
+                  title: const Text('重命名轨迹'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showCreateDialog(
+                      title: '重命名轨迹',
+                      onConfirm: (name) => provider.renameTrack(vehicle.id, track.id, name),
+                    );
                   },
-                );
-              },
+                ),
+                const SizedBox(height: 8),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.delete, color: Colors.red),
+                  ),
+                  title: const Text('删除轨迹'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showDeleteConfirmationDialog(
+                      title: '确认删除',
+                      content: '确定要删除轨迹 "${track.name}" 吗？',
+                      onConfirm: () => provider.deleteTrack(vehicle.id, track.id),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
