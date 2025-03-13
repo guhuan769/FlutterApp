@@ -18,6 +18,21 @@ import 'package:file/file.dart';
 import 'package:camera_photo/providers/project_provider.dart';
 import 'package:camera_photo/providers/photo_provider.dart';
 
+// 添加用于存储项目信息的辅助类
+class ItemInfo {
+  final String type;
+  final Project? project;
+  final Vehicle? vehicle;
+  final Track? track;
+
+  ItemInfo({
+    required this.type,
+    this.project,
+    this.vehicle,
+    this.track,
+  });
+}
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
@@ -33,6 +48,51 @@ class _HomeScreenState extends State<HomeScreen> {
   late PhotoProvider _photoProvider;
   // 添加ScaffoldMessengerState引用
   ScaffoldMessengerState? _scaffoldMessenger;
+  
+  // 添加折叠状态管理
+  final Map<String, bool> _expandedProjects = {};
+  final Map<String, bool> _expandedVehicles = {};
+
+  // 添加用于计算总项目数的辅助方法
+  int _calculateTotalItems(List<Project> projects) {
+    int total = 0;
+    for (var project in projects) {
+      total += 1; // 项目本身
+      for (var vehicle in project.vehicles) {
+        total += 1; // 车辆
+        total += vehicle.tracks.length; // 该车辆的所有轨迹
+      }
+    }
+    return total;
+  }
+
+  // 添加用于获取指定索引项的辅助方法
+  ItemInfo _getItemAtIndex(List<Project> projects, int index) {
+    int currentIndex = 0;
+    
+    for (var project in projects) {
+      if (currentIndex == index) {
+        return ItemInfo(type: 'project', project: project);
+      }
+      currentIndex++;
+
+      for (var vehicle in project.vehicles) {
+        if (currentIndex == index) {
+          return ItemInfo(type: 'vehicle', project: project, vehicle: vehicle);
+        }
+        currentIndex++;
+
+        for (var track in vehicle.tracks) {
+          if (currentIndex == index) {
+            return ItemInfo(type: 'track', project: project, vehicle: vehicle, track: track);
+          }
+          currentIndex++;
+        }
+      }
+    }
+
+    throw Exception('Index out of range');
+  }
 
   @override
   void initState() {
@@ -328,102 +388,179 @@ class _HomeScreenState extends State<HomeScreen> {
     
     await showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (BuildContext context) {
-        return SafeArea(
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.folder, size: 24),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          project.name,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.7,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
                       ),
+                      child: const Icon(Icons.folder, color: Colors.blue, size: 28),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            project.name,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${project.vehicles.length} 辆车, ${_getTotalPhotos(project)} 张照片',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      _buildOptionTile(
+                        icon: Icons.cloud_upload,
+                        iconColor: Colors.blue,
+                        title: '上传项目',
+                        subtitle: '将项目数据上传到服务器',
+                        onTap: () async {
+                          Navigator.pop(context);
+                          await _showUploadConfirmation(project);
+                        },
+                      ),
+                      _buildOptionTile(
+                        icon: Icons.history,
+                        iconColor: Colors.purple,
+                        title: '上传历史',
+                        subtitle: '查看项目的上传记录',
+                        onTap: () {
+                          Navigator.pop(context);
+                          showDialog(
+                            context: context,
+                            builder: (context) => UploadHistoryDialog(
+                              projectId: project.id,
+                              projectName: project.name,
+                            ),
+                          );
+                        },
+                      ),
+                      _buildOptionTile(
+                        icon: Icons.directions_car,
+                        iconColor: Colors.green,
+                        title: '新增车辆',
+                        subtitle: '为项目添加新的车辆',
+                        onTap: () {
+                          Navigator.pop(context);
+                          _showCreateVehicleDialog(project);
+                        },
+                      ),
+                      _buildOptionTile(
+                        icon: Icons.edit,
+                        iconColor: Colors.orange,
+                        title: '编辑项目',
+                        subtitle: '修改项目名称',
+                        onTap: () {
+                          Navigator.pop(context);
+                          _showCreateDialog(
+                            title: '重命名项目',
+                            onConfirm: (name) => provider.renameProject(project.id, name),
+                          );
+                        },
+                      ),
+                      _buildOptionTile(
+                        icon: Icons.delete,
+                        iconColor: Colors.red,
+                        title: '删除项目',
+                        subtitle: '永久删除项目及其所有数据',
+                        onTap: () {
+                          Navigator.pop(context);
+                          _showDeleteConfirmationDialog(
+                            title: '确认删除',
+                            content: '确定要删除项目 "${project.name}" 吗？\n该操作将删除项目下的所有车辆、照片和轨迹数据。',
+                            onConfirm: () async => await provider.deleteProject(project.id),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 20),
                     ],
                   ),
                 ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.cloud_upload),
-                  title: const Text('上传项目'),
-                  subtitle: const Text('将项目数据上传到服务器'),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    await _showUploadConfirmation(project);
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.history),
-                  title: const Text('上传历史'),
-                  subtitle: const Text('查看项目的上传记录'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    showDialog(
-                      context: context,
-                      builder: (context) => UploadHistoryDialog(
-                        projectId: project.id,
-                        projectName: project.name,
-                      ),
-                    );
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.directions_car),
-                  title: const Text('新增车辆'),
-                  subtitle: const Text('为项目添加新的车辆'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showCreateVehicleDialog(project);
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.edit),
-                  title: const Text('编辑项目'),
-                  subtitle: const Text('修改项目名称'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showCreateDialog(
-                      title: '重命名项目',
-                      onConfirm: (name) => Provider.of<ProjectProvider>(
-                        context,
-                        listen: false,
-                      ).renameProject(project.id, name),
-                    );
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.delete, color: Colors.red),
-                  title: const Text('删除项目'),
-                  subtitle: const Text('永久删除项目及其所有数据'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showDeleteConfirmationDialog(
-                      title: '确认删除',
-                      content: '确定要删除项目 "${project.name}" 吗？\n该操作将删除项目下的所有车辆、照片和轨迹数据。',
-                      onConfirm: () async => await provider.deleteProject(project.id),
-                    );
-                  },
-                ),
-                const SizedBox(height: 8),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildOptionTile({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: iconColor.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, color: iconColor),
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(
+          fontSize: 14,
+          color: Colors.grey[600],
+        ),
+      ),
+      onTap: onTap,
     );
   }
 
@@ -672,307 +809,547 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildProjectItem(Project project) {
-    final modelPhotos = project.photos.where((photo) => 
-      path.basename(photo.path).startsWith('模型点拍照')).length;
-    
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: ExpansionTile(
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.blue.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
+    bool isExpanded = _expandedProjects[project.id] ?? false;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
-          child: const Icon(Icons.folder, color: Colors.blue),
-        ),
-        title: Text(
-          project.name,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Text(
-          '${project.vehicles.length} 辆车, $modelPhotos 张模型照片',
-          style: TextStyle(color: Colors.grey[600]),
-        ),
-        trailing: SizedBox(
-          width: 96,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Flexible(
-                child: IconButton(
-                  icon: const Icon(Icons.photo_library, size: 20),
-                  tooltip: '查看照片',
-                  onPressed: () => _showPhotos(
-                    context,
-                    project.path,
-                    '${project.name}的照片',
-                  ),
-                  constraints: BoxConstraints.tightFor(width: 26, height: 36),
-                  padding: EdgeInsets.zero,
-                ),
-              ),
-              Flexible(
-                child: IconButton(
-                  icon: const Icon(Icons.camera_alt, size: 20),
-                  tooltip: '拍摄照片',
-                  onPressed: () {
-                    final provider = Provider.of<ProjectProvider>(context, listen: false);
-                    provider.setCurrentProject(project);
-                    provider.setCurrentVehicle(null);
-                    provider.setCurrentTrack(null);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const CameraScreen(),
-                        settings: RouteSettings(
-                          arguments: {
-                            'project': project,
-                            'vehicle': null,
-                            'track': null,
-                            'photoType': '模型点拍照',
-                          },
+        ],
+      ),
+      child: Column(
+        children: [
+          InkWell(
+            onTap: () => _showProjectOptions(project),
+            onLongPress: () {
+              setState(() {
+                _expandedProjects[project.id] = !isExpanded;
+                // 如果折叠项目，同时折叠所有车辆
+                if (!isExpanded) {
+                  for (var vehicle in project.vehicles) {
+                    _expandedVehicles[vehicle.id] = false;
+                  }
+                }
+              });
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _expandedProjects[project.id] = !isExpanded;
+                        // 如果折叠项目，同时折叠所有车辆
+                        if (!isExpanded) {
+                          for (var vehicle in project.vehicles) {
+                            _expandedVehicles[vehicle.id] = false;
+                          }
+                        }
+                      });
+                    },
+                    child: AnimatedRotation(
+                      duration: const Duration(milliseconds: 300),
+                      turns: isExpanded ? 0.25 : 0,
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(8),
                         ),
+                        child: const Icon(Icons.keyboard_arrow_right, color: Colors.blue, size: 24),
                       ),
-                    );
-                  },
-                  constraints: BoxConstraints.tightFor(width: 26, height: 36),
-                  padding: EdgeInsets.zero,
-                ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.folder, color: Colors.blue, size: 24),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          project.name,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(Icons.directions_car, size: 14, color: Colors.grey[600]),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${project.vehicles.length}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Icon(Icons.photo, size: 14, color: Colors.grey[600]),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${project.photos.length}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              Flexible(
-                child: PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert, size: 20),
-                  padding: EdgeInsets.zero,
-                  tooltip: '更多操作',
-                  constraints: BoxConstraints.tightFor(width: 26, height: 36),
-                  itemBuilder: (context) => [
-                    const PopupMenuItem<String>(
-                      value: '查看照片',
-                      child: Text('查看照片'),
-                    ),
-                    const PopupMenuItem<String>(
-                      value: '拍摄照片',
-                      child: Text('拍摄照片'),
-                    ),
-                    const PopupMenuItem<String>(
-                      value: '更多选项',
-                      child: Text('更多选项'),
-                    ),
-                  ],
+            ),
+          ),
+          if (isExpanded)
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+              ),
+              child: Column(
+                children: [
+                  const Divider(height: 1),
+                  Row(
+                    children: [
+                      _buildProjectAction(
+                        icon: Icons.photo_library,
+                        label: '照片',
+                        onTap: () => _showPhotos(context, project.path, '${project.name}的照片'),
+                      ),
+                      _buildProjectAction(
+                        icon: Icons.camera_alt,
+                        label: '拍摄',
+                        onTap: () {
+                          final provider = Provider.of<ProjectProvider>(context, listen: false);
+                          provider.setCurrentProject(project);
+                          provider.setCurrentVehicle(null);
+                          provider.setCurrentTrack(null);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const CameraScreen(),
+                              settings: RouteSettings(
+                                arguments: {
+                                  'project': project,
+                                  'vehicle': null,
+                                  'track': null,
+                                  'photoType': '模型点拍照',
+                                },
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      _buildProjectAction(
+                        icon: Icons.directions_car,
+                        label: '车辆',
+                        onTap: () => _showCreateVehicleDialog(project),
+                      ),
+                      _buildProjectAction(
+                        icon: Icons.cloud_upload,
+                        label: '上传',
+                        onTap: () => _showUploadConfirmation(project),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProjectAction({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 20, color: Colors.grey[700]),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[700],
                 ),
               ),
             ],
           ),
         ),
-        children: project.vehicles.map((vehicle) => _buildVehicleItem(project, vehicle)).toList(),
       ),
     );
   }
 
   Widget _buildVehicleItem(Project project, Vehicle vehicle) {
-    final modelPhotos = vehicle.photos.where((photo) => 
-      path.basename(photo.path).startsWith('模型点拍照')).length;
-    
-    return Padding(
-      padding: const EdgeInsets.only(left: 16.0),
-      child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: ExpansionTile(
-          leading: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(Icons.directions_car, color: Colors.green),
+    bool isExpanded = _expandedVehicles[vehicle.id] ?? false;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      margin: const EdgeInsets.fromLTRB(48, 0, 16, 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
-          title: Row(
+        ],
+      ),
+      child: Column(
+        children: [
+          InkWell(
+            onTap: () => _showVehicleOptions(project, vehicle),
+            onLongPress: () {
+              setState(() {
+                _expandedVehicles[vehicle.id] = !isExpanded;
+              });
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _expandedVehicles[vehicle.id] = !isExpanded;
+                      });
+                    },
+                    child: AnimatedRotation(
+                      duration: const Duration(milliseconds: 300),
+                      turns: isExpanded ? 0.25 : 0,
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.keyboard_arrow_right, color: Colors.green, size: 20),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.directions_car, color: Colors.green, size: 20),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          vehicle.name,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(Icons.timeline, size: 14, color: Colors.grey[600]),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${vehicle.tracks.length}',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Icon(Icons.photo, size: 14, color: Colors.grey[600]),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${vehicle.photos.length}',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (isExpanded)
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+              ),
+              child: Column(
+                children: [
+                  const Divider(height: 1),
+                  Row(
+                    children: [
+                      _buildVehicleAction(
+                        icon: Icons.photo_library,
+                        label: '照片',
+                        onTap: () => _showPhotos(
+                          context,
+                          vehicle.path,
+                          '${project.name} - ${vehicle.name}的照片',
+                        ),
+                      ),
+                      _buildVehicleAction(
+                        icon: Icons.camera_alt,
+                        label: '拍摄',
+                        onTap: () {
+                          final provider = Provider.of<ProjectProvider>(context, listen: false);
+                          provider.setCurrentProject(project);
+                          provider.setCurrentVehicle(vehicle);
+                          provider.setCurrentTrack(null);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const CameraScreen(),
+                              settings: RouteSettings(
+                                arguments: {
+                                  'project': project,
+                                  'vehicle': vehicle,
+                                  'track': null,
+                                  'photoType': '模型点拍照',
+                                },
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      _buildVehicleAction(
+                        icon: Icons.timeline,
+                        label: '轨迹',
+                        onTap: () => _showCreateTrackDialog(project, vehicle),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVehicleAction({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      vehicle.name,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      '${vehicle.tracks.length} 条轨迹, $modelPhotos 张模型照片',
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-                  ],
+              Icon(icon, size: 18, color: Colors.grey[700]),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[700],
                 ),
               ),
             ],
           ),
-          trailing: SizedBox(
-            width: 96,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Flexible(
-                  child: IconButton(
-                    icon: const Icon(Icons.photo_library, size: 20),
-                    tooltip: '查看照片',
-                    onPressed: () => _showPhotos(
-                      context,
-                      vehicle.path,
-                      '${project.name} - ${vehicle.name}的照片',
-                    ),
-                    constraints: BoxConstraints.tightFor(width: 26, height: 36),
-                    padding: EdgeInsets.zero,
-                  ),
-                ),
-                Flexible(
-                  child: IconButton(
-                    icon: const Icon(Icons.camera_alt, size: 20),
-                    tooltip: '拍摄照片',
-                    onPressed: () {
-                      final provider = Provider.of<ProjectProvider>(context, listen: false);
-                      provider.setCurrentProject(project);
-                      provider.setCurrentVehicle(vehicle);
-                      provider.setCurrentTrack(null);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const CameraScreen(),
-                          settings: RouteSettings(
-                            arguments: {
-                              'project': project,
-                              'vehicle': vehicle,
-                              'track': null,
-                              'photoType': '模型点拍照',
-                            },
-                          ),
-                        ),
-                      );
-                    },
-                    constraints: BoxConstraints.tightFor(width: 26, height: 36),
-                    padding: EdgeInsets.zero,
-                  ),
-                ),
-                Flexible(
-                  child: PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert, size: 20),
-                    padding: EdgeInsets.zero,
-                    tooltip: '更多操作',
-                    constraints: BoxConstraints.tightFor(width: 26, height: 36),
-                    itemBuilder: (context) => [
-                      const PopupMenuItem<String>(
-                        value: '查看照片',
-                        child: Text('查看照片'),
-                      ),
-                      const PopupMenuItem<String>(
-                        value: '拍摄照片',
-                        child: Text('拍摄照片'),
-                      ),
-                      const PopupMenuItem<String>(
-                        value: '更多选项',
-                        child: Text('更多选项'),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          children: vehicle.tracks.map((track) => _buildTrackItem(project, vehicle, track)).toList(),
         ),
       ),
     );
   }
 
   Widget _buildTrackItem(Project project, Vehicle vehicle, Track track) {
-    final startPhotos = track.photos.where((photo) => 
-      path.basename(photo.path).startsWith('起始点拍照')).length;
-    final middlePhotos = track.photos.where((photo) => 
-      path.basename(photo.path).startsWith('中间点拍照')).length;
-    final endPhotos = track.photos.where((photo) => 
-      path.basename(photo.path).startsWith('结束点拍照')).length;
-    
-    return Padding(
-      padding: const EdgeInsets.only(left: 16.0),
-      child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: ListTile(
-          leading: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.orange.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(Icons.timeline, color: Colors.orange),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      margin: const EdgeInsets.fromLTRB(64, 0, 16, 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
           ),
-          title: Text(
-            track.name,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-            overflow: TextOverflow.ellipsis,
-          ),
-          subtitle: Text(
-            '起始点: $startPhotos, 中间点: $middlePhotos, 结束点: $endPhotos',
-            style: TextStyle(color: Colors.grey[600]),
-          ),
-          trailing: SizedBox(
-            width: 96,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Flexible(
-                  child: IconButton(
-                    icon: const Icon(Icons.photo_library, size: 20),
-                    tooltip: '查看照片',
-                    onPressed: () => _showPhotos(
-                      context,
-                      track.path,
-                      '${project.name} - ${vehicle.name} - ${track.name}的照片',
+        ],
+      ),
+      child: Column(
+        children: [
+          InkWell(
+            onTap: () => _showTrackOptions(project, vehicle, track),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    constraints: BoxConstraints.tightFor(width: 26, height: 36),
-                    padding: EdgeInsets.zero,
+                    child: const Icon(Icons.timeline, color: Colors.orange, size: 18),
                   ),
-                ),
-                Flexible(
-                  child: IconButton(
-                    icon: const Icon(Icons.camera_alt, size: 20),
-                    tooltip: '拍摄轨迹照片',
-                    onPressed: () {
-                      final provider = Provider.of<ProjectProvider>(context, listen: false);
-                      provider.setCurrentProject(project);
-                      provider.setCurrentVehicle(vehicle);
-                      provider.setCurrentTrack(track);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const CameraScreen(),
-                          settings: RouteSettings(
-                            arguments: {
-                              'project': project,
-                              'vehicle': vehicle,
-                              'track': track,
-                            },
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          track.name,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                      );
-                    },
-                    constraints: BoxConstraints.tightFor(width: 26, height: 36),
-                    padding: EdgeInsets.zero,
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(Icons.photo, size: 14, color: Colors.grey[600]),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${track.photos.length}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                Flexible(
-                  child: IconButton(
-                    icon: const Icon(Icons.more_vert, size: 20),
-                    tooltip: '更多选项',
-                    onPressed: () => _showTrackOptions(project, vehicle, track),
-                    constraints: BoxConstraints.tightFor(width: 26, height: 36),
-                    padding: EdgeInsets.zero,
-                  ),
+                ],
+              ),
+            ),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+            ),
+            child: Column(
+              children: [
+                const Divider(height: 1),
+                Row(
+                  children: [
+                    _buildTrackAction(
+                      icon: Icons.photo_library,
+                      label: '照片',
+                      onTap: () => _showPhotos(
+                        context,
+                        track.path,
+                        '${project.name} - ${vehicle.name} - ${track.name}的照片',
+                      ),
+                    ),
+                    _buildTrackAction(
+                      icon: Icons.camera_alt,
+                      label: '拍摄',
+                      onTap: () {
+                        final provider = Provider.of<ProjectProvider>(context, listen: false);
+                        provider.setCurrentProject(project);
+                        provider.setCurrentVehicle(vehicle);
+                        provider.setCurrentTrack(track);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const CameraScreen(),
+                            settings: RouteSettings(
+                              arguments: {
+                                'project': project,
+                                'vehicle': vehicle,
+                                'track': track,
+                              },
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTrackAction({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: Colors.grey[700]),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[700],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -1130,147 +1507,158 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showVehicleOptions(Project project, Vehicle vehicle) {
-    final provider = Provider.of<ProjectProvider>(context, listen: false);
-    
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (bottomSheetContext) => SafeArea(
-        child: SingleChildScrollView(
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    const Icon(Icons.directions_car, size: 24),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        vehicle.name,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              const Divider(height: 1),
               ListTile(
-                leading: const Icon(Icons.edit),
-                title: const Text('重命名'),
-                subtitle: const Text('修改车辆名称'),
-                onTap: () {
-                  Navigator.pop(bottomSheetContext);
-                  _showCreateDialog(
-                    title: '重命名车辆',
-                    onConfirm: (name) => Provider.of<ProjectProvider>(
-                      context,
-                      listen: false,
-                    ).renameVehicle(project.id, vehicle.id, name),
-                  );
-                },
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.directions_car, color: Colors.green),
+                ),
+                title: Text(
+                  vehicle.name,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: Text(
+                  '${vehicle.tracks.length} 条轨迹, ${_getVehiclePhotos(vehicle)} 张照片',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                  ),
+                ),
               ),
+              const Divider(height: 32),
               ListTile(
-                leading: const Icon(Icons.add_circle),
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.add_circle, color: Colors.blue),
+                ),
                 title: const Text('添加轨迹'),
                 subtitle: const Text('为该车辆添加新的轨迹'),
                 onTap: () {
-                  Navigator.pop(bottomSheetContext);
+                  Navigator.pop(context);
                   _showCreateTrackDialog(project, vehicle);
                 },
               ),
+              const SizedBox(height: 8),
               ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text('删除', style: TextStyle(color: Colors.red)),
-                subtitle: const Text('永久删除车辆及其所有数据'),
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.edit, color: Colors.orange),
+                ),
+                title: const Text('重命名'),
+                subtitle: const Text('修改车辆名称'),
                 onTap: () {
-                  Navigator.pop(bottomSheetContext);
-                  _showDeleteConfirmationDialog(
-                    title: '确认删除',
-                    content: '确定要删除车辆 "${vehicle.name}" 吗？\n该操作将删除该车辆下的所有照片和轨迹数据。',
-                    onConfirm: () async => await provider.deleteVehicle(project.id, vehicle.id),
+                  Navigator.pop(context);
+                  _showCreateDialog(
+                    title: '重命名车辆',
+                    onConfirm: (name) => Provider.of<ProjectProvider>(context, listen: false)
+                        .renameVehicle(project.id, vehicle.id, name),
                   );
                 },
               ),
               const SizedBox(height: 8),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.delete, color: Colors.red),
+                ),
+                title: const Text('删除车辆'),
+                subtitle: const Text('永久删除车辆及其所有数据'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showDeleteConfirmationDialog(
+                    title: '确认删除',
+                    content: '确定要删除车辆 "${vehicle.name}" 吗？\n该操作将删除该车辆下的所有照片和轨迹数据。',
+                    onConfirm: () async => await Provider.of<ProjectProvider>(context, listen: false)
+                        .deleteVehicle(project.id, vehicle.id),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
             ],
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
   void _showTrackOptions(Project project, Vehicle vehicle, Track track) {
-    final provider = Provider.of<ProjectProvider>(context, listen: false);
-    
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (bottomSheetContext) => SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    const Icon(Icons.timeline, size: 24),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        track.name,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.edit),
-                title: const Text('重命名'),
-                subtitle: const Text('修改轨迹名称'),
-                onTap: () {
-                  Navigator.pop(bottomSheetContext);
-                  _showCreateDialog(
-                    title: '重命名轨迹',
-                    onConfirm: (name) => Provider.of<ProjectProvider>(
-                      context,
-                      listen: false,
-                    ).renameTrack(vehicle.id, track.id, name),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text('删除', style: TextStyle(color: Colors.red)),
-                subtitle: const Text('永久删除轨迹及其所有数据'),
-                onTap: () {
-                  Navigator.pop(bottomSheetContext);
-                  _showDeleteConfirmationDialog(
-                    title: '确认删除',
-                    content: '确定要删除轨迹 "${track.name}" 吗？\n该操作将删除该轨迹下的所有照片。',
-                    onConfirm: () async => await provider.deleteTrack(vehicle.id, track.id),
-                  );
-                },
-              ),
-              const SizedBox(height: 8),
-            ],
-          ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: Text(track.name),
+              subtitle: Text('${track.photos.length} 张照片'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.edit),
+              title: const Text('重命名轨迹'),
+              onTap: () {
+                Navigator.pop(context);
+                _showCreateDialog(
+                  title: '重命名轨迹',
+                  onConfirm: (name) => Provider.of<ProjectProvider>(context, listen: false)
+                      .renameTrack(vehicle.id, track.id, name),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete),
+              title: const Text('删除轨迹'),
+              onTap: () {
+                Navigator.pop(context);
+                _showDeleteConfirmationDialog(
+                  title: '确认删除',
+                  content: '确定要删除轨迹 "${track.name}" 吗？',
+                  onConfirm: () async {
+                    await Provider.of<ProjectProvider>(context, listen: false)
+                        .deleteTrack(vehicle.id, track.id);
+                  },
+                );
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -1316,10 +1704,34 @@ class _HomeScreenState extends State<HomeScreen> {
     return Consumer<ProjectProvider>(
       builder: (context, provider, child) {
         return Scaffold(
+          backgroundColor: Colors.grey.shade100,
           appBar: AppBar(
-            title: const Text('项目管理'),
+            backgroundColor: Colors.white,
+            elevation: 1,
+            title: const Text(
+              '项目管理',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             actions: [
-              // 添加扫描按钮
+              // 添加全部展开/折叠按钮
+              IconButton(
+                icon: const Icon(Icons.unfold_more),
+                tooltip: '展开/折叠全部',
+                onPressed: () {
+                  setState(() {
+                    bool allExpanded = provider.projects.every((p) => _expandedProjects[p.id] ?? true);
+                    for (var project in provider.projects) {
+                      _expandedProjects[project.id] = !allExpanded;
+                      for (var vehicle in project.vehicles) {
+                        _expandedVehicles[vehicle.id] = !allExpanded;
+                      }
+                    }
+                  });
+                },
+              ),
               IconButton(
                 icon: const Icon(Icons.qr_code_scanner),
                 tooltip: '扫描二维码添加项目',
@@ -1335,49 +1747,76 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           body: Column(
             children: [
-              // 上传状态面板
               _buildUploadStatusPanel(provider),
-              // 项目列表
               Expanded(
                 child: provider.projects.isEmpty
                     ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text('暂无项目'),
-                      const SizedBox(height: 16),
-                      ElevatedButton.icon(
-                        onPressed: () => _showCreateDialog(
-                          title: '新建项目',
-                          onConfirm: (name) => provider.createProject(name),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.folder_open,
+                              size: 64,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              '暂无项目',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            ElevatedButton.icon(
+                              onPressed: _showCreateOptions,
+                              icon: const Icon(Icons.add),
+                              label: const Text('创建项目'),
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 12,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        icon: const Icon(Icons.add),
-                        label: const Text('创建第一个项目'),
-                      ),
-                    ],
-                  ),
-                )
+                      )
                     : ListView.builder(
-                  itemCount: provider.projects.length,
-                  itemBuilder: (context, index) => _buildProjectItem(
-                    provider.projects[index],
-                  ),
-                ),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        itemCount: provider.projects.length,
+                        itemBuilder: (context, index) {
+                          final project = provider.projects[index];
+                          bool isProjectExpanded = _expandedProjects[project.id] ?? false;
+                          
+                          List<Widget> items = [_buildProjectItem(project)];
+                          
+                          if (isProjectExpanded) {
+                            for (var vehicle in project.vehicles) {
+                              bool isVehicleExpanded = _expandedVehicles[vehicle.id] ?? false;
+                              items.add(_buildVehicleItem(project, vehicle));
+                              
+                              if (isVehicleExpanded) {
+                                items.addAll(vehicle.tracks.map(
+                                  (track) => _buildTrackItem(project, vehicle, track)
+                                ));
+                              }
+                            }
+                          }
+                          
+                          return Column(children: items);
+                        },
+                      ),
               ),
             ],
           ),
-          floatingActionButton: FloatingActionButton(
-            heroTag: 'home_add_project',
-            onPressed: _showCreateOptions,
-            child: const Icon(Icons.add),
-          ),
-          // floatingActionButton: FloatingActionButton(
-          //   onPressed: () => _showCreateDialog(
-          //     title: '新建项目',
-          //     onConfirm: (name) => provider.createProject(name),
-          //   ),
-          //   child: const Icon(Icons.add),
-          // ),
+          floatingActionButton: provider.projects.isNotEmpty
+              ? FloatingActionButton(
+                  heroTag: 'home_add_project',
+                  onPressed: _showCreateOptions,
+                  child: const Icon(Icons.add),
+                )
+              : null,
         );
       },
     );
