@@ -1054,7 +1054,12 @@ class _CameraScreenState extends State<CameraScreen>
               onScaleStart: _handleScaleStart,
               onScaleUpdate: _handleScaleUpdate,
               onTapUp: _handleTapUp,
-              child: CameraPreview(_controller!),
+              child: Center(
+                child: AspectRatio(
+                  aspectRatio: 1 / _controller!.value.aspectRatio,
+                  child: CameraPreview(_controller!),
+                ),
+              ),
             )
           else
             const Center(
