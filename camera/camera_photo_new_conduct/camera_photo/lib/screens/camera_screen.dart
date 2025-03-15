@@ -187,6 +187,10 @@ class _CameraScreenState extends State<CameraScreen>
 
       await cameraController.initialize();
       await cameraController.setFlashMode(FlashMode.off);
+      
+      // 设置最佳的图片质量
+      await cameraController.setExposureMode(ExposureMode.auto);
+      await cameraController.setFocusMode(FocusMode.auto);
 
       _maxAvailableZoom = await cameraController.getMaxZoomLevel();
       _minAvailableZoom = await cameraController.getMinZoomLevel();
@@ -567,6 +571,7 @@ class _CameraScreenState extends State<CameraScreen>
     });
 
     try {
+      // 直接拍照并保存原图
       final XFile photo = await _controller!.takePicture();
 
       if (currentProject == null) {
@@ -595,10 +600,8 @@ class _CameraScreenState extends State<CameraScreen>
       // 确定照片类型
       String actualPhotoType;
       if (photoType != null) {
-        // 如果路由参数中有指定照片类型，优先使用
         actualPhotoType = photoType;
       } else {
-        // 否则根据模式确定照片类型
         switch (mode) {
           case PhotoMode.start:
             actualPhotoType = START_PHOTO;
@@ -619,70 +622,40 @@ class _CameraScreenState extends State<CameraScreen>
       String newFilePath = "";
       int photoSequence = 0;
       
-      if (actualPhotoType == START_PHOTO) {
-        newFilePath = await _handleStartPointPhoto(photo.path, savePath, timestamp, existingPhotos);
-        // 从文件名中提取序号
-        final fileName = path.basename(newFilePath);
-        final RegExp regex = RegExp(r'_(\d+)\.jpg$');
-        final match = regex.firstMatch(fileName);
-        if (match != null && match.group(1) != null) {
-          photoSequence = int.tryParse(match.group(1)!) ?? 0;
-        }
-      } else if (actualPhotoType == MIDDLE_PHOTO) {
-        newFilePath = await _handleMiddlePointPhoto(photo.path, savePath, timestamp, existingPhotos);
-        // 从文件名中提取序号
-        final fileName = path.basename(newFilePath);
-        final RegExp regex = RegExp(r'_(\d+)\.jpg$');
-        final match = regex.firstMatch(fileName);
-        if (match != null && match.group(1) != null) {
-          photoSequence = int.tryParse(match.group(1)!) ?? 0;
-        }
-      } else if (actualPhotoType == MODEL_PHOTO) {
-        newFilePath = await _handleModelPointPhoto(photo.path, savePath, timestamp, existingPhotos);
-        // 从文件名中提取序号
-        final fileName = path.basename(newFilePath);
-        final RegExp regex = RegExp(r'_(\d+)\.jpg$');
-        final match = regex.firstMatch(fileName);
-        if (match != null && match.group(1) != null) {
-          photoSequence = int.tryParse(match.group(1)!) ?? 0;
-        }
-      } else if (actualPhotoType == END_PHOTO) {
-        newFilePath = await _handleEndPointPhoto(photo.path, savePath, timestamp, existingPhotos);
-        // 从文件名中提取序号
-        final fileName = path.basename(newFilePath);
-        final RegExp regex = RegExp(r'_(\d+)\.jpg$');
-        final match = regex.firstMatch(fileName);
-        if (match != null && match.group(1) != null) {
-          photoSequence = int.tryParse(match.group(1)!) ?? 0;
-        }
+      // 根据照片类型调用相应的处理方法
+      switch (actualPhotoType) {
+        case START_PHOTO:
+          newFilePath = await _handleStartPointPhoto(photo.path, savePath, timestamp, existingPhotos);
+          break;
+        case MIDDLE_PHOTO:
+          newFilePath = await _handleMiddlePointPhoto(photo.path, savePath, timestamp, existingPhotos);
+          break;
+        case MODEL_PHOTO:
+          newFilePath = await _handleModelPointPhoto(photo.path, savePath, timestamp, existingPhotos);
+          break;
+        case END_PHOTO:
+          newFilePath = await _handleEndPointPhoto(photo.path, savePath, timestamp, existingPhotos);
+          break;
       }
 
-      // 如果需要裁剪，处理图片
-      if (_cropEnabled && newFilePath.isNotEmpty) {
-        await _processImage(newFilePath);
+      // 从文件名中提取序号
+      final fileName = path.basename(newFilePath);
+      final RegExp regex = RegExp(r'_(\d+)\.jpg$');
+      final match = regex.firstMatch(fileName);
+      if (match != null && match.group(1) != null) {
+        photoSequence = int.tryParse(match.group(1)!) ?? 0;
       }
 
       // 强制重新加载照片列表
       await photoProvider.forceReloadPhotos();
 
       // 重新加载项目数据
-      final projectProvider =
-          Provider.of<ProjectProvider>(context, listen: false);
+      final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
       await projectProvider.initialize();
 
       // 显示提示
       if (mounted) {
-        String successMessage;
-        if (actualPhotoType == START_PHOTO) {
-          successMessage = '起始点照片已保存 (序号: ${photoSequence.toString().padLeft(2, '0')})';
-        } else if (actualPhotoType == MIDDLE_PHOTO) {
-          successMessage = '中间点照片已保存 (序号: ${photoSequence.toString().padLeft(2, '0')})';
-        } else if (actualPhotoType == END_PHOTO) {
-          successMessage = '结束点照片已保存 (序号: ${photoSequence.toString().padLeft(2, '0')})';
-        } else {
-          successMessage = '模型点照片已保存 (序号: ${photoSequence.toString().padLeft(2, '0')})';
-        }
-        
+        String successMessage = '${actualPhotoType.replaceAll('拍照', '')}已保存 (序号: ${photoSequence.toString().padLeft(2, '0')})';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(successMessage)),
         );
@@ -1054,9 +1027,9 @@ class _CameraScreenState extends State<CameraScreen>
               onScaleStart: _handleScaleStart,
               onScaleUpdate: _handleScaleUpdate,
               onTapUp: _handleTapUp,
-              child: Center(
+              child: Container(
                 child: AspectRatio(
-                  aspectRatio: 1 / _controller!.value.aspectRatio,
+                  aspectRatio: _controller!.value.aspectRatio,
                   child: CameraPreview(_controller!),
                 ),
               ),
