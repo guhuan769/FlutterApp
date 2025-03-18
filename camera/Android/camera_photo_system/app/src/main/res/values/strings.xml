@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">相机拍照系统</string>
+    <string name="camera_permission_required">需要相机权限才能使用此功能</string>
+    <string name="grant_permission">授予权限</string>
+    <string name="camera_initialization_failed">相机初始化失败</string>
+    <string name="close">关闭</string>
+    <string name="flash_mode">闪光灯模式</string>
+    <string name="switch_camera">切换相机</string>
+    <string name="photo_capture_failed">拍照失败</string>
+</resources>

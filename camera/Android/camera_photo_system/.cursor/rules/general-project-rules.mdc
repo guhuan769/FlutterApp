@@ -1,0 +1,17 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# 通用项目规则
+- 项目采用MVVM+Clean Architecture架构
+- 主要使用Kotlin语言开发，必要时可平滑过渡到Java
+- 使用Jetpack组件库（ViewModel, LiveData, Navigation等）
+- 使用Coroutines和Flow处理异步操作
+- 使用Hilt进行依赖注入
+- 采用Material Design 3设计规范
+- 遵循命名规范：变量使用camelCase，类使用PascalCase
+- 实现多级结构：项目 > 车辆 > 轨迹
+- 严格遵循代码质量标准，使用ktlint进行代码格式检查
+- 所有代码都必须严格执行，拒绝 " error: Unresolved reference " 所有文件都必须检查是否报错。然后才能继续写下面的代码。
+- 保证所有代码能够正常运行，拒绝找不到库，无法解析的导入依赖

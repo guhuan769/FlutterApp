@@ -1,0 +1,18 @@
+---
+description: 
+globs: *.kt,*.java
+alwaysApply: false
+---
+# *.kt, *.java文件规则
+- 包结构按功能模块划分：
+  - com.example.cameraproject.project (项目模块)
+  - com.example.cameraproject.vehicle (车辆模块)
+  - com.example.cameraproject.track (轨迹模块)
+  - com.example.cameraproject.common (公共组件)
+  - com.example.cameraproject.network (网络层)
+- 每个功能模块实现对应的Repository, UseCase, ViewModel
+- 使用Kotlin Data Class表示数据模型
+- 使用密封类(sealed class)处理UI状态
+- 使用扩展函数增强代码可读性
+- 视图层使用Fragment，避免重Activity
+- 单元测试覆盖率不低于70%

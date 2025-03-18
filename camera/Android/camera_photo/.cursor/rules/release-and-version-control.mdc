@@ -1,0 +1,13 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 发布和版本控制
+- 使用Git进行版本控制
+- 遵循Git Flow工作流
+- 使用语义化版本号：major.minor.patch
+- 发布前进行代码审查和测试
+- 使用ProGuard进行代码混淆和优化
+- 使用App Bundle减小APK大小
+- 实现应用内更新机制

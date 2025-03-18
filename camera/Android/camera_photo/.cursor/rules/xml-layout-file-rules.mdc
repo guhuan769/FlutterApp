@@ -1,0 +1,14 @@
+---
+description: 
+globs: *.xml
+alwaysApply: false
+---
+# *.xml布局文件规则
+- 使用ConstraintLayout作为主要布局容器
+- 布局文件命名规则：[模块]_[组件类型]_[描述].xml
+  例如：project_fragment_list.xml, vehicle_item_card.xml
+- 使用主题和样式统一UI风格
+- 适配不同屏幕尺寸和方向
+- 使用Material Components组件
+- 支持深色模式
+- 使用资源文件存储颜色、尺寸、字符串等常量

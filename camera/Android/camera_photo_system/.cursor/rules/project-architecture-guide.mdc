@@ -1,0 +1,21 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 项目架构指南
+- 数据层（Data）：
+  - Repository实现
+  - 远程数据源（API）
+  - 本地数据源（Room数据库）
+  - 数据模型映射器
+- 领域层（Domain）：
+  - 实体类
+  - Repository接口
+  - UseCase
+- 表现层（Presentation）：
+  - ViewModel
+  - UI状态
+  - UI组件（Activity/Fragment）
+  - 适配器
+- 遵循单向数据流：ViewModel -> UI State -> UI -> User Events -> ViewModel

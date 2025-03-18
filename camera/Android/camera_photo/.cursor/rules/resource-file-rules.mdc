@@ -1,0 +1,12 @@
+---
+description: 
+globs: *.xml
+alwaysApply: false
+---
+# 资源文件规则
+- 图片资源使用矢量图形(Vector Drawable)
+- 命名规则：[模块]_[类型]_[描述]
+  例如：ic_project_add.xml, bg_vehicle_card.xml
+- 使用资源限定符适配不同设备
+- 国际化支持，使用strings.xml管理文本
+- 使用dimens.xml管理尺寸，避免硬编码

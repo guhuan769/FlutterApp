@@ -4,36 +4,6 @@
         <name>PlyFileProcessor</name>
     </assembly>
     <members>
-        <member name="M:PlyFileProcessor.Controllers.HealthController.Get">
-            <summary>
-            获取基本状态
-            </summary>
-            <remarks>
-            返回服务是否正常运行的基本信息。
-            </remarks>
-            <returns>状态信息</returns>
-            <response code="200">服务正常运行</response>
-        </member>
-        <member name="M:PlyFileProcessor.Controllers.HealthController.GetDetails">
-            <summary>
-            获取详细状态
-            </summary>
-            <remarks>
-            返回详细的系统状态，包括MQTT连接、文件系统等信息。
-            </remarks>
-            <returns>详细状态信息</returns>
-            <response code="200">详细信息</response>
-        </member>
-        <member name="M:PlyFileProcessor.Controllers.HealthController.ResetMqtt">
-            <summary>
-            重置MQTT连接
-            </summary>
-            <remarks>
-            尝试重新连接MQTT客户端。
-            </remarks>
-            <returns>重连结果</returns>
-            <response code="200">重连结果</response>
-        </member>
         <member name="M:PlyFileProcessor.Controllers.UploadController.UploadImage">
             <summary>
             处理文件上传请求
