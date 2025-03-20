@@ -1,0 +1,14 @@
+---
+description: 用于api的规则
+globs: 
+alwaysApply: false
+---
+# API集成规则
+- 使用Retrofit+OkHttp进行网络请求
+- 遵循RESTful API设计原则
+- 使用Swagger生成的API接口文档
+- 实现统一的API响应处理和错误管理
+- 实现图片上传功能，支持断点续传
+- 使用拦截器处理认证和日志
+- 实现离线缓存机制
+- 网络请求结果使用Resource<T>封装，包含数据、状态和错误信息

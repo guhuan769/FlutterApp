@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Base application theme. -->
-    <style name="Theme.Camera_photo" parent="android:Theme.Material.NoActionBar">
-        <item name="android:statusBarColor">@color/black</item>
-    </style>
-</resources> 
