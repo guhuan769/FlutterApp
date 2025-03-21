@@ -925,7 +925,7 @@ class ProjectProvider with ChangeNotifier {
       }
 
       // 更新最终状态
-      final isSuccess = totalSuccess > 0 && totalFiles > 0;
+      final isSuccess = totalSuccess > 0;
       final successRate = totalFiles > 0 ? (totalSuccess / totalFiles * 100).toStringAsFixed(1) : "0";
       
       if (totalSuccess == 0) {
@@ -1209,7 +1209,7 @@ class ProjectProvider with ChangeNotifier {
       request.fields.addAll({
         'type': type?.name ?? 'unknown',
         'value': value ?? 'unknown',
-        'project_info': json.encode(project.toJson()),
+        'project_info': json.encode({"name": project.name}),
         'batch_number': batchNumber.toString(),
         'total_batches': totalBatches.toString(),
       });
@@ -1290,18 +1290,6 @@ class ProjectProvider with ChangeNotifier {
           if (response.statusCode == 200) {
             String successRate = responseJson['success_rate'] ?? '';
             int savedFiles = responseJson['saved_files'] ?? batch.length;
-            bool plyFilesFound = responseJson['ply_files_found'] ?? false;
-            
-            // 如果这是最后一个批次，检查是否成功生成PLY文件
-            if (batchNumber == totalBatches && status != null) {
-              status.hasPlyFiles = plyFilesFound;
-              
-              if (plyFilesFound) {
-                status.addLog('PLY文件生成成功');
-              } else if (responseJson.containsKey('ply_files_found')) {
-                status.addLog('PLY文件生成成功');
-              }
-            }
             
             if (status != null) {
               if (successRate.isNotEmpty) {
@@ -1319,18 +1307,6 @@ class ProjectProvider with ChangeNotifier {
           // 处理错误响应
           String errorMessage = responseJson['message'] ?? '未知错误';
           
-          // 特殊处理PLY文件生成失败错误
-          if (response.statusCode == 500 && errorMessage.contains('ply文件生成失败')) {
-            // 忽略PLY文件失败错误，将其视为成功
-            if (status != null) {
-              status.addLog('照片上传成功，但部分后处理未完成');
-              _uploadStatuses[project.id] = status;
-              notifyListeners();
-            }
-            
-            return BatchUploadResult(success: true, filesCount: batch.length);
-          }
-          
           if (status != null) {
             status.addLog('批次 $batchNumber 上传失败: ${response.statusCode}, $errorMessage', isError: true);
             _uploadStatuses[project.id] = status;
@@ -1339,21 +1315,11 @@ class ProjectProvider with ChangeNotifier {
           
           // 服务器错误时抛出异常以触发重试
           if (response.statusCode >= 500) {
-            // 特殊处理PLY文件错误
-            if (errorMessage.contains('ply文件生成失败')) {
-              if (status != null) {
-                status.addLog('照片上传成功，但部分后处理未完成');
-                _uploadStatuses[project.id] = status;
-                notifyListeners();
-              }
-              return BatchUploadResult(success: true, filesCount: batch.length);
-            }
-            
             throw ServerException('服务器错误: ${response.statusCode}');
           }
           
           // 客户端错误，不再重试
-          return BatchUploadResult(success: false, filesCount: batch.length);
+          return BatchUploadResult(success: false, filesCount: 0);
         },
         retryIf: (e) {
           // 确定哪些异常应该触发重试
@@ -1386,7 +1352,7 @@ class ProjectProvider with ChangeNotifier {
         _uploadStatuses[project.id] = status;
         notifyListeners();
       }
-      return BatchUploadResult(success: false, filesCount: batch.length);
+      return BatchUploadResult(success: false, filesCount: 0);
     }
   }
 

@@ -776,12 +776,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     }
                   } catch (e) {
                     if (mounted) {
-                      // 显示更友好的错误信息
-                      String errorMsg = e.toString();
-                      if (errorMsg.contains('ply文件生成失败')) {
-                        errorMsg = '文件上传成功，但处理过程出现问题';
-                      }
-                      _showSnackBar('上传未完成: $errorMsg');
+                      // 简化错误信息处理，移除PLY相关代码
+                      _showSnackBar('上传未完成: ${e.toString()}');
                     }
                   }
                 },

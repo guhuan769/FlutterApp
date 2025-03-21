@@ -184,19 +184,16 @@ class _UploadStatusWidgetState extends State<UploadStatusWidget>
         errorMessage = '请先在设置中配置服务器地址';
       } else if (errorString.contains('没有可上传的文件')) {
         errorMessage = '没有可上传的文件，请确保项目中包含照片';
-      } else if (errorString.contains('ply文件生成失败')) {
-        errorMessage = '照片上传成功，但部分后处理未完成';
       } else if (errorString.length > 100) {
         errorMessage = '${errorString.substring(0, 100)}...';
       } else {
         errorMessage = errorString;
       }
       
-      // 如果是PLY错误，显示不同的样式
-      final bool isPlyError = errorString.contains('ply文件生成失败');
-      final Color errorColor = isPlyError ? Colors.orange.shade700 : Colors.red.shade700;
-      final Color bgColor = isPlyError ? Colors.orange.withOpacity(0.1) : Colors.red.withOpacity(0.1);
-      final Color borderColor = isPlyError ? Colors.orange.shade200 : Colors.red.shade200;
+      // 移除 PLY 错误处理，使用正常的错误样式
+      final Color errorColor = Colors.red.shade700;
+      final Color bgColor = Colors.red.withOpacity(0.1);
+      final Color borderColor = Colors.red.shade200;
       
       return Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
@@ -211,12 +208,11 @@ class _UploadStatusWidgetState extends State<UploadStatusWidget>
           children: [
             Row(
               children: [
-                Icon(isPlyError ? Icons.warning_amber : Icons.error_outline, 
-                     color: errorColor, size: 18),
+                Icon(Icons.error_outline, color: errorColor, size: 18),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    isPlyError ? '部分处理未完成' : '上传失败',
+                    '上传失败',
                     style: TextStyle(
                       color: errorColor,
                       fontSize: 13,
@@ -236,17 +232,16 @@ class _UploadStatusWidgetState extends State<UploadStatusWidget>
                 ),
               ),
             ),
-            if (!isPlyError)
-              Padding(
-                padding: const EdgeInsets.only(left: 26, top: 4),
-                child: Text(
-                  '请检查网络和服务器设置后重试',
-                  style: TextStyle(
-                    color: errorColor,
-                    fontSize: 12,
-                  ),
+            Padding(
+              padding: const EdgeInsets.only(left: 26, top: 4),
+              child: Text(
+                '请检查网络和服务器设置后重试',
+                style: TextStyle(
+                  color: errorColor,
+                  fontSize: 12,
                 ),
               ),
+            ),
           ],
         ),
       );
