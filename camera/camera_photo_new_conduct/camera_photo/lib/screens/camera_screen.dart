@@ -297,7 +297,7 @@ class _CameraScreenState extends State<CameraScreen>
         sequence = 1;
       } else {
         // 提取序号并找到最大值
-        final RegExp regex = RegExp(r'_(\d+)');
+        final RegExp regex = RegExp(r'_(\d+)\.jpg$');
         List<int> sequences = [];
         
         for (var p in startPhotos) {
@@ -349,7 +349,7 @@ class _CameraScreenState extends State<CameraScreen>
         sequence = 1;
       } else {
         // 提取序号并找到最大值
-        final RegExp regex = RegExp(r'_(\d+)');
+        final RegExp regex = RegExp(r'_(\d+)\.jpg$');
         List<int> sequences = [];
         
         for (var p in middlePhotos) {
@@ -401,7 +401,7 @@ class _CameraScreenState extends State<CameraScreen>
         sequence = 1;
       } else {
         // 提取序号并找到最大值
-        final RegExp regex = RegExp(r'_(\d+)');
+        final RegExp regex = RegExp(r'_(\d+)\.jpg$');
         List<int> sequences = [];
         
         for (var p in modelPhotos) {
@@ -453,7 +453,7 @@ class _CameraScreenState extends State<CameraScreen>
         sequence = 1;
       } else {
         // 提取序号并找到最大值
-        final RegExp regex = RegExp(r'_(\d+)');
+        final RegExp regex = RegExp(r'_(\d+)\.jpg$');
         List<int> sequences = [];
         
         for (var p in endPhotos) {

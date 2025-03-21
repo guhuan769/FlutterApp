@@ -366,16 +366,7 @@ class _ProjectPhotosScreenState extends State<ProjectPhotosScreen> {
 
   // 格式化照片名称，显示类型和序号
   String _formatPhotoName(String photoPath) {
-    final fileName = path.basename(photoPath);
-    final RegExp pattern = RegExp(r'(.*?)_(\d+)');
-    final match = pattern.firstMatch(fileName);
-    
-    if (match != null) {
-      final prefix = match.group(1);
-      final number = match.group(2);
-      return '$prefix\n#$number';
-    }
-    return fileName;
+    return PhotoUtils.formatPhotoNameForDisplay(photoPath);
   }
 
   // 获取照片的拍摄时间

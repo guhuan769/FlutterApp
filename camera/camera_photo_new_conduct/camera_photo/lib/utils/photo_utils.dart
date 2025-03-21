@@ -11,28 +11,43 @@ class PhotoUtils {
   // 获取照片类型
   static String getPhotoType(String filePath) {
     final fileName = path.basename(filePath);
-    final parts = fileName.split('_');
-    if (parts.isNotEmpty) {
-      if (parts[0] == START_PHOTO) return START_PHOTO;
-      if (parts[0] == MIDDLE_PHOTO) return MIDDLE_PHOTO;
-      if (parts[0] == MODEL_PHOTO) return MODEL_PHOTO;
-      if (parts[0] == END_PHOTO) return END_PHOTO;
-    }
+    // 直接检查文件名是否以特定类型开头
+    if (fileName.startsWith(START_PHOTO)) return START_PHOTO;
+    if (fileName.startsWith(MIDDLE_PHOTO)) return MIDDLE_PHOTO;
+    if (fileName.startsWith(MODEL_PHOTO)) return MODEL_PHOTO;
+    if (fileName.startsWith(END_PHOTO)) return END_PHOTO;
     return '';
   }
 
-  // 从文件名解析序号
+  // 从文件名解析序号（更新以支持带角度的文件名）
   static int getPhotoSequence(String filePath) {
     try {
       final fileName = path.basename(filePath);
-      final parts = fileName.split('_');
-      if (parts.length >= 2) {
-        return int.tryParse(parts[1]) ?? 999;
+      // 这里使用正则表达式来匹配序号，它会匹配文件名最后的数字部分（在.jpg前面）
+      final RegExp regex = RegExp(r'_(\d+)\.jpg$');
+      final match = regex.firstMatch(fileName);
+      if (match != null && match.group(1) != null) {
+        return int.tryParse(match.group(1)!) ?? 999;
       }
     } catch (e) {
       print('解析序号失败: $e');
     }
     return 999;
+  }
+
+  // 从文件名中提取角度信息
+  static String getPhotoAngle(String filePath) {
+    try {
+      final fileName = path.basename(filePath);
+      final RegExp regex = RegExp(r'_(\d+)度_');
+      final match = regex.firstMatch(fileName);
+      if (match != null && match.group(1) != null) {
+        return match.group(1)!;
+      }
+    } catch (e) {
+      print('解析角度失败: $e');
+    }
+    return '';
   }
 
   // 生成新的序号
@@ -56,9 +71,21 @@ class PhotoUtils {
     return getPhotoSequence(sameTypePhotos.last.path) + 1;
   }
 
-  // 生成文件名
-  static String generateFileName(String photoType, int sequence, String timestamp) {
-    return '${photoType}_${sequence.toString().padLeft(3, '0')}_$timestamp.jpg';
+  // 格式化照片显示名称（用于UI显示）
+  static String formatPhotoNameForDisplay(String filePath) {
+    final photoType = getPhotoType(filePath);
+    final sequence = getPhotoSequence(filePath);
+    final angle = getPhotoAngle(filePath);
+    
+    // 格式化显示名称，首先显示类型，然后是序号
+    final typeDisplayName = photoType.replaceAll('拍照', '');
+    final sequenceStr = sequence.toString().padLeft(2, '0');
+    
+    if (angle.isNotEmpty) {
+      return '$typeDisplayName #$sequenceStr\n(${angle}°)';
+    } else {
+      return '$typeDisplayName #$sequenceStr';
+    }
   }
 
   // 按照类型和序号排序照片
@@ -83,6 +110,16 @@ class PhotoUtils {
     
     // 合并四组照片，保持顺序：起始点 -> 中间点 -> 模型点 -> 结束点
     final sortedPhotos = [...startPhotos, ...middlePhotos, ...modelPhotos, ...endPhotos];
+    
+    // 对于未能识别类型的照片，添加到列表末尾
+    final otherPhotos = photos.where((p) => 
+      !startPhotos.contains(p) && 
+      !middlePhotos.contains(p) && 
+      !modelPhotos.contains(p) && 
+      !endPhotos.contains(p)
+    ).toList();
+    
+    sortedPhotos.addAll(otherPhotos);
     return sortedPhotos;
   }
 
@@ -102,53 +139,9 @@ class PhotoUtils {
       endPhotos.sort((a, b) => getPhotoSequence(a.path).compareTo(getPhotoSequence(b.path)));
       
       // 重新分配序号 - 保持原有序号不变
-      // 起始点照片保持原有序号
-      for (int i = 0; i < startPhotos.length; i++) {
-        final currentSequence = getPhotoSequence(startPhotos[i].path);
-        await _renameWithSequence(startPhotos[i], START_PHOTO, currentSequence);
-      }
-      
-      // 中间点照片保持原有序号
-      for (int i = 0; i < middlePhotos.length; i++) {
-        final currentSequence = getPhotoSequence(middlePhotos[i].path);
-        await _renameWithSequence(middlePhotos[i], MIDDLE_PHOTO, currentSequence);
-      }
-      
-      // 模型点照片保持原有序号
-      for (int i = 0; i < modelPhotos.length; i++) {
-        final currentSequence = getPhotoSequence(modelPhotos[i].path);
-        await _renameWithSequence(modelPhotos[i], MODEL_PHOTO, currentSequence);
-      }
-      
-      // 结束点照片保持原有序号
-      for (int i = 0; i < endPhotos.length; i++) {
-        final currentSequence = getPhotoSequence(endPhotos[i].path);
-        await _renameWithSequence(endPhotos[i], END_PHOTO, currentSequence);
-      }
+      // 我们不修改序号，只是保留现有逻辑作为参考
     } catch (e) {
       print('重新排序照片失败: $e');
-    }
-  }
-
-  // 辅助方法：使用新序号重命名照片
-  static Future<void> _renameWithSequence(File photo, String type, int sequence) async {
-    try {
-      final oldPath = photo.path;
-      final dir = path.dirname(oldPath);
-      final oldName = path.basename(oldPath);
-      final parts = oldName.split('_');
-
-      if (parts.length >= 3) {
-        final timestamp = parts.last.replaceAll('.jpg', '');
-        final newName = generateFileName(type, sequence, timestamp);
-        final newPath = path.join(dir, newName);
-
-        if (oldPath != newPath) {
-          await photo.rename(newPath);
-        }
-      }
-    } catch (e) {
-      print('重命名照片失败: $e');
     }
   }
 }
