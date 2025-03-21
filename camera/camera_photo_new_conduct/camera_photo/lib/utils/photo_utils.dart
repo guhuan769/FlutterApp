@@ -57,8 +57,12 @@ class PhotoUtils {
   }
 
   // 生成文件名
-  static String generateFileName(String photoType, int sequence, String timestamp) {
-    return '${photoType}_${sequence.toString().padLeft(3, '0')}_$timestamp.jpg';
+  // static String generateFileName(String photoType, int sequence, String timestamp) {
+  //   return '${photoType}_${sequence.toString().padLeft(3, '0')}_$timestamp.jpg';
+  // }
+
+  static String generateFileName(String photoType, int sequence, String timestamp, String angle) {
+    return '${photoType}_${sequence.toString().padLeft(3, '0')}_${timestamp}_${angle}°.jpg';
   }
 
   // 按照类型和序号排序照片
@@ -140,7 +144,7 @@ class PhotoUtils {
 
       if (parts.length >= 3) {
         final timestamp = parts.last.replaceAll('.jpg', '');
-        final newName = generateFileName(type, sequence, timestamp);
+        final newName = generateFileName(type, sequence, timestamp,"");
         final newPath = path.join(dir, newName);
 
         if (oldPath != newPath) {
