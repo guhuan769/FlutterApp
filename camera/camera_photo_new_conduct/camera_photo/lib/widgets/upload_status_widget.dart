@@ -151,7 +151,10 @@ class _UploadStatusWidgetState extends State<UploadStatusWidget>
           ],
         ),
         trailing: widget.status.isComplete
-            ? _buildCompletionStatus()
+            ? SizedBox(
+                width: 120,
+                child: _buildCompletionStatus(),
+              )
             : SizedBox(
                 width: 24,
                 height: 24,
@@ -245,6 +248,7 @@ class _UploadStatusWidgetState extends State<UploadStatusWidget>
     if (widget.status.isComplete) {
       if (widget.status.isSuccess) {
         return Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
@@ -311,6 +315,7 @@ class _UploadStatusWidgetState extends State<UploadStatusWidget>
         );
       } else {
         return Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               Icons.error,
@@ -332,6 +337,7 @@ class _UploadStatusWidgetState extends State<UploadStatusWidget>
     }
     
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
           width: 14,
