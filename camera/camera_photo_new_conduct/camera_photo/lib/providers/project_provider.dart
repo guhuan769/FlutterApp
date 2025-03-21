@@ -915,7 +915,7 @@ class ProjectProvider with ChangeNotifier {
         isComplete: true,
         isSuccess: isSuccess,
         status: isSuccess 
-          ? '上传完成！\n成功上传: $totalSuccess/$totalFiles 张照片 (${successRate}%)'
+          ? '上传完成！'
           : '上传部分完成\n成功上传: $totalSuccess/$totalFiles 张照片 (${successRate}%)\n请检查网络后重试',
         logs: List.from(status.logs),
       );
