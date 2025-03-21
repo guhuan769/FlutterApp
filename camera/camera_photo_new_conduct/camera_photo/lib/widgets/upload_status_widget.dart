@@ -184,32 +184,41 @@ class _UploadStatusWidgetState extends State<UploadStatusWidget>
         errorMessage = '请先在设置中配置服务器地址';
       } else if (errorString.contains('没有可上传的文件')) {
         errorMessage = '没有可上传的文件，请确保项目中包含照片';
+      } else if (errorString.contains('ply文件生成失败')) {
+        errorMessage = '照片上传成功，但部分后处理未完成';
       } else if (errorString.length > 100) {
         errorMessage = '${errorString.substring(0, 100)}...';
       } else {
         errorMessage = errorString;
       }
       
+      // 如果是PLY错误，显示不同的样式
+      final bool isPlyError = errorString.contains('ply文件生成失败');
+      final Color errorColor = isPlyError ? Colors.orange.shade700 : Colors.red.shade700;
+      final Color bgColor = isPlyError ? Colors.orange.withOpacity(0.1) : Colors.red.withOpacity(0.1);
+      final Color borderColor = isPlyError ? Colors.orange.shade200 : Colors.red.shade200;
+      
       return Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.red.withOpacity(0.1),
+          color: bgColor,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.red.shade200),
+          border: Border.all(color: borderColor),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(Icons.error_outline, color: Colors.red.shade700, size: 18),
+                Icon(isPlyError ? Icons.warning_amber : Icons.error_outline, 
+                     color: errorColor, size: 18),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '上传失败',
+                    isPlyError ? '部分处理未完成' : '上传失败',
                     style: TextStyle(
-                      color: Colors.red.shade700,
+                      color: errorColor,
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
                     ),
@@ -222,21 +231,22 @@ class _UploadStatusWidgetState extends State<UploadStatusWidget>
               child: Text(
                 errorMessage,
                 style: TextStyle(
-                  color: Colors.red.shade700,
+                  color: errorColor,
                   fontSize: 12,
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.only(left: 26, top: 4),
-              child: Text(
-                '请检查网络和服务器设置后重试',
-                style: TextStyle(
-                  color: Colors.red.shade700,
-                  fontSize: 12,
+            if (!isPlyError)
+              Padding(
+                padding: const EdgeInsets.only(left: 26, top: 4),
+                child: Text(
+                  '请检查网络和服务器设置后重试',
+                  style: TextStyle(
+                    color: errorColor,
+                    fontSize: 12,
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       );
