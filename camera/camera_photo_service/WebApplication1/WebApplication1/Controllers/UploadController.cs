@@ -296,39 +296,13 @@ namespace PlyFileProcessor.Controllers
                 // 修改：确保清单排序正确
                 if (imageList.Count > 0)
                 {
-                    // 重新排序和编号
-                    var sortedList = new List<string>();
-                    int index = 1;
-                    
-                    foreach (var item in imageList
-                        .Select(line => line.Split('\t').Length > 1 ? line.Split('\t')[1] : line)
-                        .Distinct()
-                        .OrderBy(filename => filename))
-                    {
-                        sortedList.Add($"{index}\t{item}");
-                        index++;
-                    }
-                    
-                    // 写入排序后的清单
-                    await System.IO.File.WriteAllLinesAsync(imageListPath, sortedList);
-                    _logger.LogInformation("已更新图片清单文件，共包含 {Count} 个文件", sortedList.Count);
+                    // 执行彻底解决方案 - 保证收集所有相关目录中的图片
+                    await PerformComprehensiveImageProcessing(unifiedImagesDir, projectDir, imageList);
                 }
                 else
                 {
                     // 扫描目录中的所有图片，确保没有遗漏
-                    var allImageFiles = Directory.GetFiles(unifiedImagesDir, "*.jpg")
-                        .Concat(Directory.GetFiles(unifiedImagesDir, "*.jpeg"))
-                        .Select(path => Path.GetFileName(path))
-                        .OrderBy(filename => filename)
-                        .ToList();
-                        
-                    for (int i = 0; i < allImageFiles.Count; i++)
-                    {
-                        imageList.Add($"{i + 1}\t{allImageFiles[i]}");
-                    }
-                    
-                    await System.IO.File.WriteAllLinesAsync(imageListPath, imageList);
-                    _logger.LogInformation("已通过目录扫描生成图片清单，共包含 {Count} 个文件", imageList.Count);
+                    await PerformComprehensiveImageProcessing(unifiedImagesDir, projectDir, new List<string>());
                 }
                 
                 // 添加：写入上传状态文件，但保持API返回简单
@@ -553,6 +527,245 @@ namespace PlyFileProcessor.Controllers
             {
                 _logger.LogError(ex, "获取文件结构信息失败");
                 return new { error = "获取文件结构信息失败" };
+            }
+        }
+
+        // 添加一个新的综合性图片处理方法，确保捕获所有图片
+        private async Task PerformComprehensiveImageProcessing(string unifiedImagesDir, string projectDir, List<string> existingList)
+        {
+            _logger.LogInformation("开始综合图片处理...");
+            
+            // 1. 收集所有图片源（包括project目录和vehicles下的所有目录）
+            var allImagePaths = new List<string>();
+            
+            // 收集项目根目录中的图片
+            allImagePaths.AddRange(Directory.GetFiles(projectDir, "*.jpg", SearchOption.TopDirectoryOnly));
+            allImagePaths.AddRange(Directory.GetFiles(projectDir, "*.jpeg", SearchOption.TopDirectoryOnly));
+            
+            // 收集vehicles目录下的所有图片
+            var vehiclesDir = Path.Combine(projectDir, "vehicles");
+            if (Directory.Exists(vehiclesDir))
+            {
+                // 获取vehicles下所有子目录
+                foreach (var vehicleDir in Directory.GetDirectories(vehiclesDir))
+                {
+                    // 收集vehicle目录中的图片
+                    allImagePaths.AddRange(Directory.GetFiles(vehicleDir, "*.jpg", SearchOption.TopDirectoryOnly));
+                    allImagePaths.AddRange(Directory.GetFiles(vehicleDir, "*.jpeg", SearchOption.TopDirectoryOnly));
+                    
+                    // 收集tracks目录中的图片
+                    var tracksDir = Path.Combine(vehicleDir, "tracks");
+                    if (Directory.Exists(tracksDir))
+                    {
+                        foreach (var trackDir in Directory.GetDirectories(tracksDir))
+                        {
+                            allImagePaths.AddRange(Directory.GetFiles(trackDir, "*.jpg", SearchOption.TopDirectoryOnly));
+                            allImagePaths.AddRange(Directory.GetFiles(trackDir, "*.jpeg", SearchOption.TopDirectoryOnly));
+                        }
+                    }
+                }
+            }
+            
+            _logger.LogInformation("共收集到 {Count} 张源图片", allImagePaths.Count);
+            
+            // 2. 确保这些图片都已复制到all_images目录
+            var currentImagesInUnified = new HashSet<string>(
+                Directory.GetFiles(unifiedImagesDir, "*.jpg")
+                .Concat(Directory.GetFiles(unifiedImagesDir, "*.jpeg"))
+                .Select(path => Path.GetFileName(path))
+            );
+            
+            // 3. 根据所有图片源创建新的清单
+            var newImageList = new List<string>();
+            var imageListPath = Path.Combine(unifiedImagesDir, "image_list.txt");
+            
+            // 处理已有清单项目
+            var existingEntries = new Dictionary<string, string>();
+            foreach (var entry in existingList)
+            {
+                var parts = entry.Split('\t');
+                if (parts.Length >= 2)
+                {
+                    var originalFileName = parts[1];
+                    existingEntries[originalFileName] = entry;
+                }
+            }
+            
+            // 4. 对所有源图片路径进行排序和重命名处理
+            var processedSourceImages = new Dictionary<string, string>(); // 原文件名 -> 新文件名
+            int newNameIndex = 11; // 从11开始编号
+            
+            foreach (var imagePath in allImagePaths)
+            {
+                var fileName = Path.GetFileName(imagePath);
+                var prefixedName = GetPrefixedFileName(imagePath, projectDir);
+                
+                // 检查是否已经处理过这个文件
+                if (processedSourceImages.ContainsKey(prefixedName))
+                {
+                    continue; // 跳过重复文件
+                }
+                
+                // 生成新的数字文件名
+                var extension = Path.GetExtension(fileName);
+                var newName = $"{newNameIndex}{extension}";
+                processedSourceImages[prefixedName] = newName;
+                
+                // 复制到统一目录
+                var destinationPath = Path.Combine(unifiedImagesDir, prefixedName);
+                if (!System.IO.File.Exists(destinationPath))
+                {
+                    try
+                    {
+                        System.IO.File.Copy(imagePath, destinationPath, false);
+                        _logger.LogInformation("复制源图片到统一目录: {Source} -> {Dest}", imagePath, destinationPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "复制源图片失败: {Source}", imagePath);
+                    }
+                }
+                
+                newNameIndex++;
+            }
+            
+            // 5. 生成新的清单和执行重命名
+            var finalList = new List<string>();
+            int index = 1;
+            
+            foreach (var entry in processedSourceImages)
+            {
+                var originalName = entry.Key;
+                var newName = entry.Value;
+                
+                finalList.Add($"{index}\t{originalName}\t{newName}");
+                
+                // 执行重命名
+                string originalFilePath = Path.Combine(unifiedImagesDir, originalName);
+                string newFilePath = Path.Combine(unifiedImagesDir, newName);
+                
+                if (System.IO.File.Exists(originalFilePath))
+                {
+                    try
+                    {
+                        // 如果新文件已存在，先删除它
+                        if (System.IO.File.Exists(newFilePath))
+                        {
+                            System.IO.File.Delete(newFilePath);
+                        }
+                        
+                        // 复制并删除源文件
+                        System.IO.File.Copy(originalFilePath, newFilePath);
+                        System.IO.File.Delete(originalFilePath);
+                        
+                        _logger.LogInformation("重命名文件: {Original} -> {New}", originalName, newName);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "重命名文件失败: {Original} -> {New}", originalName, newName);
+                    }
+                }
+                
+                index++;
+            }
+            
+            // 6. 保存清单文件
+            await System.IO.File.WriteAllLinesAsync(imageListPath, finalList);
+            _logger.LogInformation("已更新图片清单文件，共包含 {Count} 个文件", finalList.Count);
+            
+            // 7. 最终清理 - 删除所有非数字命名的文件
+            PerformThoroughCleanup(unifiedImagesDir);
+        }
+
+        // 添加获取带前缀文件名的辅助方法
+        private string GetPrefixedFileName(string imagePath, string projectDir)
+        {
+            // 根据图片路径确定前缀
+            string prefix = "project_"; // 默认为项目前缀
+            string fileName = Path.GetFileName(imagePath);
+            
+            if (imagePath.Contains(Path.Combine("vehicles")))
+            {
+                // 解析路径结构，提取车辆和轨迹信息
+                var pathParts = imagePath.Split(Path.DirectorySeparatorChar);
+                int vehiclesIndex = Array.IndexOf(pathParts, "vehicles");
+                
+                if (vehiclesIndex >= 0 && vehiclesIndex + 1 < pathParts.Length)
+                {
+                    var vehicleName = pathParts[vehiclesIndex + 1];
+                    
+                    if (imagePath.Contains(Path.Combine("tracks")))
+                    {
+                        // 这是一个轨迹照片
+                        int tracksIndex = Array.IndexOf(pathParts, "tracks");
+                        if (tracksIndex >= 0 && tracksIndex + 1 < pathParts.Length)
+                        {
+                            var trackName = pathParts[tracksIndex + 1];
+                            prefix = $"track_{vehicleName}_{trackName}_";
+                        }
+                    }
+                    else
+                    {
+                        // 这是一个车辆照片
+                        prefix = $"vehicle_{vehicleName}_";
+                    }
+                }
+            }
+            
+            return $"{prefix}{fileName}";
+        }
+
+        // 修改为更彻底的清理方法
+        private void PerformThoroughCleanup(string directory)
+        {
+            try
+            {
+                _logger.LogInformation("开始彻底清理目录: {Directory}", directory);
+                
+                // 获取并处理所有需要保留的文件 - 只有纯数字命名的文件会被保留
+                var filesToKeep = new HashSet<string>();
+                var filesToDelete = new List<string>();
+                
+                foreach (var filePath in Directory.GetFiles(directory, "*.jpg")
+                                        .Concat(Directory.GetFiles(directory, "*.jpeg")))
+                {
+                    var fileName = Path.GetFileName(filePath);
+                    
+                    // 检查文件名是否是纯数字（如11.jpg）
+                    if (int.TryParse(Path.GetFileNameWithoutExtension(fileName), out _))
+                    {
+                        filesToKeep.Add(fileName);
+                        _logger.LogInformation("保留文件: {FileName}", fileName);
+                    }
+                    else
+                    {
+                        filesToDelete.Add(filePath);
+                        _logger.LogInformation("计划删除文件: {FileName}", fileName);
+                    }
+                }
+                
+                // 删除所有非数字命名的文件
+                int deletedCount = 0;
+                foreach (var filePath in filesToDelete)
+                {
+                    try
+                    {
+                        System.IO.File.Delete(filePath);
+                        deletedCount++;
+                        _logger.LogInformation("已删除文件: {FileName}", Path.GetFileName(filePath));
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "删除文件失败: {FileName}", Path.GetFileName(filePath));
+                    }
+                }
+                
+                _logger.LogInformation("清理完成。保留 {KeepCount} 个文件，删除 {DeleteCount} 个文件", 
+                    filesToKeep.Count, deletedCount);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "清理目录时发生错误");
             }
         }
     }
