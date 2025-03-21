@@ -755,31 +755,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 type: type,
                 onTap: () async {
                   Navigator.of(context).pop();
-                  try {
-                    final projectProvider = Provider.of<ProjectProvider>(
-                      context,
-                      listen: false,
-                    );
-                    
-                    // 显示上传中的提示
-                    _showSnackBar('开始上传项目 ${project.name}，请稍候...');
-                    
-                    // 使用异步上传并处理可能的异常
-                    await projectProvider.uploadProject(
-                      project, 
-                      type: type, 
-                      value: option
-                    );
-                    
-                    if (mounted) {
-                      _showSnackBar('项目 ${project.name} 上传成功');
-                    }
-                  } catch (e) {
-                    if (mounted) {
-                      // 简化错误信息处理，移除PLY相关代码
-                      _showSnackBar('上传未完成: ${e.toString()}');
-                    }
-                  }
+                  final projectProvider = Provider.of<ProjectProvider>(
+                    context,
+                    listen: false,
+                  );
+                  await projectProvider.uploadProject(project, type: type, value: option);
                 },
               )).toList(),
             ),

@@ -1,14 +1,12 @@
 // lib/providers/project_provider.dart
 import 'dart:convert';
 import 'dart:io';
-import 'dart:async';
 import 'package:camera_photo/config/upload_options.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:pool/pool.dart';
-import 'package:retry/retry.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/project.dart';
 import 'package:http/http.dart' as http;
@@ -139,12 +137,14 @@ class UploadLog {
 class ProjectUploadStatus {
   final String projectId;
   final DateTime uploadTime;
+  final bool hasPlyFiles;
   final bool isComplete;
   final String? error;
 
   ProjectUploadStatus({
     required this.projectId,
     required this.uploadTime,
+    this.hasPlyFiles = false,
     this.isComplete = false,
     this.error,
   });
@@ -153,6 +153,7 @@ class ProjectUploadStatus {
     return ProjectUploadStatus(
       projectId: json['projectId'],
       uploadTime: DateTime.parse(json['uploadTime']),
+      hasPlyFiles: json['hasPlyFiles'] ?? false,
       isComplete: json['isComplete'] ?? false,
       error: json['error'],
     );
@@ -161,6 +162,7 @@ class ProjectUploadStatus {
   Map<String, dynamic> toJson() => {
     'projectId': projectId,
     'uploadTime': uploadTime.toIso8601String(),
+    'hasPlyFiles': hasPlyFiles,
     'isComplete': isComplete,
     'error': error,
   };
@@ -691,16 +693,7 @@ class ProjectProvider with ChangeNotifier {
   }
 
   Future<void> uploadProjectOrTrack(String path) async {
-    // 查找对应的项目
-    final project = findProjectContainingPath(path);
-    if (project != null) {
-      // 找到项目后上传，使用默认类型和值
-      await uploadProject(
-        project,
-        type: UploadType.model,  // 使用默认的模型类型
-        value: 'A',              // 使用默认的值
-      );
-    }
+    // TODO: Implement upload logic
   }
 
   // 清除所有已完成的上传状态
@@ -768,36 +761,24 @@ class ProjectProvider with ChangeNotifier {
   // 批量上传项目
   Future<void> uploadProjects(List<Project> projects) async {
     for (var project in projects) {
-      // 为每个项目使用默认的上传类型和值
-      await uploadProject(
-        project,
-        type: UploadType.model,  // 使用默认的模型类型
-        value: 'A',              // 使用默认的值
-      );
+      await uploadProject(project);
     }
   }
 
   // 在 ProjectProvider 类中更新上传方法
-  Future<void> uploadProject(
-    Project project, {
-    required UploadType type,
-    required String value,
-  }) async {
-    // 获取当前上传状态或创建新的
-    var status = _uploadStatuses[project.id] ?? UploadStatus(
+  Future<void> uploadProject(Project project, {UploadType? type, String? value}) async {
+    // 获取或创建上传状态
+    UploadStatus status = _uploadStatuses[project.id] ?? UploadStatus(
       projectId: project.id,
       projectName: project.name,
-      isComplete: false,
-      isSuccess: false,
-      progress: 0.0,
-      status: '准备上传...',
-      uploadCount: 0,
     );
 
-    // 检查是否已经在上传中
-    bool isActuallyUploading = !status.isComplete && 
-        status.uploadTime.isAfter(DateTime.now().subtract(Duration(minutes: 1)));
-    
+    // 检查是否真的在上传中
+    final bool isActuallyUploading = !status.isComplete && 
+        status.uploadTime.isAfter(DateTime.now().subtract(Duration(minutes: 1))) &&
+        status.progress > 0;
+
+    // 如果确实在上传中且进度大于0，则不要重复上传
     if (isActuallyUploading) {
       // 更新状态以显示给用户
       status = status.copyWith(
@@ -833,44 +814,11 @@ class ProjectProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // 检查网络连接
-      try {
-        final result = await InternetAddress.lookup('google.com');
-        if (result.isEmpty || result[0].rawAddress.isEmpty) {
-          throw Exception('网络连接不可用，请检查网络设置');
-        }
-      } catch (e) {
-        // 如果google.com无法访问，尝试百度
-        try {
-          final result = await InternetAddress.lookup('baidu.com');
-          if (result.isEmpty || result[0].rawAddress.isEmpty) {
-            throw Exception('网络连接不可用，请检查网络设置');
-          }
-        } catch (e) {
-          throw Exception('网络连接不可用，请检查网络设置');
-        }
-      }
-      
       final prefs = await SharedPreferences.getInstance();
       final apiUrl = prefs.getString('api_url');
       
       if (apiUrl == null || apiUrl.isEmpty) {
         throw Exception('请先在设置中配置服务器地址');
-      }
-
-      // 验证API服务器是否可访问
-      try {
-        final testResponse = await http.get(Uri.parse('$apiUrl/test'))
-            .timeout(const Duration(seconds: 5));
-        if (testResponse.statusCode != 200) {
-          throw Exception('无法连接到服务器，错误码：${testResponse.statusCode}');
-        }
-      } catch (e) {
-        if (e is TimeoutException) {
-          throw Exception('服务器连接超时，请检查服务器地址是否正确或网络是否稳定');
-        } else {
-          throw Exception('无法连接到服务器: ${e.toString()}');
-        }
       }
 
       // 收集文件
@@ -925,18 +873,13 @@ class ProjectProvider with ChangeNotifier {
       }
 
       // 更新最终状态
-      final isSuccess = totalSuccess > 0;
-      final successRate = totalFiles > 0 ? (totalSuccess / totalFiles * 100).toStringAsFixed(1) : "0";
-      
-      if (totalSuccess == 0) {
-        throw Exception('所有文件上传失败，请检查网络连接和服务器状态');
-      }
-      
+      final isSuccess = totalSuccess == totalFiles;
+      final successRate = (totalSuccess / totalFiles * 100).toStringAsFixed(1);
       status = status.copyWith(
         isComplete: true,
         isSuccess: isSuccess,
         status: isSuccess 
-          ? '上传完成！'
+          ? '上传完成！\n成功上传: $totalSuccess/$totalFiles 张照片 (${successRate}%)'
           : '上传部分完成\n成功上传: $totalSuccess/$totalFiles 张照片 (${successRate}%)\n请检查网络后重试',
         logs: List.from(status.logs),
       );
@@ -947,50 +890,14 @@ class ProjectProvider with ChangeNotifier {
 
     } catch (e) {
       print('上传过程错误: $e');
-      // 提供更友好的错误信息
-      String errorMessage = '上传失败';
-      
-      // 特殊处理PLY文件生成失败错误
-      if (e.toString().contains('ply文件生成失败')) {
-        // 如果是PLY文件错误，将上传视为成功
-        status = status.copyWith(
-          isComplete: true,
-          isSuccess: true, // 标记为成功
-          status: '上传完成！\n照片上传成功，但部分处理未能完成',
-          logs: List.from(status.logs),
-        );
-        status.addLog('照片上传成功，但部分后处理未完成');
-        _uploadStatuses[project.id] = status;
-        notifyListeners();
-        await _saveUploadStatuses();
-        return; // 直接返回，不继续处理错误
-      } 
-      // 其他错误正常处理
-      else if (e.toString().contains('网络连接不可用')) {
-        errorMessage = '网络连接不可用，请检查网络设置';
-      } else if (e.toString().contains('服务器连接超时')) {
-        errorMessage = '服务器连接超时，请检查服务器地址是否正确';
-      } else if (e.toString().contains('无法连接到服务器')) {
-        errorMessage = '无法连接到服务器，请检查服务器地址或网络设置';
-      } else if (e.toString().contains('请先在设置中配置服务器地址')) {
-        errorMessage = '请先在设置中配置服务器地址';
-      } else if (e.toString().contains('没有可上传的文件')) {
-        errorMessage = '没有可上传的文件，请确保项目中包含照片';
-      } else {
-        errorMessage = '上传失败: ${e.toString()}';
-      }
-      
       status = status.copyWith(
         isComplete: true,
         isSuccess: false,
-        status: '$errorMessage\n请检查网络和服务器设置后重试',
+        status: '上传失败\n错误原因: ${e.toString()}\n请检查网络和服务器设置后重试',
         error: e.toString(),
         logs: List.from(status.logs),
       );
       status.addLog('上传失败: ${e.toString()}', isError: true);
-      
-      // 重新抛出异常以便调用者处理
-      throw Exception(errorMessage);
     } finally {
       _uploadStatuses[project.id] = status;
       notifyListeners();
@@ -1104,82 +1011,32 @@ class ProjectProvider with ChangeNotifier {
 
     // 限制并发数为3
     final pool = Pool(3);
-    final status = _uploadStatuses[project.id];
 
     try {
-      if (batches.isEmpty) {
-        if (status != null) {
-          status.addLog('没有批次需要上传', isError: true);
-          _uploadStatuses[project.id] = status;
-          notifyListeners();
-        }
-        return [];
-      }
-
-      if (status != null) {
-        status.addLog('开始并发上传 ${batches.length} 个批次，并发数: 3');
-        _uploadStatuses[project.id] = status;
-        notifyListeners();
-      }
-      
-      // 创建所有批次的上传任务
       final futures = batches.asMap().entries.map((entry) {
         final batchIndex = entry.key;
         final batch = entry.value;
 
         return pool.withResource(() async {
-          try {
-            final result = await _uploadBatch(
-              batch: batch,
-              batchNumber: batchIndex + 1,
-              totalBatches: batches.length,
-              apiUrl: apiUrl,
-              project: project,
-              type: type,
-              value: value,
-            );
+          final result = await _uploadBatch(
+            batch: batch,
+            batchNumber: batchIndex + 1,
+            totalBatches: batches.length,
+            apiUrl: apiUrl,
+            project: project,
+            type: type,
+            value: value,
+          );
 
-            // 增加完成批次计数
-            completed++;
-            onProgress(completed, total);
-            return result;
-          } catch (e) {
-            // 处理上传单个批次时的异常
-            if (status != null) {
-              status.addLog('批次 ${batchIndex + 1} 上传失败: ${e.toString()}', isError: true);
-              _uploadStatuses[project.id] = status;
-              notifyListeners();
-            }
-            
-            // 返回失败结果
-            completed++;
-            onProgress(completed, total);
-            return BatchUploadResult(success: false, filesCount: batch.length);
-          }
+          completed++;
+          onProgress(completed, total);
+          return result;
         });
-      }).toList();
+      });
 
-      // 等待所有批次上传完成
       results.addAll(await Future.wait(futures));
-      
-      // 检查上传结果
-      int successCount = results.where((r) => r.success).length;
-      if (status != null) {
-        status.addLog('所有批次处理完成，成功: $successCount/${results.length}');
-        _uploadStatuses[project.id] = status;
-        notifyListeners();
-      }
-      
     } catch (e) {
       print('并发上传错误: $e');
-      if (status != null) {
-        status.addLog('并发上传过程中发生错误: ${e.toString()}', isError: true);
-        _uploadStatuses[project.id] = status;
-        notifyListeners();
-      }
-    } finally {
-      // 确保资源池被关闭
-      await pool.close();
     }
 
     return results;
@@ -1201,158 +1058,70 @@ class ProjectProvider with ChangeNotifier {
       notifyListeners();
     }
 
-    // 准备multipart请求
-    http.MultipartRequest createRequest() {
-      var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
+    var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
 
-      // 添加项目信息和上传类型
-      request.fields.addAll({
-        'type': type?.name ?? 'unknown',
-        'value': value ?? 'unknown',
-        'project_info': json.encode({"name": project.name}),
-        'batch_number': batchNumber.toString(),
-        'total_batches': totalBatches.toString(),
+    // 添加项目信息和上传类型
+    request.fields.addAll({
+      'type': type?.name ?? 'unknown',
+      'value': value ?? 'unknown',
+      'project_info': json.encode(project.toJson()),
+      'batch_number': batchNumber.toString(),
+      'total_batches': totalBatches.toString(),
+    });
+
+    print('正在上传批次 ${batchNumber}/${totalBatches}');
+
+    // 添加文件
+    for (int i = 0; i < batch.length; i++) {
+      final fileInfo = batch[i];
+      final bytes = fileInfo['bytes'] as Uint8List;
+      final fileName = path.basename(fileInfo['path'] as String);
+
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'files[]',
+          bytes,
+          filename: fileName,
+          contentType: MediaType('image', 'jpeg')
+        )
+      );
+
+      request.fields['file_info_$i'] = json.encode({
+        'type': fileInfo['type'],
+        'trackId': fileInfo['trackId'] ?? '',
+        'trackName': fileInfo['trackName'] ?? '',
+        'vehicleId': fileInfo['vehicleId'] ?? '',
+        'vehicleName': fileInfo['vehicleName'] ?? '',
+        'relativePath': fileInfo['relativePath']
       });
-
-      // 添加文件
-      for (int i = 0; i < batch.length; i++) {
-        final fileInfo = batch[i];
-        final bytes = fileInfo['bytes'] as Uint8List;
-        final fileName = path.basename(fileInfo['path'] as String);
-
-        request.files.add(
-          http.MultipartFile.fromBytes(
-            'files[]',
-            bytes,
-            filename: fileName,
-            contentType: MediaType('image', 'jpeg')
-          )
-        );
-
-        request.fields['file_info_$i'] = json.encode({
-          'type': fileInfo['type'],
-          'trackId': fileInfo['trackId'] ?? '',
-          'trackName': fileInfo['trackName'] ?? '',
-          'vehicleId': fileInfo['vehicleId'] ?? '',
-          'vehicleName': fileInfo['vehicleName'] ?? '',
-          'relativePath': fileInfo['relativePath']
-        });
-      }
-
-      return request;
     }
-    
-    // 使用retry包进行重试
+
     try {
-      // 配置重试策略
-      final r = RetryOptions(
-        maxAttempts: 3,
-        delayFactor: const Duration(seconds: 1),
-        maxDelay: const Duration(seconds: 10),
-        randomizationFactor: 0.2,
-      );
+      final response = await request.send();
+      final responseData = await response.stream.bytesToString();
       
-      int currentAttempt = 0;
-      
-      // 执行带有重试的HTTP请求
-      return await r.retry(
-        () async {
-          // 每次尝试时增加计数
-          currentAttempt++;
-          
-          // 创建新的请求（每次重试都需要）
-          final request = createRequest();
-          
-          if (status != null) {
-            status.addLog('发送批次 $batchNumber 请求 (尝试 ${currentAttempt}/${r.maxAttempts})');
-            _uploadStatuses[project.id] = status;
-            notifyListeners();
-          }
-          
-          // 发送请求并等待响应
-          final response = await request.send().timeout(const Duration(minutes: 2));
-          final responseData = await response.stream.bytesToString();
-          
-          // 解析响应数据
-          Map<String, dynamic> responseJson;
-          try {
-            responseJson = json.decode(responseData);
-          } catch (e) {
-            if (status != null) {
-              status.addLog('解析响应数据失败: $e', isError: true);
-              _uploadStatuses[project.id] = status;
-              notifyListeners();
-            }
-            throw FormatException('服务器响应格式错误，无法解析: $responseData');
-          }
-          
-          // 处理成功响应
-          if (response.statusCode == 200) {
-            String successRate = responseJson['success_rate'] ?? '';
-            int savedFiles = responseJson['saved_files'] ?? batch.length;
-            
-            if (status != null) {
-              if (successRate.isNotEmpty) {
-                status.addLog('批次 $batchNumber 上传成功，成功率: $successRate');
-              } else {
-                status.addLog('批次 $batchNumber 上传成功');
-              }
-              _uploadStatuses[project.id] = status;
-              notifyListeners();
-            }
-            
-            return BatchUploadResult(success: true, filesCount: savedFiles);
-          }
-          
-          // 处理错误响应
-          String errorMessage = responseJson['message'] ?? '未知错误';
-          
-          if (status != null) {
-            status.addLog('批次 $batchNumber 上传失败: ${response.statusCode}, $errorMessage', isError: true);
-            _uploadStatuses[project.id] = status;
-            notifyListeners();
-          }
-          
-          // 服务器错误时抛出异常以触发重试
-          if (response.statusCode >= 500) {
-            throw ServerException('服务器错误: ${response.statusCode}');
-          }
-          
-          // 客户端错误，不再重试
-          return BatchUploadResult(success: false, filesCount: 0);
-        },
-        retryIf: (e) {
-          // 确定哪些异常应该触发重试
-          bool shouldRetry = e is SocketException || 
-                             e is TimeoutException || 
-                             e is ServerException ||
-                             (e is FormatException && e.toString().contains('服务器响应格式错误')) ||
-                             e.toString().contains('network');
-          
-          if (shouldRetry && status != null) {
-            status.addLog('发生错误: ${e.toString()}, 将进行重试', isError: true);
-            _uploadStatuses[project.id] = status;
-            notifyListeners();
-          }
-          
-          return shouldRetry;
-        },
-        onRetry: (e) {
-          if (status != null) {
-            status.addLog('重试批次 $batchNumber (尝试 ${currentAttempt + 1}/${r.maxAttempts})');
-            _uploadStatuses[project.id] = status;
-            notifyListeners();
-          }
-        },
-      );
+      if (response.statusCode == 200) {
+        if (status != null) {
+          status.addLog('批次 $batchNumber 上传成功');
+          _uploadStatuses[project.id] = status;
+          notifyListeners();
+        }
+        return BatchUploadResult(success: true, filesCount: batch.length);
+      } else {
+        if (status != null) {
+          status.addLog('批次 $batchNumber 上传失败: ${response.statusCode}', isError: true);
+          _uploadStatuses[project.id] = status;
+          notifyListeners();
+        }
+        return BatchUploadResult(success: false, filesCount: batch.length);
+      }
     } catch (e) {
-      // 所有重试都失败后
       if (status != null) {
-        status.addLog('批次 $batchNumber 上传失败: ${e.toString()}', isError: true);
+        status.addLog('批次 $batchNumber 上传错误: $e', isError: true);
         _uploadStatuses[project.id] = status;
         notifyListeners();
       }
-      return BatchUploadResult(success: false, filesCount: 0);
+      return BatchUploadResult(success: false, filesCount: batch.length);
     }
   }
 
@@ -1365,35 +1134,6 @@ class ProjectProvider with ChangeNotifier {
   int getProjectUploadCount(String projectId) {
     return _uploadStatuses[projectId]?.uploadCount ?? 0;
   }
-
-  // 查找包含指定路径的项目
-  Project? findProjectContainingPath(String path) {
-    // 标准化路径以便于比较
-    final normalizedPath = path.replaceAll('\\', '/');
-    
-    for (var project in projects) {
-      // 检查项目路径
-      if (normalizedPath.contains(project.path.replaceAll('\\', '/'))) {
-        return project;
-      }
-      
-      // 检查项目中的车辆路径
-      for (var vehicle in project.vehicles) {
-        if (normalizedPath.contains(vehicle.path.replaceAll('\\', '/'))) {
-          return project;
-        }
-        
-        // 检查车辆中的轨迹路径
-        for (var track in vehicle.tracks) {
-          if (normalizedPath.contains(track.path.replaceAll('\\', '/'))) {
-            return project;
-          }
-        }
-      }
-    }
-    
-    return null;
-  }
 }
 
 // 批次上传结果类
@@ -1405,13 +1145,4 @@ class BatchUploadResult {
     required this.success,
     required this.filesCount,
   });
-}
-
-// 添加自定义异常类
-class ServerException implements Exception {
-  final String message;
-  ServerException(this.message);
-  
-  @override
-  String toString() => message;
 }

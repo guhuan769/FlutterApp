@@ -84,9 +84,6 @@ class _CameraScreenState extends State<CameraScreen>
     _initializeAll();
   }
 
-// 在 _CameraScreenState 类中添加这些变量
-  TextEditingController _angleController = TextEditingController(text: '0');
-  String _currentAngle = '0'; // 默认值为0
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -101,23 +98,18 @@ class _CameraScreenState extends State<CameraScreen>
   void didChangeDependencies() {
     super.didChangeDependencies();
     _projectProvider = Provider.of<ProjectProvider>(context, listen: false);
-
+    
     // 获取当前项目和轨迹信息
-    final Map<String, dynamic>? args = ModalRoute
-        .of(context)
-        ?.settings
-        .arguments as Map<String, dynamic>?;
+    final Map<String, dynamic>? args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     if (args != null) {
       setState(() {
         currentProject = args['project'] as Project?;
         currentTrack = args['track'] as Track?;
       });
     }
-
+    
     if (_cropBoxPosition == Offset.zero) {
-      final size = MediaQuery
-          .of(context)
-          .size;
+      final size = MediaQuery.of(context).size;
       _cropBoxPosition = Offset(
         (size.width - _cropBoxSize) / 2,
         (size.height - _cropBoxSize) / 2,
@@ -182,8 +174,7 @@ class _CameraScreenState extends State<CameraScreen>
       await _disposeCamera();
 
       final savedResolution = await SettingsManager.getResolutionPreset();
-      print(
-          'Initializing camera with resolution: ${savedResolution.toString()}');
+      print('Initializing camera with resolution: ${savedResolution.toString()}');
 
       final CameraController cameraController = CameraController(
         _cameras[_currentCameraIndex],
@@ -196,7 +187,7 @@ class _CameraScreenState extends State<CameraScreen>
 
       await cameraController.initialize();
       await cameraController.setFlashMode(FlashMode.off);
-
+      
       // 设置最佳的图片质量
       await cameraController.setExposureMode(ExposureMode.auto);
       await cameraController.setFocusMode(FocusMode.auto);
@@ -286,13 +277,13 @@ class _CameraScreenState extends State<CameraScreen>
   // ====== 照片处理方法 ======
 
   Future<String> _handleStartPointPhoto(String sourcePath, String savePath,
-      String timestamp, List<File> existingPhotos, String angle) async {
+      String timestamp, List<File> existingPhotos) async {
     try {
       // 查找现有的起始点照片
       final startPhotos = existingPhotos
           .where((p) => path.basename(p.path).startsWith(START_PHOTO))
           .toList();
-
+      
       int sequence;
       if (startPhotos.isEmpty) {
         // 如果没有起始点照片，使用序号1
@@ -301,7 +292,7 @@ class _CameraScreenState extends State<CameraScreen>
         // 提取序号并找到最大值
         final RegExp regex = RegExp(r'_(\d+)');
         List<int> sequences = [];
-
+        
         for (var p in startPhotos) {
           final fileName = path.basename(p.path);
           final match = regex.firstMatch(fileName);
@@ -312,7 +303,7 @@ class _CameraScreenState extends State<CameraScreen>
             }
           }
         }
-
+        
         if (sequences.isNotEmpty) {
           sequences.sort();
           sequence = sequences.last + 1;
@@ -321,11 +312,11 @@ class _CameraScreenState extends State<CameraScreen>
         }
       }
 
-      // 生成新文件名（包含角度）
+      // 生成新文件名 (确保序号是两位数)
       final String formattedSequence = sequence.toString().padLeft(2, '0');
-      final String fileName = '${START_PHOTO}_${formattedSequence}_${timestamp}_${angle}°.jpg';
+      final String fileName = '${START_PHOTO}_$formattedSequence.jpg';
       final String newPath = path.join(savePath, fileName);
-
+      
       // 保存照片
       await File(sourcePath).copy(newPath);
       return newPath;
@@ -336,13 +327,13 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Future<String> _handleMiddlePointPhoto(String sourcePath, String savePath,
-      String timestamp, List<File> existingPhotos, String angle) async {
+      String timestamp, List<File> existingPhotos) async {
     try {
       // 查找现有的中间点照片
       final middlePhotos = existingPhotos
           .where((p) => path.basename(p.path).startsWith(MIDDLE_PHOTO))
           .toList();
-
+      
       int sequence;
       if (middlePhotos.isEmpty) {
         // 如果没有中间点照片，使用序号1
@@ -351,7 +342,7 @@ class _CameraScreenState extends State<CameraScreen>
         // 提取序号并找到最大值
         final RegExp regex = RegExp(r'_(\d+)');
         List<int> sequences = [];
-
+        
         for (var p in middlePhotos) {
           final fileName = path.basename(p.path);
           final match = regex.firstMatch(fileName);
@@ -362,7 +353,7 @@ class _CameraScreenState extends State<CameraScreen>
             }
           }
         }
-
+        
         if (sequences.isNotEmpty) {
           sequences.sort();
           sequence = sequences.last + 1;
@@ -373,9 +364,9 @@ class _CameraScreenState extends State<CameraScreen>
 
       // 生成新文件名 (确保序号是两位数)
       final String formattedSequence = sequence.toString().padLeft(2, '0');
-      final String fileName = '${MIDDLE_PHOTO}_${formattedSequence}_${angle}°.jpg';
+      final String fileName = '${MIDDLE_PHOTO}_$formattedSequence.jpg';
       final String newPath = path.join(savePath, fileName);
-
+      
       // 保存照片
       await File(sourcePath).copy(newPath);
       return newPath;
@@ -386,13 +377,13 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Future<String> _handleModelPointPhoto(String sourcePath, String savePath,
-      String timestamp, List<File> existingPhotos, String angle) async {
+      String timestamp, List<File> existingPhotos) async {
     try {
       // 查找现有的模型点照片
       final modelPhotos = existingPhotos
           .where((p) => path.basename(p.path).startsWith(MODEL_PHOTO))
           .toList();
-
+      
       int sequence;
       if (modelPhotos.isEmpty) {
         // 如果没有模型点照片，使用序号1
@@ -401,7 +392,7 @@ class _CameraScreenState extends State<CameraScreen>
         // 提取序号并找到最大值
         final RegExp regex = RegExp(r'_(\d+)');
         List<int> sequences = [];
-
+        
         for (var p in modelPhotos) {
           final fileName = path.basename(p.path);
           final match = regex.firstMatch(fileName);
@@ -412,7 +403,7 @@ class _CameraScreenState extends State<CameraScreen>
             }
           }
         }
-
+        
         if (sequences.isNotEmpty) {
           sequences.sort();
           sequence = sequences.last + 1;
@@ -423,9 +414,9 @@ class _CameraScreenState extends State<CameraScreen>
 
       // 生成新文件名 (确保序号是两位数)
       final String formattedSequence = sequence.toString().padLeft(2, '0');
-      final String fileName = '${MODEL_PHOTO}_${formattedSequence}_${angle}°.jpg';
+      final String fileName = '${MODEL_PHOTO}_$formattedSequence.jpg';
       final String newPath = path.join(savePath, fileName);
-
+      
       // 保存照片
       await File(sourcePath).copy(newPath);
       return newPath;
@@ -436,13 +427,13 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Future<String> _handleEndPointPhoto(String sourcePath, String savePath,
-      String timestamp, List<File> existingPhotos, String angle) async {
+      String timestamp, List<File> existingPhotos) async {
     try {
       // 查找现有的结束点照片
       final endPhotos = existingPhotos
           .where((p) => path.basename(p.path).startsWith(END_PHOTO))
           .toList();
-
+      
       int sequence;
       if (endPhotos.isEmpty) {
         // 如果没有结束点照片，使用序号1
@@ -451,7 +442,7 @@ class _CameraScreenState extends State<CameraScreen>
         // 提取序号并找到最大值
         final RegExp regex = RegExp(r'_(\d+)');
         List<int> sequences = [];
-
+        
         for (var p in endPhotos) {
           final fileName = path.basename(p.path);
           final match = regex.firstMatch(fileName);
@@ -462,7 +453,7 @@ class _CameraScreenState extends State<CameraScreen>
             }
           }
         }
-
+        
         if (sequences.isNotEmpty) {
           sequences.sort();
           sequence = sequences.last + 1;
@@ -473,9 +464,9 @@ class _CameraScreenState extends State<CameraScreen>
 
       // 生成新文件名 (确保序号是两位数)
       final String formattedSequence = sequence.toString().padLeft(2, '0');
-      final String fileName = '${END_PHOTO}_${formattedSequence}_${angle}°.jpg';
+      final String fileName = '${END_PHOTO}_$formattedSequence.jpg';
       final String newPath = path.join(savePath, fileName);
-
+      
       // 保存照片
       await File(sourcePath).copy(newPath);
       return newPath;
@@ -484,7 +475,7 @@ class _CameraScreenState extends State<CameraScreen>
       rethrow;
     }
   }
-
+  
   // 辅助方法：加载目录中的所有照片
   Future<List<File>> _loadAllPhotos(String dirPath) async {
     final dir = Directory(dirPath);
@@ -492,7 +483,7 @@ class _CameraScreenState extends State<CameraScreen>
       await dir.create(recursive: true);
       return [];
     }
-
+    
     final List<File> photos = [];
     await for (var entity in dir.list(recursive: false)) {
       if (entity is File && entity.path.toLowerCase().endsWith('.jpg')) {
@@ -531,13 +522,11 @@ class _CameraScreenState extends State<CameraScreen>
   Future<File> _cropImage(String imagePath) async {
     final File imageFile = File(imagePath);
     final img.Image? originalImage =
-    img.decodeImage(await imageFile.readAsBytes());
+        img.decodeImage(await imageFile.readAsBytes());
 
     if (originalImage == null) throw Exception('Failed to load image');
 
-    final size = MediaQuery
-        .of(context)
-        .size;
+    final size = MediaQuery.of(context).size;
     final double scale = originalImage.width / size.width;
 
     int x = (_cropBoxPosition.dx * scale).round();
@@ -570,10 +559,9 @@ class _CameraScreenState extends State<CameraScreen>
   // ====== 主拍照方法 ======
 
   // 修改拍照方法
-
-// 在 _takePicture 方法中传递角度
   Future<void> _takePicture(PhotoMode mode) async {
-    if (_controller == null || !_controller!.value.isInitialized ||
+    if (_controller == null ||
+        !_controller!.value.isInitialized ||
         _isCapturing) {
       return;
     }
@@ -591,24 +579,19 @@ class _CameraScreenState extends State<CameraScreen>
       }
 
       // 获取当前路由参数
-      final Map<String, dynamic>? args = ModalRoute
-          .of(context)
-          ?.settings
-          .arguments as Map<String, dynamic>?;
+      final Map<String, dynamic>? args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       final Vehicle? currentVehicle = args?['vehicle'] as Vehicle?;
       final String? photoType = args?['photoType'] as String?;
-
+      
       // 根据当前模式选择保存路径
-      final String savePath = currentTrack?.path ??
-          (currentVehicle?.path ?? currentProject!.path);
+      final String savePath = currentTrack?.path ?? 
+                            (currentVehicle?.path ?? currentProject!.path);
 
       final DateTime now = DateTime.now();
       final String timestamp =
           "${now.year}${now.month.toString().padLeft(2, '0')}"
-          "${now.day.toString().padLeft(2, '0')}${now.hour.toString().padLeft(
-          2, '0')}"
-          "${now.minute.toString().padLeft(2, '0')}${now.second.toString()
-          .padLeft(2, '0')}";
+          "${now.day.toString().padLeft(2, '0')}${now.hour.toString().padLeft(2, '0')}"
+          "${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}";
 
       final photoProvider = Provider.of<PhotoProvider>(context, listen: false);
       await photoProvider.loadPhotosForProjectOrTrack(savePath);
@@ -638,30 +621,26 @@ class _CameraScreenState extends State<CameraScreen>
       // 根据照片类型处理照片
       String newFilePath = "";
       int photoSequence = 0;
-
-      // 根据照片类型调用相应的处理方法，传递角度值
+      
+      // 根据照片类型调用相应的处理方法
       switch (actualPhotoType) {
         case START_PHOTO:
-          newFilePath = await _handleStartPointPhoto(
-              photo.path, savePath, timestamp, existingPhotos, _currentAngle);
+          newFilePath = await _handleStartPointPhoto(photo.path, savePath, timestamp, existingPhotos);
           break;
         case MIDDLE_PHOTO:
-          newFilePath = await _handleMiddlePointPhoto(
-              photo.path, savePath, timestamp, existingPhotos, _currentAngle);
+          newFilePath = await _handleMiddlePointPhoto(photo.path, savePath, timestamp, existingPhotos);
           break;
         case MODEL_PHOTO:
-          newFilePath = await _handleModelPointPhoto(
-              photo.path, savePath, timestamp, existingPhotos, _currentAngle);
+          newFilePath = await _handleModelPointPhoto(photo.path, savePath, timestamp, existingPhotos);
           break;
         case END_PHOTO:
-          newFilePath = await _handleEndPointPhoto(
-              photo.path, savePath, timestamp, existingPhotos, _currentAngle);
+          newFilePath = await _handleEndPointPhoto(photo.path, savePath, timestamp, existingPhotos);
           break;
       }
 
       // 从文件名中提取序号
       final fileName = path.basename(newFilePath);
-      final RegExp regex = RegExp(r'_(\d+)_');
+      final RegExp regex = RegExp(r'_(\d+)\.jpg$');
       final match = regex.firstMatch(fileName);
       if (match != null && match.group(1) != null) {
         photoSequence = int.tryParse(match.group(1)!) ?? 0;
@@ -671,15 +650,12 @@ class _CameraScreenState extends State<CameraScreen>
       await photoProvider.forceReloadPhotos();
 
       // 重新加载项目数据
-      final projectProvider = Provider.of<ProjectProvider>(
-          context, listen: false);
+      final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
       await projectProvider.initialize();
 
       // 显示提示
       if (mounted) {
-        String successMessage = '${actualPhotoType.replaceAll(
-            '拍照', '')}已保存 (序号: ${photoSequence.toString().padLeft(
-            2, '0')}, 角度: ${_currentAngle}°)';
+        String successMessage = '${actualPhotoType.replaceAll('拍照', '')}已保存 (序号: ${photoSequence.toString().padLeft(2, '0')})';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(successMessage)),
         );
@@ -770,27 +746,24 @@ class _CameraScreenState extends State<CameraScreen>
             ),
             child: FloatingActionButton(
               heroTag: 'camera_${mode.toString()}',
-              backgroundColor: isEnabled
-                  ? Colors.white.withOpacity(0.2)
-                  : Colors.grey.withOpacity(0.2),
+              backgroundColor: isEnabled ? Colors.white.withOpacity(0.2) : Colors.grey.withOpacity(0.2),
               elevation: isEnabled ? 2 : 0,
-              onPressed: (_isCapturing || !isEnabled) ? null : () =>
-                  _takePicture(mode),
+              onPressed: (_isCapturing || !isEnabled) ? null : () => _takePicture(mode),
               child: _isCapturing
                   ? const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                ),
-              )
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                      ),
+                    )
                   : Container(
-                margin: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  color: isEnabled ? Colors.white : Colors.grey,
-                  shape: BoxShape.circle,
-                ),
-              ),
+                      margin: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: isEnabled ? Colors.white : Colors.grey,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
             ),
           ),
           const SizedBox(height: 4),
@@ -847,9 +820,7 @@ class _CameraScreenState extends State<CameraScreen>
     if (!_isCameraInitialized || _controller == null) return;
 
     final Offset tapPosition = details.localPosition;
-    final Size previewSize = MediaQuery
-        .of(context)
-        .size;
+    final Size previewSize = MediaQuery.of(context).size;
 
     final double x = tapPosition.dx.clamp(0.0, previewSize.width);
     final double y = tapPosition.dy.clamp(0.0, previewSize.height);
@@ -920,14 +891,8 @@ class _CameraScreenState extends State<CameraScreen>
           setState(() {
             _cropBoxSize = 200.0;
             _cropBoxPosition = Offset(
-              (MediaQuery
-                  .of(context)
-                  .size
-                  .width - _cropBoxSize) / 2,
-              (MediaQuery
-                  .of(context)
-                  .size
-                  .height - _cropBoxSize) / 2,
+              (MediaQuery.of(context).size.width - _cropBoxSize) / 2,
+              (MediaQuery.of(context).size.height - _cropBoxSize) / 2,
             );
           });
         }
@@ -977,9 +942,7 @@ class _CameraScreenState extends State<CameraScreen>
     } else if (_isDraggingCropBox) {
       setState(() {
         final newPosition = _cropBoxPosition + details.delta;
-        final screenSize = MediaQuery
-            .of(context)
-            .size;
+        final screenSize = MediaQuery.of(context).size;
 
         _cropBoxPosition = Offset(
           newPosition.dx.clamp(0, screenSize.width - _cropBoxSize),
@@ -1054,111 +1017,76 @@ class _CameraScreenState extends State<CameraScreen>
         backgroundColor: Colors.black,
         title: Text(currentTrack != null ? '轨迹拍照' : '项目拍照'),
         foregroundColor: Colors.white,
-        actions: [
-        Container(
-        width: 80,
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: TextField(
-          controller: _angleController,
-          keyboardType: TextInputType.number,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
-            hintText: '角度°',
-            hintStyle: TextStyle(color: Colors.white70),
-            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-            border: OutlineInputBorder(),
-            enabledBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: Colors.white54),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: Colors.white),
-            ),
-          ),
-          onChanged: (value) {
-            // 验证输入的角度是否在0-360范围内
-            final angle = int.tryParse(value) ?? 0;
-            if (angle >= 0 && angle <= 360) {
-              setState(() {
-                _currentAngle = value;
-              });
-            }
-          },
-        ),
       ),
-      ],
-    ),
-    body: Stack(
-    fit: StackFit.expand,
-    children: [
-    // 相机预览
-    if (_isCameraInitialized && _controller != null)
-    GestureDetector(
-    onScaleStart: _handleScaleStart,
-    onScaleUpdate: _handleScaleUpdate,
-    onTapUp: _handleTapUp,
-    child: Container(
-    child: AspectRatio(
-    aspectRatio: _controller!.value.aspectRatio,
-    child: CameraPreview(_controller!),
-    ),
-    ),
-    )
-    else
-    const Center(
-    child: CircularProgressIndicator(color: Colors.white),
-    ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // 相机预览
+          if (_isCameraInitialized && _controller != null)
+            GestureDetector(
+              onScaleStart: _handleScaleStart,
+              onScaleUpdate: _handleScaleUpdate,
+              onTapUp: _handleTapUp,
+              child: Container(
+                child: AspectRatio(
+                  aspectRatio: _controller!.value.aspectRatio,
+                  child: CameraPreview(_controller!),
+                ),
+              ),
+            )
+          else
+            const Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            ),
 
-    // 根据设置显示裁剪框
-    if (false)
-    if (_isCameraInitialized && _cropEnabled)
-    Positioned.fill(
-    child: GestureDetector(
-    onPanStart: _handleCropBoxPanStart,
-    onPanUpdate: _handleCropBoxPanUpdate,
-    onPanEnd: _handleCropBoxPanEnd,
-    onTapDown: _handleCropBoxTapDown,
-    child: CustomPaint(
-    painter: CropBoxPainter(
-    cropBoxPosition: _cropBoxPosition,
-    cropBoxSize: _cropBoxSize,
-    ),
-    ),
-    ),
-    ),
-    // 显示分辨率指示器
-    if (_isCameraInitialized) _buildResolutionIndicator(),
-    // 中心点指示器
-    if (_isCameraInitialized && _showCenterPoint)
-    const Positioned.fill(
-    child: CustomPaint(
-    painter: CenterPointPainter(),
-    ),
-    ),
+          // 根据设置显示裁剪框
+          if (false)
+            if (_isCameraInitialized && _cropEnabled)
+              Positioned.fill(
+                child: GestureDetector(
+                  onPanStart: _handleCropBoxPanStart,
+                  onPanUpdate: _handleCropBoxPanUpdate,
+                  onPanEnd: _handleCropBoxPanEnd,
+                  onTapDown: _handleCropBoxTapDown,
+                  child: CustomPaint(
+                    painter: CropBoxPainter(
+                      cropBoxPosition: _cropBoxPosition,
+                      cropBoxSize: _cropBoxSize,
+                    ),
+                  ),
+                ),
+              ),
+          // 显示分辨率指示器
+          if (_isCameraInitialized) _buildResolutionIndicator(),
+          // 中心点指示器
+          if (_isCameraInitialized && _showCenterPoint)
+            const Positioned.fill(
+              child: CustomPaint(
+                painter: CenterPointPainter(),
+              ),
+            ),
 
-    // 拍照按钮
-    if (_isCameraInitialized)
-    Positioned(
-    left: 0,
-    right: 0,
-    bottom: 30,
-    child: Container(
-    padding: const EdgeInsets.symmetric(horizontal: 24),
-    child: Row(
-    mainAxisAlignment: MainAxisAlignment.spaceAround,
-    children: [
-    _buildCaptureButton(PhotoMode.start, '起始点'),
-    _buildCaptureButton(PhotoMode.middle, '中间点'),
-    _buildCaptureButton(PhotoMode.model, '模型点'),
-    _buildCaptureButton(PhotoMode.end, '结束点'),
-    ],
-    ),
-    ),
-    )
-    ,
-    ]
-    ,
-    )
-    ,
+          // 拍照按钮
+          if (_isCameraInitialized)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 30,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildCaptureButton(PhotoMode.start, '起始点'),
+                    _buildCaptureButton(PhotoMode.middle, '中间点'),
+                    _buildCaptureButton(PhotoMode.model, '模型点'),
+                    _buildCaptureButton(PhotoMode.end, '结束点'),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
