@@ -139,14 +139,12 @@ class UploadLog {
 class ProjectUploadStatus {
   final String projectId;
   final DateTime uploadTime;
-  final bool hasPlyFiles;
   final bool isComplete;
   final String? error;
 
   ProjectUploadStatus({
     required this.projectId,
     required this.uploadTime,
-    this.hasPlyFiles = false,
     this.isComplete = false,
     this.error,
   });
@@ -155,7 +153,6 @@ class ProjectUploadStatus {
     return ProjectUploadStatus(
       projectId: json['projectId'],
       uploadTime: DateTime.parse(json['uploadTime']),
-      hasPlyFiles: json['hasPlyFiles'] ?? false,
       isComplete: json['isComplete'] ?? false,
       error: json['error'],
     );
@@ -164,7 +161,6 @@ class ProjectUploadStatus {
   Map<String, dynamic> toJson() => {
     'projectId': projectId,
     'uploadTime': uploadTime.toIso8601String(),
-    'hasPlyFiles': hasPlyFiles,
     'isComplete': isComplete,
     'error': error,
   };

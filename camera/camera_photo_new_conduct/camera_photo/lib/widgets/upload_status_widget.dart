@@ -269,48 +269,6 @@ class _UploadStatusWidgetState extends State<UploadStatusWidget>
                 ),
               ],
             ),
-            if (widget.status.hasPlyFiles) 
-              Padding(
-                padding: const EdgeInsets.only(top: 4, left: 22),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.check_circle,
-                      color: Colors.green,
-                      size: 14,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'PLY文件生成成功',
-                      style: TextStyle(
-                        color: Colors.green,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            if (!widget.status.hasPlyFiles)
-              Padding(
-                padding: const EdgeInsets.only(top: 4, left: 22),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.warning,
-                      color: Colors.orange,
-                      size: 14,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'PLY文件生成失败',
-                      style: TextStyle(
-                        color: Colors.orange,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
           ],
         );
       } else {
