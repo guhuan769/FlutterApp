@@ -45,6 +45,11 @@ class _CameraScreenState extends State<CameraScreen>
 
   // 添加 ProjectProvider 引用
   late ProjectProvider _projectProvider;
+  
+  // 添加角度控制相关变量
+  final TextEditingController _angleController = TextEditingController(text: '0');
+  final FocusNode _angleFocusNode = FocusNode();
+  String _currentAngle = '0';
 
   // ====== 缩放相关变量 ======
   double _minAvailableZoom = 1.0;
@@ -88,6 +93,8 @@ class _CameraScreenState extends State<CameraScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _disposeCamera();
+    _angleController.dispose();
+    _angleFocusNode.dispose();
     if (mounted) {
       _projectProvider.initialize();
     }
@@ -314,7 +321,9 @@ class _CameraScreenState extends State<CameraScreen>
 
       // 生成新文件名 (确保序号是两位数)
       final String formattedSequence = sequence.toString().padLeft(2, '0');
-      final String fileName = '${START_PHOTO}_$formattedSequence.jpg';
+      // 添加角度信息到文件名
+      final String angleInfo = _currentAngle.isEmpty ? '' : '_${_currentAngle}度';
+      final String fileName = '${START_PHOTO}${angleInfo}_$formattedSequence.jpg';
       final String newPath = path.join(savePath, fileName);
       
       // 保存照片
@@ -364,7 +373,9 @@ class _CameraScreenState extends State<CameraScreen>
 
       // 生成新文件名 (确保序号是两位数)
       final String formattedSequence = sequence.toString().padLeft(2, '0');
-      final String fileName = '${MIDDLE_PHOTO}_$formattedSequence.jpg';
+      // 添加角度信息到文件名
+      final String angleInfo = _currentAngle.isEmpty ? '' : '_${_currentAngle}度';
+      final String fileName = '${MIDDLE_PHOTO}${angleInfo}_$formattedSequence.jpg';
       final String newPath = path.join(savePath, fileName);
       
       // 保存照片
@@ -414,7 +425,9 @@ class _CameraScreenState extends State<CameraScreen>
 
       // 生成新文件名 (确保序号是两位数)
       final String formattedSequence = sequence.toString().padLeft(2, '0');
-      final String fileName = '${MODEL_PHOTO}_$formattedSequence.jpg';
+      // 添加角度信息到文件名
+      final String angleInfo = _currentAngle.isEmpty ? '' : '_${_currentAngle}度';
+      final String fileName = '${MODEL_PHOTO}${angleInfo}_$formattedSequence.jpg';
       final String newPath = path.join(savePath, fileName);
       
       // 保存照片
@@ -464,7 +477,9 @@ class _CameraScreenState extends State<CameraScreen>
 
       // 生成新文件名 (确保序号是两位数)
       final String formattedSequence = sequence.toString().padLeft(2, '0');
-      final String fileName = '${END_PHOTO}_$formattedSequence.jpg';
+      // 添加角度信息到文件名
+      final String angleInfo = _currentAngle.isEmpty ? '' : '_${_currentAngle}度';
+      final String fileName = '${END_PHOTO}${angleInfo}_$formattedSequence.jpg';
       final String newPath = path.join(savePath, fileName);
       
       // 保存照片
@@ -570,6 +585,11 @@ class _CameraScreenState extends State<CameraScreen>
       _isCapturing = true;
     });
 
+    // 先获取当前角度值
+    setState(() {
+      _currentAngle = _angleController.text.trim();
+    });
+
     try {
       // 直接拍照并保存原图
       final XFile photo = await _controller!.takePicture();
@@ -655,7 +675,8 @@ class _CameraScreenState extends State<CameraScreen>
 
       // 显示提示
       if (mounted) {
-        String successMessage = '${actualPhotoType.replaceAll('拍照', '')}已保存 (序号: ${photoSequence.toString().padLeft(2, '0')})';
+        String angleInfo = _currentAngle.isEmpty ? '' : ' (角度: ${_currentAngle}°)';
+        String successMessage = '${actualPhotoType.replaceAll('拍照', '')}已保存 (序号: ${photoSequence.toString().padLeft(2, '0')})$angleInfo';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(successMessage)),
         );
@@ -1001,6 +1022,47 @@ class _CameraScreenState extends State<CameraScreen>
     }
   }
 
+  // 添加角度输入框控件
+  Widget _buildAngleInputField() {
+    return Container(
+      width: 100,
+      height: 40,
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      margin: const EdgeInsets.only(top: 8, right: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: TextField(
+        controller: _angleController,
+        focusNode: _angleFocusNode,
+        keyboardType: TextInputType.number,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 14,
+        ),
+        decoration: const InputDecoration(
+          hintText: '输入角度',
+          hintStyle: TextStyle(color: Colors.grey),
+          contentPadding: EdgeInsets.zero,
+          border: InputBorder.none,
+          suffixText: '°',
+          suffixStyle: TextStyle(color: Colors.white),
+        ),
+        onChanged: (value) {
+          _currentAngle = value;
+        },
+        onSubmitted: (value) {
+          setState(() {
+            _currentAngle = value;
+          });
+          _angleFocusNode.unfocus();
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_isCameraInitialized) {
@@ -1017,6 +1079,11 @@ class _CameraScreenState extends State<CameraScreen>
         backgroundColor: Colors.black,
         title: Text(currentTrack != null ? '轨迹拍照' : '项目拍照'),
         foregroundColor: Colors.white,
+        actions: [
+          // 添加角度输入框到AppBar的actions中
+          _buildAngleInputField(),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Stack(
         fit: StackFit.expand,
@@ -1056,8 +1123,32 @@ class _CameraScreenState extends State<CameraScreen>
                   ),
                 ),
               ),
+              
+          // 显示当前角度信息
+          if (_isCameraInitialized && _currentAngle.isNotEmpty && _currentAngle != '0')
+            Positioned(
+              top: 75,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  '当前角度: ${_currentAngle}°',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+              
           // 显示分辨率指示器
           if (_isCameraInitialized) _buildResolutionIndicator(),
+          
           // 中心点指示器
           if (_isCameraInitialized && _showCenterPoint)
             const Positioned.fill(
