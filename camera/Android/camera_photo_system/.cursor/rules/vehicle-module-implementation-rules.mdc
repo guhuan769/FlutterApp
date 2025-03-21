@@ -1,0 +1,27 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+---
+description: 车辆模块实现规则
+globs: 
+alwaysApply: false
+---
+# 车辆模块实现规则
+
+## 功能实现要点
+- 拍照功能必须支持四种拍照类型：起始点、中间点、模型点、结束点
+- 相册功能必须隔离，只显示当前车辆照片
+- 轨迹管理功能必须支持创建、查看、编辑和删除轨迹
+
+## 数据模型设计
+- Vehicle数据类必须包含：id, projectId, plateNumber, brand, model字段
+- VehiclePhoto数据类必须包含：id, vehicleId, path, type, sequence字段
+- 蓝牙自拍杆连接信息必须持久化，便于再次使用
+
+## UI交互规范
+- 车辆列表必须按项目分组显示
+- 车辆详情页必须显示所有照片和轨迹信息
+- 照片拍摄界面必须支持快速切换拍照类型
+- 轨迹列表必须显示轨迹长度和照片数量

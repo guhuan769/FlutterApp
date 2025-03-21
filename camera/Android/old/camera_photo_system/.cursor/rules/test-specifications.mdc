@@ -1,0 +1,13 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 测试规范
+- 单元测试：JUnit, Mockito
+- UI测试：Espresso
+- 集成测试：使用Test fixtures
+- 测试覆盖率监控：JaCoCo
+- 实现测试自动化CI/CD流程
+- 关键功能路径必须有测试覆盖
+- 性能测试：启动时间、内存占用、电池消耗

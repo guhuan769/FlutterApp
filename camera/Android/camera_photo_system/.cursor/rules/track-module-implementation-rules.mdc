@@ -1,0 +1,28 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+description: 轨迹模块实现规则
+globs: 
+alwaysApply: false
+---
+# 轨迹模块实现规则
+
+## 功能实现要点
+- 照片浏览功能必须支持顺序查看和筛选
+- 拍照功能必须支持四种拍照类型：起始点、中间点、模型点、结束点
+- 轨迹数据必须包含GPS坐标信息
+- 轨迹展示必须支持地图可视化
+
+## 数据模型设计
+- Track数据类必须包含：id, vehicleId, name, length, startTime, endTime字段
+- TrackPoint数据类必须包含：id, trackId, latitude, longitude, sequence字段
+- TrackPhoto数据类必须包含：id, trackId, pointId, path, type字段
+
+## UI交互规范
+- 轨迹详情页必须显示起止点位置和全部照片
+- 照片浏览必须支持按位置排序和按类型筛选
+- 轨迹创建必须支持设置起止点和名称
+- 轨迹编辑必须支持添加中间点和照片关联

@@ -1,0 +1,28 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+---
+description: 项目模块实现规则
+globs: 
+alwaysApply: false
+---
+# 项目模块实现规则
+
+## 功能实现要点
+- 拍照功能必须支持模型点拍照
+- 相册功能必须隔离，只显示当前项目照片
+- 添加车辆功能必须验证车辆信息完整性
+- 上传功能必须支持批量上传和单张上传
+
+## 数据模型设计
+- Project数据类必须包含：id, name, description, creationDate字段
+- ProjectPhoto数据类必须包含：id, projectId, path, type, sequence字段
+- 模型关系必须明确：一个项目可关联多辆车，一辆车可关联多个轨迹
+
+## UI交互规范
+- 项目列表必须支持下拉刷新和分页加载
+- 项目详情页必须显示关联车辆和照片统计
+- 项目创建表单必须包含必填字段验证
+- 照片预览必须支持照片类型筛选
