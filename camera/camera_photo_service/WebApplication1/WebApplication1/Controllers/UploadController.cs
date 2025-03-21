@@ -114,12 +114,37 @@ namespace PlyFileProcessor.Controllers
                 var unifiedImagesDir = Path.Combine(projectDir, "all_images");
                 Directory.CreateDirectory(unifiedImagesDir);
                 
-                // 添加：创建图片清单文件
+                // 创建/更新图片清单文件
                 var imageListPath = Path.Combine(unifiedImagesDir, "image_list.txt");
                 var imageList = new List<string>();
-                
-                // 添加：创建上传状态文件，用于前端查询
-                var statusFilePath = Path.Combine(projectDir, $"upload_status_{batchNumber}.json");
+
+                // 添加：首先读取已有的清单文件（如果存在）
+                if (System.IO.File.Exists(imageListPath))
+                {
+                    try 
+                    {
+                        var existingLines = await System.IO.File.ReadAllLinesAsync(imageListPath);
+                        // 解析已有编号和文件名
+                        var existingEntries = new Dictionary<string, int>();
+                        
+                        foreach (var line in existingLines)
+                        {
+                            var parts = line.Split('\t');
+                            if (parts.Length == 2 && int.TryParse(parts[0], out int num))
+                            {
+                                existingEntries[parts[1]] = num;
+                                imageList.Add(line);
+                            }
+                        }
+                        
+                        _logger.LogInformation("已从现有清单中读取 {Count} 个文件条目", existingEntries.Count);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "读取现有图片清单文件失败，将创建新清单");
+                        imageList.Clear();
+                    }
+                }
 
                 // 处理上传的文件
                 var savedFiles = new List<string>();
@@ -238,7 +263,7 @@ namespace PlyFileProcessor.Controllers
                         // 添加：保存文件到统一目录，添加前缀
                         var originalFileName = Path.GetFileName(fileInfo.GetValueOrDefault("relativePath", file.FileName));
                         var unifiedFileName = $"{prefix}{originalFileName}";
-                        var unifiedSavePath = Path.Combine(unifiedImagesDir, unifiedFileName);
+                        var unifiedSavePath = Path.GetFullPath(Path.Combine(unifiedImagesDir, unifiedFileName));
                         
                         using (var stream = new FileStream(unifiedSavePath, FileMode.Create))
                         {
@@ -246,8 +271,19 @@ namespace PlyFileProcessor.Controllers
                             _logger.LogInformation("文件 {FileName} 已保存到统一目录 {SavePath}", file.FileName, unifiedSavePath);
                         }
                         
-                        // 添加：添加到图片清单
-                        imageList.Add($"{imageList.Count + 1}\t{unifiedFileName}");
+                        // 添加：检查文件是否已在清单中
+                        var existingIndex = imageList.FindIndex(line => line.EndsWith($"\t{unifiedFileName}"));
+
+                        if (existingIndex == -1)
+                        {
+                            // 文件不在清单中，添加新条目
+                            imageList.Add($"{imageList.Count + 1}\t{unifiedFileName}");
+                            _logger.LogInformation("文件 {FileName} 已添加到图片清单", unifiedFileName);
+                        }
+                        else
+                        {
+                            _logger.LogInformation("文件 {FileName} 已存在于图片清单中", unifiedFileName);
+                        }
 
                         savedFiles.Add(savePath);
                     }
@@ -257,9 +293,43 @@ namespace PlyFileProcessor.Controllers
                     }
                 }
                 
-                // 添加：写入图片清单文件
-                await System.IO.File.WriteAllLinesAsync(imageListPath, imageList);
-                _logger.LogInformation("已生成图片清单文件: {ImageListPath}", imageListPath);
+                // 修改：确保清单排序正确
+                if (imageList.Count > 0)
+                {
+                    // 重新排序和编号
+                    var sortedList = new List<string>();
+                    int index = 1;
+                    
+                    foreach (var item in imageList
+                        .Select(line => line.Split('\t').Length > 1 ? line.Split('\t')[1] : line)
+                        .Distinct()
+                        .OrderBy(filename => filename))
+                    {
+                        sortedList.Add($"{index}\t{item}");
+                        index++;
+                    }
+                    
+                    // 写入排序后的清单
+                    await System.IO.File.WriteAllLinesAsync(imageListPath, sortedList);
+                    _logger.LogInformation("已更新图片清单文件，共包含 {Count} 个文件", sortedList.Count);
+                }
+                else
+                {
+                    // 扫描目录中的所有图片，确保没有遗漏
+                    var allImageFiles = Directory.GetFiles(unifiedImagesDir, "*.jpg")
+                        .Concat(Directory.GetFiles(unifiedImagesDir, "*.jpeg"))
+                        .Select(path => Path.GetFileName(path))
+                        .OrderBy(filename => filename)
+                        .ToList();
+                        
+                    for (int i = 0; i < allImageFiles.Count; i++)
+                    {
+                        imageList.Add($"{i + 1}\t{allImageFiles[i]}");
+                    }
+                    
+                    await System.IO.File.WriteAllLinesAsync(imageListPath, imageList);
+                    _logger.LogInformation("已通过目录扫描生成图片清单，共包含 {Count} 个文件", imageList.Count);
+                }
                 
                 // 添加：写入上传状态文件，但保持API返回简单
                 var statusInfo = new
@@ -273,6 +343,7 @@ namespace PlyFileProcessor.Controllers
                     timestamp = DateTime.Now.ToString("O")
                 };
                 
+                var statusFilePath = Path.Combine(projectDir, $"upload_status_{batchNumber}.json");
                 await System.IO.File.WriteAllTextAsync(
                     statusFilePath, 
                     JsonSerializer.Serialize(statusInfo, new JsonSerializerOptions { WriteIndented = true })
@@ -287,11 +358,14 @@ namespace PlyFileProcessor.Controllers
                 {
                     _logger.LogInformation("处理最后一个批次，检查PLY文件");
                     var hasPly = await _plyFileService.CheckAndProcessPlyFilesAsync(taskId, projectName);
-
-                    if (hasPly) 
+                    if (!hasPly)
                     {
-                        // 保持原始的简单返回格式，但在文件系统中保存详细信息
-                        return Ok(new
+                        return StatusCode(500, new { code = 500, message = $"ply文件生成失败。" });
+                    }
+                    //if (hasPly) 
+                    //{
+                    // 保持原始的简单返回格式，但在文件系统中保存详细信息
+                    return Ok(new
                         {
                             code = 200,
                             message = "所有批次上传完成",
@@ -300,11 +374,11 @@ namespace PlyFileProcessor.Controllers
                             ply_files_found = hasPly,
                             success_rate = $"{savedFiles.Count}/{files.Count}"  // 添加这一项关键数据
                         });
-                    }
-                    else
-                    {
-                         return StatusCode(500, new { code = 500, message = $"ply文件生成失败。" });
-                    }
+                    //}
+                    //else
+                    //{
+                    //     return StatusCode(500, new { code = 500, message = $"ply文件生成失败。" });
+                    //}
                 }
                 else
                 {
