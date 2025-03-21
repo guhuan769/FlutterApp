@@ -755,11 +755,35 @@ class _HomeScreenState extends State<HomeScreen> {
                 type: type,
                 onTap: () async {
                   Navigator.of(context).pop();
-                  final projectProvider = Provider.of<ProjectProvider>(
-                    context,
-                    listen: false,
-                  );
-                  await projectProvider.uploadProject(project, type: type, value: option);
+                  try {
+                    final projectProvider = Provider.of<ProjectProvider>(
+                      context,
+                      listen: false,
+                    );
+                    
+                    // 显示上传中的提示
+                    _showSnackBar('开始上传项目 ${project.name}，请稍候...');
+                    
+                    // 使用异步上传并处理可能的异常
+                    await projectProvider.uploadProject(
+                      project, 
+                      type: type, 
+                      value: option
+                    );
+                    
+                    if (mounted) {
+                      _showSnackBar('项目 ${project.name} 上传成功');
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      // 显示更友好的错误信息
+                      String errorMsg = e.toString();
+                      if (errorMsg.contains('ply文件生成失败')) {
+                        errorMsg = '文件上传成功，但处理过程出现问题';
+                      }
+                      _showSnackBar('上传未完成: $errorMsg');
+                    }
+                  }
                 },
               )).toList(),
             ),
