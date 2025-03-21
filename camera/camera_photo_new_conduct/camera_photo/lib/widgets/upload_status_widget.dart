@@ -147,27 +147,11 @@ class _UploadStatusWidgetState extends State<UploadStatusWidget>
                     : Colors.grey[700],
               ),
             ),
-            if (widget.status.error != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  widget.status.error!,
-                  style: const TextStyle(
-                    color: Colors.red,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
+            _buildErrorInfo(),
           ],
         ),
         trailing: widget.status.isComplete
-            ? IconButton(
-                icon: Icon(
-                  widget.status.isSuccess ? Icons.check_circle : Icons.error,
-                  color: widget.status.isSuccess ? Colors.green : Colors.red,
-                ),
-                onPressed: widget.onDismiss,
-              )
+            ? _buildCompletionStatus()
             : SizedBox(
                 width: 24,
                 height: 24,
@@ -179,6 +163,194 @@ class _UploadStatusWidgetState extends State<UploadStatusWidget>
                 ),
               ),
       ),
+    );
+  }
+
+  Widget _buildErrorInfo() {
+    if (!widget.status.isSuccess && widget.status.error != null) {
+      String errorMessage = '上传失败';
+      
+      final errorString = widget.status.error!;
+      if (errorString.contains('网络连接不可用')) {
+        errorMessage = '网络连接不可用，请检查网络设置';
+      } else if (errorString.contains('服务器连接超时')) {
+        errorMessage = '服务器连接超时，请检查服务器地址';
+      } else if (errorString.contains('无法连接到服务器')) {
+        errorMessage = '无法连接到服务器，请检查网络设置';
+      } else if (errorString.contains('请先在设置中配置服务器地址')) {
+        errorMessage = '请先在设置中配置服务器地址';
+      } else if (errorString.contains('没有可上传的文件')) {
+        errorMessage = '没有可上传的文件，请确保项目中包含照片';
+      } else if (errorString.length > 100) {
+        errorMessage = '${errorString.substring(0, 100)}...';
+      } else {
+        errorMessage = errorString;
+      }
+      
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.red.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.red.shade200),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.red.shade700, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '上传失败',
+                    style: TextStyle(
+                      color: Colors.red.shade700,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 26, top: 4),
+              child: Text(
+                errorMessage,
+                style: TextStyle(
+                  color: Colors.red.shade700,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 26, top: 4),
+              child: Text(
+                '请检查网络和服务器设置后重试',
+                style: TextStyle(
+                  color: Colors.red.shade700,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildCompletionStatus() {
+    if (widget.status.isComplete) {
+      if (widget.status.isSuccess) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.check_circle,
+                  color: Colors.green,
+                  size: 16,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '上传完成',
+                  style: TextStyle(
+                    color: Colors.green,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+            if (widget.status.hasPlyFiles) 
+              Padding(
+                padding: const EdgeInsets.only(top: 4, left: 22),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.check_circle,
+                      color: Colors.green,
+                      size: 14,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'PLY文件生成成功',
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            if (!widget.status.hasPlyFiles)
+              Padding(
+                padding: const EdgeInsets.only(top: 4, left: 22),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.warning,
+                      color: Colors.orange,
+                      size: 14,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'PLY文件生成失败',
+                      style: TextStyle(
+                        color: Colors.orange,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        );
+      } else {
+        return Row(
+          children: [
+            Icon(
+              Icons.error,
+              color: Colors.red,
+              size: 16,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '上传失败',
+              style: TextStyle(
+                color: Colors.red,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        );
+      }
+    }
+    
+    return Row(
+      children: [
+        SizedBox(
+          width: 14,
+          height: 14,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            value: widget.status.progress > 0 ? widget.status.progress : null,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          '上传中 ${(widget.status.progress * 100).toStringAsFixed(0)}%',
+          style: const TextStyle(
+            color: Colors.blue,
+            fontWeight: FontWeight.w500,
+            fontSize: 13,
+          ),
+        ),
+      ],
     );
   }
 }

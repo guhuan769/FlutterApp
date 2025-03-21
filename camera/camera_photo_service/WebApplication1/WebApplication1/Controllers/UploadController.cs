@@ -109,6 +109,17 @@ namespace PlyFileProcessor.Controllers
 
                 Directory.CreateDirectory(baseSavePath);
                 Directory.CreateDirectory(projectDir);
+                
+                // 添加：创建统一存放图片的目录
+                var unifiedImagesDir = Path.Combine(projectDir, "all_images");
+                Directory.CreateDirectory(unifiedImagesDir);
+                
+                // 添加：创建图片清单文件
+                var imageListPath = Path.Combine(unifiedImagesDir, "image_list.txt");
+                var imageList = new List<string>();
+                
+                // 添加：创建上传状态文件，用于前端查询
+                var statusFilePath = Path.Combine(projectDir, $"upload_status_{batchNumber}.json");
 
                 // 处理上传的文件
                 var savedFiles = new List<string>();
@@ -175,6 +186,7 @@ namespace PlyFileProcessor.Controllers
 
                         // 修改这里：根据不同类型确定保存路径
                         string savePath;
+                        string prefix = ""; // 添加：为统一目录中的文件添加前缀
                         var fileType = fileInfo.GetValueOrDefault("type", "project");
 
                         switch (fileType)
@@ -186,6 +198,7 @@ namespace PlyFileProcessor.Controllers
                                 Directory.CreateDirectory(vehicleDir);
                                 savePath = Path.Combine(vehicleDir,
                                     Path.GetFileName(fileInfo.GetValueOrDefault("relativePath", file.FileName)));
+                                prefix = $"vehicle_{vehicleName}_"; // 添加前缀
                                 _logger.LogInformation("文件 {FileName} 将保存为vehicle: {VehicleName}",
                                     file.FileName, vehicleName);
                                 break;
@@ -198,6 +211,7 @@ namespace PlyFileProcessor.Controllers
                                 Directory.CreateDirectory(trackDir);
                                 savePath = Path.Combine(trackDir,
                                     Path.GetFileName(fileInfo.GetValueOrDefault("relativePath", file.FileName)));
+                                prefix = $"track_{trackVehicleName}_{trackName}_"; // 添加前缀
                                 _logger.LogInformation("文件 {FileName} 将保存为track: {VehicleName}/{TrackName}",
                                     file.FileName, trackVehicleName, trackName);
                                 break;
@@ -206,6 +220,7 @@ namespace PlyFileProcessor.Controllers
                                      // 项目照片保存在项目根目录
                                 savePath = Path.Combine(projectDir,
                                     Path.GetFileName(fileInfo.GetValueOrDefault("relativePath", file.FileName)));
+                                prefix = "project_"; // 添加前缀
                                 _logger.LogInformation("文件 {FileName} 将保存到项目根目录", file.FileName);
                                 break;
                         }
@@ -213,12 +228,26 @@ namespace PlyFileProcessor.Controllers
                         // 创建必要的目录
                         Directory.CreateDirectory(Path.GetDirectoryName(savePath));
 
-                        // 保存文件
+                        // 保存文件到原始路径
                         using (var stream = new FileStream(savePath, FileMode.Create))
                         {
                             await file.CopyToAsync(stream);
                             _logger.LogInformation("文件 {FileName} 已保存到 {SavePath}", file.FileName, savePath);
                         }
+                        
+                        // 添加：保存文件到统一目录，添加前缀
+                        var originalFileName = Path.GetFileName(fileInfo.GetValueOrDefault("relativePath", file.FileName));
+                        var unifiedFileName = $"{prefix}{originalFileName}";
+                        var unifiedSavePath = Path.Combine(unifiedImagesDir, unifiedFileName);
+                        
+                        using (var stream = new FileStream(unifiedSavePath, FileMode.Create))
+                        {
+                            await file.CopyToAsync(stream);
+                            _logger.LogInformation("文件 {FileName} 已保存到统一目录 {SavePath}", file.FileName, unifiedSavePath);
+                        }
+                        
+                        // 添加：添加到图片清单
+                        imageList.Add($"{imageList.Count + 1}\t{unifiedFileName}");
 
                         savedFiles.Add(savePath);
                     }
@@ -227,6 +256,28 @@ namespace PlyFileProcessor.Controllers
                         _logger.LogError(ex, "处理文件失败 {FileName}", files[i].FileName);
                     }
                 }
+                
+                // 添加：写入图片清单文件
+                await System.IO.File.WriteAllLinesAsync(imageListPath, imageList);
+                _logger.LogInformation("已生成图片清单文件: {ImageListPath}", imageListPath);
+                
+                // 添加：写入上传状态文件，但保持API返回简单
+                var statusInfo = new
+                {
+                    batch_number = batchNumber,
+                    total_batches = totalBatches,
+                    saved_files = savedFiles.Count,
+                    total_files = files.Count,
+                    success_rate = $"{savedFiles.Count}/{files.Count} ({(files.Count > 0 ? Math.Round(100.0 * savedFiles.Count / files.Count, 1) : 0)}%)",
+                    upload_status = savedFiles.Count == files.Count ? "上传完成" : "上传部分完成",
+                    timestamp = DateTime.Now.ToString("O")
+                };
+                
+                await System.IO.File.WriteAllTextAsync(
+                    statusFilePath, 
+                    JsonSerializer.Serialize(statusInfo, new JsonSerializerOptions { WriteIndented = true })
+                );
+                _logger.LogInformation("已生成上传状态文件: {StatusFilePath}", statusFilePath);
 
                 _logger.LogInformation("成功保存 {SavedCount}/{TotalCount} 个文件",
                     savedFiles.Count, files.Count);
@@ -239,13 +290,15 @@ namespace PlyFileProcessor.Controllers
 
                     if (hasPly) 
                     {
+                        // 保持原始的简单返回格式，但在文件系统中保存详细信息
                         return Ok(new
                         {
                             code = 200,
                             message = "所有批次上传完成",
                             task_id = taskId,
                             saved_files = savedFiles.Count,
-                            ply_files_found = hasPly
+                            ply_files_found = hasPly,
+                            success_rate = $"{savedFiles.Count}/{files.Count}"  // 添加这一项关键数据
                         });
                     }
                     else
@@ -255,12 +308,14 @@ namespace PlyFileProcessor.Controllers
                 }
                 else
                 {
+                    // 保持原始的简单返回格式，但在文件系统中保存详细信息
                     return Ok(new
                     {
                         code = 200,
                         message = $"批次 {batchNumber}/{totalBatches} 上传成功",
                         task_id = taskId,
-                        saved_files = savedFiles.Count
+                        saved_files = savedFiles.Count,
+                        success_rate = $"{savedFiles.Count}/{files.Count}"  // 添加这一项关键数据
                     });
                 }
             }
@@ -331,6 +386,100 @@ namespace PlyFileProcessor.Controllers
                 time = DateTime.Now,
                 server = Environment.MachineName
             });
+        }
+
+        // 添加：获取上传状态接口
+        [HttpGet("/upload/status/{projectName}/{batchNumber}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public IActionResult GetUploadStatus(string projectName, int batchNumber)
+        {
+            try
+            {
+                // 查找项目目录
+                var projectDirs = Directory.GetDirectories(_uploadFolder, projectName, SearchOption.AllDirectories);
+                if (projectDirs.Length == 0)
+                {
+                    return NotFound(new { code = 404, message = $"未找到项目: {projectName}" });
+                }
+                
+                // 使用找到的第一个项目目录
+                var projectDir = projectDirs[0];
+                var statusFilePath = Path.Combine(projectDir, $"upload_status_{batchNumber}.json");
+                
+                if (!System.IO.File.Exists(statusFilePath))
+                {
+                    return NotFound(new { code = 404, message = $"未找到批次 {batchNumber} 的上传状态" });
+                }
+                
+                var statusJson = System.IO.File.ReadAllText(statusFilePath);
+                return Content(statusJson, "application/json");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取上传状态失败");
+                return StatusCode(500, new { code = 500, message = $"获取上传状态失败: {ex.Message}" });
+            }
+        }
+
+        private object GetFileStructureInfo(string projectDir)
+        {
+            try
+            {
+                var structure = new List<object>();
+                
+                // 获取vehicles目录
+                var vehiclesDir = Path.Combine(projectDir, "vehicles");
+                if (Directory.Exists(vehiclesDir))
+                {
+                    // 获取所有车辆目录
+                    foreach (var vehicleDir in Directory.GetDirectories(vehiclesDir))
+                    {
+                        var vehicleName = Path.GetFileName(vehicleDir);
+                        var vehiclePhotoCount = Directory.GetFiles(vehicleDir, "*.jpg", SearchOption.TopDirectoryOnly).Length 
+                                             + Directory.GetFiles(vehicleDir, "*.jpeg", SearchOption.TopDirectoryOnly).Length;
+                        
+                        // 获取轨迹信息
+                        var tracksDir = Path.Combine(vehicleDir, "tracks");
+                        var tracksList = new List<object>();
+                        
+                        if (Directory.Exists(tracksDir))
+                        {
+                            foreach (var trackDir in Directory.GetDirectories(tracksDir))
+                            {
+                                var trackName = Path.GetFileName(trackDir);
+                                var trackPhotoCount = Directory.GetFiles(trackDir, "*.jpg", SearchOption.TopDirectoryOnly).Length
+                                                   + Directory.GetFiles(trackDir, "*.jpeg", SearchOption.TopDirectoryOnly).Length;
+                                
+                                tracksList.Add(new {
+                                    name = trackName,
+                                    photo_count = trackPhotoCount
+                                });
+                            }
+                        }
+                        
+                        structure.Add(new {
+                            name = vehicleName,
+                            photo_count = vehiclePhotoCount,
+                            tracks = tracksList
+                        });
+                    }
+                }
+                
+                // 获取项目根目录照片
+                var projectPhotoCount = Directory.GetFiles(projectDir, "*.jpg", SearchOption.TopDirectoryOnly).Length
+                                     + Directory.GetFiles(projectDir, "*.jpeg", SearchOption.TopDirectoryOnly).Length;
+                
+                return new {
+                    vehicles = structure,
+                    project_photos = projectPhotoCount
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取文件结构信息失败");
+                return new { error = "获取文件结构信息失败" };
+            }
         }
     }
 }

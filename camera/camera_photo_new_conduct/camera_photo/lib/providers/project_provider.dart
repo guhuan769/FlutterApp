@@ -1,12 +1,14 @@
 // lib/providers/project_provider.dart
 import 'dart:convert';
 import 'dart:io';
+import 'dart:async';
 import 'package:camera_photo/config/upload_options.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:pool/pool.dart';
+import 'package:retry/retry.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/project.dart';
 import 'package:http/http.dart' as http;
@@ -814,11 +816,44 @@ class ProjectProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      // 检查网络连接
+      try {
+        final result = await InternetAddress.lookup('google.com');
+        if (result.isEmpty || result[0].rawAddress.isEmpty) {
+          throw Exception('网络连接不可用，请检查网络设置');
+        }
+      } catch (e) {
+        // 如果google.com无法访问，尝试百度
+        try {
+          final result = await InternetAddress.lookup('baidu.com');
+          if (result.isEmpty || result[0].rawAddress.isEmpty) {
+            throw Exception('网络连接不可用，请检查网络设置');
+          }
+        } catch (e) {
+          throw Exception('网络连接不可用，请检查网络设置');
+        }
+      }
+      
       final prefs = await SharedPreferences.getInstance();
       final apiUrl = prefs.getString('api_url');
       
       if (apiUrl == null || apiUrl.isEmpty) {
         throw Exception('请先在设置中配置服务器地址');
+      }
+
+      // 验证API服务器是否可访问
+      try {
+        final testResponse = await http.get(Uri.parse('$apiUrl/test'))
+            .timeout(const Duration(seconds: 5));
+        if (testResponse.statusCode != 200) {
+          throw Exception('无法连接到服务器，错误码：${testResponse.statusCode}');
+        }
+      } catch (e) {
+        if (e is TimeoutException) {
+          throw Exception('服务器连接超时，请检查服务器地址是否正确或网络是否稳定');
+        } else {
+          throw Exception('无法连接到服务器: ${e.toString()}');
+        }
       }
 
       // 收集文件
@@ -873,8 +908,13 @@ class ProjectProvider with ChangeNotifier {
       }
 
       // 更新最终状态
-      final isSuccess = totalSuccess == totalFiles;
-      final successRate = (totalSuccess / totalFiles * 100).toStringAsFixed(1);
+      final isSuccess = totalSuccess > 0 && totalFiles > 0;
+      final successRate = totalFiles > 0 ? (totalSuccess / totalFiles * 100).toStringAsFixed(1) : "0";
+      
+      if (totalSuccess == 0) {
+        throw Exception('所有文件上传失败，请检查网络连接和服务器状态');
+      }
+      
       status = status.copyWith(
         isComplete: true,
         isSuccess: isSuccess,
@@ -890,10 +930,27 @@ class ProjectProvider with ChangeNotifier {
 
     } catch (e) {
       print('上传过程错误: $e');
+      // 提供更友好的错误信息
+      String errorMessage = '上传失败';
+      
+      if (e.toString().contains('网络连接不可用')) {
+        errorMessage = '网络连接不可用，请检查网络设置';
+      } else if (e.toString().contains('服务器连接超时')) {
+        errorMessage = '服务器连接超时，请检查服务器地址是否正确';
+      } else if (e.toString().contains('无法连接到服务器')) {
+        errorMessage = '无法连接到服务器，请检查服务器地址或网络设置';
+      } else if (e.toString().contains('请先在设置中配置服务器地址')) {
+        errorMessage = '请先在设置中配置服务器地址';
+      } else if (e.toString().contains('没有可上传的文件')) {
+        errorMessage = '没有可上传的文件，请确保项目中包含照片';
+      } else {
+        errorMessage = '上传失败: ${e.toString()}';
+      }
+      
       status = status.copyWith(
         isComplete: true,
         isSuccess: false,
-        status: '上传失败\n错误原因: ${e.toString()}\n请检查网络和服务器设置后重试',
+        status: '$errorMessage\n请检查网络和服务器设置后重试',
         error: e.toString(),
         logs: List.from(status.logs),
       );
@@ -1011,32 +1068,82 @@ class ProjectProvider with ChangeNotifier {
 
     // 限制并发数为3
     final pool = Pool(3);
+    final status = _uploadStatuses[project.id];
 
     try {
+      if (batches.isEmpty) {
+        if (status != null) {
+          status.addLog('没有批次需要上传', isError: true);
+          _uploadStatuses[project.id] = status;
+          notifyListeners();
+        }
+        return [];
+      }
+
+      if (status != null) {
+        status.addLog('开始并发上传 ${batches.length} 个批次，并发数: 3');
+        _uploadStatuses[project.id] = status;
+        notifyListeners();
+      }
+      
+      // 创建所有批次的上传任务
       final futures = batches.asMap().entries.map((entry) {
         final batchIndex = entry.key;
         final batch = entry.value;
 
         return pool.withResource(() async {
-          final result = await _uploadBatch(
-            batch: batch,
-            batchNumber: batchIndex + 1,
-            totalBatches: batches.length,
-            apiUrl: apiUrl,
-            project: project,
-            type: type,
-            value: value,
-          );
+          try {
+            final result = await _uploadBatch(
+              batch: batch,
+              batchNumber: batchIndex + 1,
+              totalBatches: batches.length,
+              apiUrl: apiUrl,
+              project: project,
+              type: type,
+              value: value,
+            );
 
-          completed++;
-          onProgress(completed, total);
-          return result;
+            // 增加完成批次计数
+            completed++;
+            onProgress(completed, total);
+            return result;
+          } catch (e) {
+            // 处理上传单个批次时的异常
+            if (status != null) {
+              status.addLog('批次 ${batchIndex + 1} 上传失败: ${e.toString()}', isError: true);
+              _uploadStatuses[project.id] = status;
+              notifyListeners();
+            }
+            
+            // 返回失败结果
+            completed++;
+            onProgress(completed, total);
+            return BatchUploadResult(success: false, filesCount: batch.length);
+          }
         });
-      });
+      }).toList();
 
+      // 等待所有批次上传完成
       results.addAll(await Future.wait(futures));
+      
+      // 检查上传结果
+      int successCount = results.where((r) => r.success).length;
+      if (status != null) {
+        status.addLog('所有批次处理完成，成功: $successCount/${results.length}');
+        _uploadStatuses[project.id] = status;
+        notifyListeners();
+      }
+      
     } catch (e) {
       print('并发上传错误: $e');
+      if (status != null) {
+        status.addLog('并发上传过程中发生错误: ${e.toString()}', isError: true);
+        _uploadStatuses[project.id] = status;
+        notifyListeners();
+      }
+    } finally {
+      // 确保资源池被关闭
+      await pool.close();
     }
 
     return results;
@@ -1058,66 +1165,166 @@ class ProjectProvider with ChangeNotifier {
       notifyListeners();
     }
 
-    var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
+    // 准备multipart请求
+    http.MultipartRequest createRequest() {
+      var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
 
-    // 添加项目信息和上传类型
-    request.fields.addAll({
-      'type': type?.name ?? 'unknown',
-      'value': value ?? 'unknown',
-      'project_info': json.encode(project.toJson()),
-      'batch_number': batchNumber.toString(),
-      'total_batches': totalBatches.toString(),
-    });
-
-    print('正在上传批次 ${batchNumber}/${totalBatches}');
-
-    // 添加文件
-    for (int i = 0; i < batch.length; i++) {
-      final fileInfo = batch[i];
-      final bytes = fileInfo['bytes'] as Uint8List;
-      final fileName = path.basename(fileInfo['path'] as String);
-
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'files[]',
-          bytes,
-          filename: fileName,
-          contentType: MediaType('image', 'jpeg')
-        )
-      );
-
-      request.fields['file_info_$i'] = json.encode({
-        'type': fileInfo['type'],
-        'trackId': fileInfo['trackId'] ?? '',
-        'trackName': fileInfo['trackName'] ?? '',
-        'vehicleId': fileInfo['vehicleId'] ?? '',
-        'vehicleName': fileInfo['vehicleName'] ?? '',
-        'relativePath': fileInfo['relativePath']
+      // 添加项目信息和上传类型
+      request.fields.addAll({
+        'type': type?.name ?? 'unknown',
+        'value': value ?? 'unknown',
+        'project_info': json.encode(project.toJson()),
+        'batch_number': batchNumber.toString(),
+        'total_batches': totalBatches.toString(),
       });
-    }
 
-    try {
-      final response = await request.send();
-      final responseData = await response.stream.bytesToString();
-      
-      if (response.statusCode == 200) {
-        if (status != null) {
-          status.addLog('批次 $batchNumber 上传成功');
-          _uploadStatuses[project.id] = status;
-          notifyListeners();
-        }
-        return BatchUploadResult(success: true, filesCount: batch.length);
-      } else {
-        if (status != null) {
-          status.addLog('批次 $batchNumber 上传失败: ${response.statusCode}', isError: true);
-          _uploadStatuses[project.id] = status;
-          notifyListeners();
-        }
-        return BatchUploadResult(success: false, filesCount: batch.length);
+      // 添加文件
+      for (int i = 0; i < batch.length; i++) {
+        final fileInfo = batch[i];
+        final bytes = fileInfo['bytes'] as Uint8List;
+        final fileName = path.basename(fileInfo['path'] as String);
+
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'files[]',
+            bytes,
+            filename: fileName,
+            contentType: MediaType('image', 'jpeg')
+          )
+        );
+
+        request.fields['file_info_$i'] = json.encode({
+          'type': fileInfo['type'],
+          'trackId': fileInfo['trackId'] ?? '',
+          'trackName': fileInfo['trackName'] ?? '',
+          'vehicleId': fileInfo['vehicleId'] ?? '',
+          'vehicleName': fileInfo['vehicleName'] ?? '',
+          'relativePath': fileInfo['relativePath']
+        });
       }
+
+      return request;
+    }
+    
+    // 使用retry包进行重试
+    try {
+      // 配置重试策略
+      final r = RetryOptions(
+        maxAttempts: 3,
+        delayFactor: const Duration(seconds: 1),
+        maxDelay: const Duration(seconds: 10),
+        randomizationFactor: 0.2,
+      );
+      
+      int currentAttempt = 0;
+      
+      // 执行带有重试的HTTP请求
+      return await r.retry(
+        () async {
+          // 每次尝试时增加计数
+          currentAttempt++;
+          
+          // 创建新的请求（每次重试都需要）
+          final request = createRequest();
+          
+          if (status != null) {
+            status.addLog('发送批次 $batchNumber 请求 (尝试 ${currentAttempt}/${r.maxAttempts})');
+            _uploadStatuses[project.id] = status;
+            notifyListeners();
+          }
+          
+          // 发送请求并等待响应
+          final response = await request.send().timeout(const Duration(minutes: 2));
+          final responseData = await response.stream.bytesToString();
+          
+          // 解析响应数据
+          Map<String, dynamic> responseJson;
+          try {
+            responseJson = json.decode(responseData);
+          } catch (e) {
+            if (status != null) {
+              status.addLog('解析响应数据失败: $e', isError: true);
+              _uploadStatuses[project.id] = status;
+              notifyListeners();
+            }
+            throw FormatException('服务器响应格式错误，无法解析: $responseData');
+          }
+          
+          // 处理成功响应
+          if (response.statusCode == 200) {
+            String successRate = responseJson['success_rate'] ?? '';
+            int savedFiles = responseJson['saved_files'] ?? batch.length;
+            bool plyFilesFound = responseJson['ply_files_found'] ?? false;
+            
+            // 如果这是最后一个批次，检查是否成功生成PLY文件
+            if (batchNumber == totalBatches && status != null) {
+              status.hasPlyFiles = plyFilesFound;
+              
+              if (plyFilesFound) {
+                status.addLog('PLY文件生成成功');
+              } else if (responseJson.containsKey('ply_files_found')) {
+                status.addLog('PLY文件生成失败', isError: true);
+              }
+            }
+            
+            if (status != null) {
+              if (successRate.isNotEmpty) {
+                status.addLog('批次 $batchNumber 上传成功，成功率: $successRate');
+              } else {
+                status.addLog('批次 $batchNumber 上传成功');
+              }
+              _uploadStatuses[project.id] = status;
+              notifyListeners();
+            }
+            
+            return BatchUploadResult(success: true, filesCount: savedFiles);
+          }
+          
+          // 处理错误响应
+          String errorMessage = responseJson['message'] ?? '未知错误';
+          
+          if (status != null) {
+            status.addLog('批次 $batchNumber 上传失败: ${response.statusCode}, $errorMessage', isError: true);
+            _uploadStatuses[project.id] = status;
+            notifyListeners();
+          }
+          
+          // 服务器错误时抛出异常以触发重试
+          if (response.statusCode >= 500) {
+            throw ServerException('服务器错误: ${response.statusCode}');
+          }
+          
+          // 客户端错误，不再重试
+          return BatchUploadResult(success: false, filesCount: batch.length);
+        },
+        retryIf: (e) {
+          // 确定哪些异常应该触发重试
+          bool shouldRetry = e is SocketException || 
+                             e is TimeoutException || 
+                             e is ServerException ||
+                             (e is FormatException && e.toString().contains('服务器响应格式错误')) ||
+                             e.toString().contains('network');
+          
+          if (shouldRetry && status != null) {
+            status.addLog('发生错误: ${e.toString()}, 将进行重试', isError: true);
+            _uploadStatuses[project.id] = status;
+            notifyListeners();
+          }
+          
+          return shouldRetry;
+        },
+        onRetry: (e) {
+          if (status != null) {
+            status.addLog('重试批次 $batchNumber (尝试 ${currentAttempt + 1}/${r.maxAttempts})');
+            _uploadStatuses[project.id] = status;
+            notifyListeners();
+          }
+        },
+      );
     } catch (e) {
+      // 所有重试都失败后
       if (status != null) {
-        status.addLog('批次 $batchNumber 上传错误: $e', isError: true);
+        status.addLog('批次 $batchNumber 上传失败: ${e.toString()}', isError: true);
         _uploadStatuses[project.id] = status;
         notifyListeners();
       }
@@ -1145,4 +1352,13 @@ class BatchUploadResult {
     required this.success,
     required this.filesCount,
   });
+}
+
+// 添加自定义异常类
+class ServerException implements Exception {
+  final String message;
+  ServerException(this.message);
+  
+  @override
+  String toString() => message;
 }
