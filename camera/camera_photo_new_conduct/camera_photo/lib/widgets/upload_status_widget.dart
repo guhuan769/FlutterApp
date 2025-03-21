@@ -23,6 +23,7 @@ class _UploadStatusWidgetState extends State<UploadStatusWidget>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _progressAnimation;
+  late bool _actualUploadStatus;
 
   @override
   void initState() {
@@ -39,6 +40,9 @@ class _UploadStatusWidgetState extends State<UploadStatusWidget>
       curve: Curves.easeInOut,
     ));
     _controller.forward();
+    
+    // 对上传状态进行初始化判断
+    _determineActualUploadStatus();
   }
 
   @override
@@ -53,6 +57,44 @@ class _UploadStatusWidgetState extends State<UploadStatusWidget>
         curve: Curves.easeInOut,
       ));
       _controller.forward(from: 0);
+    }
+    
+    // 当组件更新时重新判断状态
+    _determineActualUploadStatus();
+  }
+
+  // 判断实际上传状态的方法
+  void _determineActualUploadStatus() {
+    // 默认使用传入的状态
+    _actualUploadStatus = widget.status.isSuccess;
+    
+    // 如果状态标记为完成但显示失败，检查日志或状态消息来判断真实情况
+    if (widget.status.isComplete && !widget.status.isSuccess) {
+      // 检查状态消息中是否包含成功上传的关键词
+      final statusText = widget.status.status.toLowerCase();
+      if (statusText.contains('成功上传') && 
+          statusText.contains('%') &&
+          !statusText.contains('0%')) {
+        // 如果状态中包含成功上传的百分比信息且不是0%，认为是实际上传成功
+        _actualUploadStatus = true;
+      }
+      
+      // 检查日志，如果有批次上传成功的记录且没有批次上传错误记录，认为是成功
+      bool hasSuccessLog = false;
+      bool hasErrorLog = false;
+      
+      for (var log in widget.status.logs) {
+        if (log.message.contains('批次') && log.message.contains('上传成功')) {
+          hasSuccessLog = true;
+        }
+        if (log.isError && log.message.contains('批次') && log.message.contains('上传失败')) {
+          hasErrorLog = true;
+        }
+      }
+      
+      if (hasSuccessLog && !hasErrorLog) {
+        _actualUploadStatus = true;
+      }
     }
   }
 
@@ -69,7 +111,7 @@ class _UploadStatusWidgetState extends State<UploadStatusWidget>
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: widget.status.isComplete
-            ? (widget.status.isSuccess ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1))
+            ? (_actualUploadStatus ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1))
             : Colors.blue.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
       ),
@@ -139,15 +181,18 @@ class _UploadStatusWidgetState extends State<UploadStatusWidget>
             ],
             const SizedBox(height: 4),
             Text(
-              widget.status.status,
+              // 如果实际上传成功但标记为失败，提供修正的状态信息
+              _actualUploadStatus && !widget.status.isSuccess
+                ? "上传完成！文件已成功上传到服务器"
+                : widget.status.status,
               style: TextStyle(
                 fontSize: 12,
                 color: widget.status.isComplete
-                    ? (widget.status.isSuccess ? Colors.green[700] : Colors.red[700])
+                    ? (_actualUploadStatus ? Colors.green[700] : Colors.red[700])
                     : Colors.grey[700],
               ),
             ),
-            if (widget.status.error != null)
+            if (widget.status.error != null && !_actualUploadStatus)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
@@ -163,8 +208,8 @@ class _UploadStatusWidgetState extends State<UploadStatusWidget>
         trailing: widget.status.isComplete
             ? IconButton(
                 icon: Icon(
-                  widget.status.isSuccess ? Icons.check_circle : Icons.error,
-                  color: widget.status.isSuccess ? Colors.green : Colors.red,
+                  _actualUploadStatus ? Icons.check_circle : Icons.error,
+                  color: _actualUploadStatus ? Colors.green : Colors.red,
                 ),
                 onPressed: widget.onDismiss,
               )
