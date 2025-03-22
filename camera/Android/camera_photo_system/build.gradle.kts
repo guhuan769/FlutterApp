@@ -16,12 +16,3 @@ buildscript {
 tasks.register("clean", Delete::class) {
     delete(rootProject.buildDir)
 }
-
-// 配置构建缓存
-buildCache {
-    local {
-        isEnabled = true
-        directory = File(rootDir, "build-cache")
-        removeUnusedEntriesAfterDays = 30
-    }
-}
