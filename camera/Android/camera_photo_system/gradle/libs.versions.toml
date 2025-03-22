@@ -1,0 +1,140 @@
+[versions]
+# AndroidX核心
+core-ktx = "1.12.0"
+appcompat = "1.6.1"
+lifecycle = "2.6.2"
+activity = "1.8.1"
+
+# Jetpack Compose
+compose-bom = "2023.10.01"
+compose-compiler = "1.5.10"
+
+# Navigation
+navigation = "2.7.5"
+
+# Camera
+camerax = "1.3.0"
+
+# Coroutines
+coroutines = "1.7.3"
+
+# DataStore
+datastore = "1.0.0"
+
+# Hilt
+hilt = "2.48.1"
+hilt-navigation = "1.1.0"
+
+# Room
+room = "2.6.0"
+
+# Network
+retrofit = "2.9.0"
+okhttp = "4.11.0"
+gson = "2.10.1"
+
+# Image Loading
+coil = "2.4.0"
+glide = "4.16.0"
+
+# Material Design
+material = "1.10.0"
+
+# Testing
+junit = "4.13.2"
+androidx-junit = "1.1.5"
+espresso = "3.5.1"
+
+# Accompanist
+accompanist = "0.32.0"
+
+[libraries]
+# AndroidX核心
+core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "core-ktx" }
+appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
+activity-ktx = { group = "androidx.activity", name = "activity-ktx", version.ref = "activity" }
+activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activity" }
+
+# Compose
+compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "compose-bom" }
+compose-ui = { group = "androidx.compose.ui", name = "ui" }
+compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
+compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+compose-runtime = { group = "androidx.compose.runtime", name = "runtime" }
+compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
+compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
+compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
+compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
+
+# 相机
+camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "camerax" }
+camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
+camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
+camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
+camera-extensions = { group = "androidx.camera", name = "camera-extensions", version.ref = "camerax" }
+
+# 导航
+navigation-fragment = { group = "androidx.navigation", name = "navigation-fragment-ktx", version.ref = "navigation" }
+navigation-ui = { group = "androidx.navigation", name = "navigation-ui-ktx", version.ref = "navigation" }
+navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigation" }
+
+# 协程
+coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
+coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
+
+# DataStore
+datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
+datastore-proto = { group = "androidx.datastore", name = "datastore", version.ref = "datastore" }
+
+# Hilt
+hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
+hilt-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", version.ref = "hilt" }
+hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hilt-navigation" }
+
+# Room
+room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
+room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
+room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+
+# Retrofit & OkHttp
+retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
+retrofit-gson = { group = "com.squareup.retrofit2", name = "converter-gson", version.ref = "retrofit" }
+okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
+okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
+gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
+
+# 图片加载
+coil = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+glide = { group = "com.github.bumptech.glide", name = "glide", version.ref = "glide" }
+
+# Material设计
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+
+# 测试
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidx-junit" }
+espresso = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
+
+# Accompanist工具集
+accompanist-permissions = { group = "com.google.accompanist", name = "accompanist-permissions", version.ref = "accompanist" }
+
+[bundles]
+androidx-core = ["core-ktx", "appcompat", "lifecycle-runtime-ktx", "activity-ktx"]
+compose-core = ["activity-compose", "compose-ui", "compose-ui-graphics", "compose-ui-tooling-preview", "compose-material3", "compose-runtime", "compose-foundation"]
+camerax = ["camera-core", "camera-camera2", "camera-lifecycle", "camera-view", "camera-extensions"]
+navigation = ["navigation-fragment", "navigation-ui", "navigation-compose"]
+coroutines = ["coroutines-core", "coroutines-android"]
+datastore = ["datastore-preferences", "datastore-proto"]
+room = ["room-runtime", "room-ktx"]
+network = ["retrofit", "retrofit-gson", "okhttp", "okhttp-logging", "gson"]
+testing = ["junit", "androidx-junit", "espresso"]
+
+[plugins]
+android-application = { id = "com.android.application", version = "8.1.0" }
+android-library = { id = "com.android.library", version = "8.1.0" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version = "1.9.22" }
+kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version = "1.9.22" }
+hilt = { id = "com.google.dagger.hilt.android", version = "2.48.1" }
+navigation-safeargs = { id = "androidx.navigation.safeargs.kotlin", version = "2.7.5" } 
