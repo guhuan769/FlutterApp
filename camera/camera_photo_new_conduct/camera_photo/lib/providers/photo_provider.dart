@@ -37,98 +37,98 @@ class PhotoProvider with ChangeNotifier {
     await loadPhotos();
   }
 
-  Future<void> handlePhoto(XFile photo, String savePath, String photoType) async {
-    final now = DateTime.now();
-    final timestamp = "${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}"
-        "${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}";
+  // Future<void> handlePhoto(XFile photo, String savePath, String photoType) async {
+  //   final now = DateTime.now();
+  //   final timestamp = "${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}"
+  //       "${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}";
+  //
+  //   switch (photoType) {
+  //     case PhotoUtils.START_PHOTO:
+  //       await _handleStartPhoto(photo, savePath, timestamp);
+  //       break;
+  //     case PhotoUtils.MIDDLE_PHOTO:
+  //       await _handleMiddlePhoto(photo, savePath, timestamp);
+  //       break;
+  //     case PhotoUtils.END_PHOTO:
+  //       await _handleEndPhoto(photo, savePath, timestamp);
+  //       break;
+  //     case PhotoUtils.MODEL_PHOTO:
+  //       await _handleModelPhoto(photo, savePath, timestamp);
+  //       break;
+  //   }
+  //
+  //   await loadPhotosForProjectOrTrack(savePath);
+  // }
 
-    switch (photoType) {
-      case PhotoUtils.START_PHOTO:
-        await _handleStartPhoto(photo, savePath, timestamp);
-        break;
-      case PhotoUtils.MIDDLE_PHOTO:
-        await _handleMiddlePhoto(photo, savePath, timestamp);
-        break;
-      case PhotoUtils.END_PHOTO:
-        await _handleEndPhoto(photo, savePath, timestamp);
-        break;
-      case PhotoUtils.MODEL_PHOTO:
-        await _handleModelPhoto(photo, savePath, timestamp);
-        break;
-    }
-
-    await loadPhotosForProjectOrTrack(savePath);
-  }
-
-  Future<void> _handleStartPhoto(XFile photo, String savePath, String timestamp) async {
-    // Find existing start photos
-    final startPhotos = _photos.where(
-            (p) => PhotoUtils.getPhotoType(p.path) == PhotoUtils.START_PHOTO
-    ).toList();
-
-    if (startPhotos.isNotEmpty) {
-      // Replace existing start photo
-      for (var existingPhoto in startPhotos) {
-        await existingPhoto.delete();
-      }
-    }
-
-    // Save new start photo
-    final filename = PhotoUtils.generateFileName(PhotoUtils.START_PHOTO, 1, timestamp);
-    final newPath = path.join(savePath, filename);
-    await File(photo.path).copy(newPath);
-  }
-
-  Future<void> _handleMiddlePhoto(XFile photo, String savePath, String timestamp) async {
-    final sortedPhotos = PhotoUtils.sortPhotos(_photos);
-    int newSequence;
-
-    if (sortedPhotos.isEmpty) {
-      newSequence = 2;  // First middle photo
-    } else {
-      // Find last sequence before end photos
-      final nonEndPhotos = sortedPhotos.where(
-              (p) => PhotoUtils.getPhotoType(p.path) != PhotoUtils.END_PHOTO
-      ).toList();
-
-      if (nonEndPhotos.isEmpty) {
-        newSequence = 2;
-      } else {
-        final lastSeq = PhotoUtils.getPhotoSequence(nonEndPhotos.last.path);
-        newSequence = lastSeq + 1;
-      }
-    }
-
-    final filename = PhotoUtils.generateFileName(PhotoUtils.MIDDLE_PHOTO, newSequence, timestamp);
-    final newPath = path.join(savePath, filename);
-    await File(photo.path).copy(newPath);
-  }
-
-  Future<void> _handleEndPhoto(XFile photo, String savePath, String timestamp) async {
-    // Find existing end photos
-    final endPhotos = _photos.where(
-            (p) => PhotoUtils.getPhotoType(p.path) == PhotoUtils.END_PHOTO
-    ).toList();
-
-    if (endPhotos.isNotEmpty) {
-      // Replace existing end photo
-      for (var existingPhoto in endPhotos) {
-        await existingPhoto.delete();
-      }
-    }
-
-    // Save new end photo
-    final filename = PhotoUtils.generateFileName(PhotoUtils.END_PHOTO, 999, timestamp);
-    final newPath = path.join(savePath, filename);
-    await File(photo.path).copy(newPath);
-  }
-
-  Future<void> _handleModelPhoto(XFile photo, String savePath, String timestamp) async {
-    final sequence = PhotoUtils.generateNewSequence(_photos, PhotoUtils.MODEL_PHOTO);
-    final filename = PhotoUtils.generateFileName(PhotoUtils.MODEL_PHOTO, sequence, timestamp);
-    final newPath = path.join(savePath, filename);
-    await File(photo.path).copy(newPath);
-  }
+  // Future<void> _handleStartPhoto(XFile photo, String savePath, String timestamp) async {
+  //   // Find existing start photos
+  //   final startPhotos = _photos.where(
+  //           (p) => PhotoUtils.getPhotoType(p.path) == PhotoUtils.START_PHOTO
+  //   ).toList();
+  //
+  //   if (startPhotos.isNotEmpty) {
+  //     // Replace existing start photo
+  //     for (var existingPhoto in startPhotos) {
+  //       await existingPhoto.delete();
+  //     }
+  //   }
+  //
+  //   // Save new start photo
+  //   final filename = PhotoUtils.generateFileName(PhotoUtils.START_PHOTO, 1, timestamp);
+  //   final newPath = path.join(savePath, filename);
+  //   await File(photo.path).copy(newPath);
+  // }
+  //
+  // Future<void> _handleMiddlePhoto(XFile photo, String savePath, String timestamp) async {
+  //   final sortedPhotos = PhotoUtils.sortPhotos(_photos);
+  //   int newSequence;
+  //
+  //   if (sortedPhotos.isEmpty) {
+  //     newSequence = 2;  // First middle photo
+  //   } else {
+  //     // Find last sequence before end photos
+  //     final nonEndPhotos = sortedPhotos.where(
+  //             (p) => PhotoUtils.getPhotoType(p.path) != PhotoUtils.END_PHOTO
+  //     ).toList();
+  //
+  //     if (nonEndPhotos.isEmpty) {
+  //       newSequence = 2;
+  //     } else {
+  //       final lastSeq = PhotoUtils.getPhotoSequence(nonEndPhotos.last.path);
+  //       newSequence = lastSeq + 1;
+  //     }
+  //   }
+  //
+  //   final filename = PhotoUtils.generateFileName(PhotoUtils.MIDDLE_PHOTO, newSequence, timestamp);
+  //   final newPath = path.join(savePath, filename);
+  //   await File(photo.path).copy(newPath);
+  // }
+  //
+  // Future<void> _handleEndPhoto(XFile photo, String savePath, String timestamp) async {
+  //   // Find existing end photos
+  //   final endPhotos = _photos.where(
+  //           (p) => PhotoUtils.getPhotoType(p.path) == PhotoUtils.END_PHOTO
+  //   ).toList();
+  //
+  //   if (endPhotos.isNotEmpty) {
+  //     // Replace existing end photo
+  //     for (var existingPhoto in endPhotos) {
+  //       await existingPhoto.delete();
+  //     }
+  //   }
+  //
+  //   // Save new end photo
+  //   final filename = PhotoUtils.generateFileName(PhotoUtils.END_PHOTO, 999, timestamp);
+  //   final newPath = path.join(savePath, filename);
+  //   await File(photo.path).copy(newPath);
+  // }
+  //
+  // Future<void> _handleModelPhoto(XFile photo, String savePath, String timestamp) async {
+  //   final sequence = PhotoUtils.generateNewSequence(_photos, PhotoUtils.MODEL_PHOTO);
+  //   final filename = PhotoUtils.generateFileName(PhotoUtils.MODEL_PHOTO, sequence, timestamp);
+  //   final newPath = path.join(savePath, filename);
+  //   await File(photo.path).copy(newPath);
+  // }
 
   Future<void> uploadPhotosWithConfig(UploadType type, String value) async {
     if (_selectedPhotos.isEmpty) return;
@@ -532,103 +532,103 @@ class PhotoProvider with ChangeNotifier {
       return false;
     }
   }
-
-  Future<void> handleStartPointPhoto(XFile photo, String savePath, String timestamp, List<File> photos) async {
-    try {
-      // 查找现有的起始点照片
-      List<File> startPhotos = photos.where(
-              (p) => PhotoUtils.getPhotoType(p.path) == PhotoUtils.START_PHOTO
-      ).toList();
-
-      // 生成新文件名
-      final String filename = PhotoUtils.generateFileName(PhotoUtils.START_PHOTO, 1, timestamp);
-      final String newPath = path.join(savePath, filename);
-
-      // 如果有现有的起始点照片，删除它们
-      for (var existingPhoto in startPhotos) {
-        await existingPhoto.delete();
-      }
-
-      // 保存新照片
-      await File(photo.path).copy(newPath);
-      await forceReloadPhotos();
-    } catch (e) {
-      print('处理起始点照片失败: $e');
-      rethrow;
-    }
-  }
-
-  Future<void> handleMiddlePointPhoto(XFile photo, String savePath, String timestamp, List<File> photos) async {
-    try {
-      // 获取所有照片并排序
-      List<File> sortedPhotos = PhotoUtils.sortPhotos(photos);
-
-      // 计算新的序号
-      int sequence;
-      if (sortedPhotos.isEmpty) {
-        sequence = 2;  // 如果是第一张照片
-      } else {
-        // 找到最后一个非结束点照片的序号
-        var nonEndPhotos = sortedPhotos.where(
-                (p) => PhotoUtils.getPhotoType(p.path) != PhotoUtils.END_PHOTO
-        ).toList();
-
-        if (nonEndPhotos.isEmpty) {
-          sequence = 2;
-        } else {
-          sequence = PhotoUtils.getPhotoSequence(nonEndPhotos.last.path) + 1;
-        }
-      }
-
-      // 生成新文件名并保存
-      final String filename = PhotoUtils.generateFileName(PhotoUtils.MIDDLE_PHOTO, sequence, timestamp);
-      final String newPath = path.join(savePath, filename);
-      await File(photo.path).copy(newPath);
-
-      await forceReloadPhotos();
-    } catch (e) {
-      print('处理中间点照片失败: $e');
-      rethrow;
-    }
-  }
-
-  Future<void> handleEndPointPhoto(XFile photo, String savePath, String timestamp, List<File> photos) async {
-    try {
-      // 查找现有的结束点照片
-      List<File> endPhotos = photos.where(
-              (p) => PhotoUtils.getPhotoType(p.path) == PhotoUtils.END_PHOTO
-      ).toList();
-
-      // 生成新文件名
-      final String filename = PhotoUtils.generateFileName(PhotoUtils.END_PHOTO, 999, timestamp);
-      final String newPath = path.join(savePath, filename);
-
-      // 如果有现有的结束点照片，删除它们
-      for (var existingPhoto in endPhotos) {
-        await existingPhoto.delete();
-      }
-
-      // 保存新照片
-      await File(photo.path).copy(newPath);
-      await forceReloadPhotos();
-    } catch (e) {
-      print('处理结束点照片失败: $e');
-      rethrow;
-    }
-  }
-
-  Future<void> handleModelPointPhoto(XFile photo, String savePath, String timestamp, List<File> photos) async {
-    try {
-      final sequence = PhotoUtils.generateNewSequence(photos, PhotoUtils.MODEL_PHOTO);
-      final String filename = PhotoUtils.generateFileName(PhotoUtils.MODEL_PHOTO, sequence, timestamp);
-      final String newPath = path.join(savePath, filename);
-      await File(photo.path).copy(newPath);
-      await forceReloadPhotos();
-    } catch (e) {
-      print('处理模型点照片失败: $e');
-      rethrow;
-    }
-  }
+  //
+  // Future<void> handleStartPointPhoto(XFile photo, String savePath, String timestamp, List<File> photos) async {
+  //   try {
+  //     // 查找现有的起始点照片
+  //     List<File> startPhotos = photos.where(
+  //             (p) => PhotoUtils.getPhotoType(p.path) == PhotoUtils.START_PHOTO
+  //     ).toList();
+  //
+  //     // 生成新文件名
+  //     final String filename = PhotoUtils.generateFileName(PhotoUtils.START_PHOTO, 1, timestamp);
+  //     final String newPath = path.join(savePath, filename);
+  //
+  //     // 如果有现有的起始点照片，删除它们
+  //     for (var existingPhoto in startPhotos) {
+  //       await existingPhoto.delete();
+  //     }
+  //
+  //     // 保存新照片
+  //     await File(photo.path).copy(newPath);
+  //     await forceReloadPhotos();
+  //   } catch (e) {
+  //     print('处理起始点照片失败: $e');
+  //     rethrow;
+  //   }
+  // }
+  //
+  // Future<void> handleMiddlePointPhoto(XFile photo, String savePath, String timestamp, List<File> photos) async {
+  //   try {
+  //     // 获取所有照片并排序
+  //     List<File> sortedPhotos = PhotoUtils.sortPhotos(photos);
+  //
+  //     // 计算新的序号
+  //     int sequence;
+  //     if (sortedPhotos.isEmpty) {
+  //       sequence = 2;  // 如果是第一张照片
+  //     } else {
+  //       // 找到最后一个非结束点照片的序号
+  //       var nonEndPhotos = sortedPhotos.where(
+  //               (p) => PhotoUtils.getPhotoType(p.path) != PhotoUtils.END_PHOTO
+  //       ).toList();
+  //
+  //       if (nonEndPhotos.isEmpty) {
+  //         sequence = 2;
+  //       } else {
+  //         sequence = PhotoUtils.getPhotoSequence(nonEndPhotos.last.path) + 1;
+  //       }
+  //     }
+  //
+  //     // 生成新文件名并保存
+  //     final String filename = PhotoUtils.generateFileName(PhotoUtils.MIDDLE_PHOTO, sequence, timestamp);
+  //     final String newPath = path.join(savePath, filename);
+  //     await File(photo.path).copy(newPath);
+  //
+  //     await forceReloadPhotos();
+  //   } catch (e) {
+  //     print('处理中间点照片失败: $e');
+  //     rethrow;
+  //   }
+  // }
+  //
+  // Future<void> handleEndPointPhoto(XFile photo, String savePath, String timestamp, List<File> photos) async {
+  //   try {
+  //     // 查找现有的结束点照片
+  //     List<File> endPhotos = photos.where(
+  //             (p) => PhotoUtils.getPhotoType(p.path) == PhotoUtils.END_PHOTO
+  //     ).toList();
+  //
+  //     // 生成新文件名
+  //     final String filename = PhotoUtils.generateFileName(PhotoUtils.END_PHOTO, 999, timestamp);
+  //     final String newPath = path.join(savePath, filename);
+  //
+  //     // 如果有现有的结束点照片，删除它们
+  //     for (var existingPhoto in endPhotos) {
+  //       await existingPhoto.delete();
+  //     }
+  //
+  //     // 保存新照片
+  //     await File(photo.path).copy(newPath);
+  //     await forceReloadPhotos();
+  //   } catch (e) {
+  //     print('处理结束点照片失败: $e');
+  //     rethrow;
+  //   }
+  // }
+  //
+  // Future<void> handleModelPointPhoto(XFile photo, String savePath, String timestamp, List<File> photos) async {
+  //   try {
+  //     final sequence = PhotoUtils.generateNewSequence(photos, PhotoUtils.MODEL_PHOTO);
+  //     final String filename = PhotoUtils.generateFileName(PhotoUtils.MODEL_PHOTO, sequence, timestamp);
+  //     final String newPath = path.join(savePath, filename);
+  //     await File(photo.path).copy(newPath);
+  //     await forceReloadPhotos();
+  //   } catch (e) {
+  //     print('处理模型点照片失败: $e');
+  //     rethrow;
+  //   }
+  // }
 
   Future<String?> getUploadUrl() async {
     final prefs = await SharedPreferences.getInstance();
