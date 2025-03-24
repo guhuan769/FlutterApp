@@ -1,6 +1,10 @@
+//CameraPhotoSystem/app/build.gradle.kts
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("kotlin-kapt") // 添加此行
+    id("com.google.dagger.hilt.android") // 添加 Hilt 插件
+    id("org.jetbrains.kotlin.plugin.compose") version "2.1.10" // 添加 Compose 编译器插件
 }
 
 android {
@@ -39,43 +43,55 @@ android {
         buildConfig = true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.1"
+        kotlinCompilerExtensionVersion = "2.1.10" // 更新Kotlin编译器扩展版本
     }
 }
 
 dependencies {
-    implementation("androidx.core:core-ktx:1.12.0")
-    implementation("androidx.appcompat:appcompat:1.6.1")
-    implementation("com.google.android.material:material:1.11.0")
-    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+    implementation(libs.androidx.core.ktx.v1120)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.material)
+    implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.material.icons.extended)
     
     // Jetpack Compose
     val composeVersion = "1.5.4"
-    implementation("androidx.compose.ui:ui:$composeVersion")
-    implementation("androidx.compose.material3:material3:1.1.2")
-    implementation("androidx.compose.ui:ui-tooling-preview:$composeVersion")
-    implementation("androidx.activity:activity-compose:1.8.2")
-    debugImplementation("androidx.compose.ui:ui-tooling:$composeVersion")
+    implementation(libs.ui)
+    implementation(libs.androidx.material)
+    implementation(libs.material3)
+    implementation(libs.ui.tooling.preview)
+    implementation(libs.androidx.activity.compose.v182)
+    debugImplementation(libs.ui.tooling)
     
     // CameraX
     val cameraxVersion = "1.3.1"
-    implementation("androidx.camera:camera-core:${cameraxVersion}")
-    implementation("androidx.camera:camera-camera2:${cameraxVersion}")
-    implementation("androidx.camera:camera-lifecycle:${cameraxVersion}")
-    implementation("androidx.camera:camera-view:${cameraxVersion}")
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
     
     // ViewModel和LiveData
     val lifecycleVersion = "2.7.0"
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:${lifecycleVersion}")
-    implementation("androidx.lifecycle:lifecycle-livedata-ktx:${lifecycleVersion}")
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.androidx.lifecycle.livedata.ktx)
     
     // Coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation(libs.kotlinx.coroutines.android)
     
     // Hilt依赖注入
-    implementation("com.google.dagger:hilt-android:2.50")
+    val hiltVersion = "2.56" // 与项目级别一致
+    implementation(libs.hilt.android)
+    kapt(libs.hilt.android.compiler)
+
+    // Hilt Compose 导航支持
+    implementation(libs.androidx.hilt.navigation.compose)
+    // Compose 与 LiveData 集成
+    implementation(libs.androidx.runtime.livedata)
     
-    testImplementation("junit:junit:4.13.2")
-    androidTestImplementation("androidx.test.ext:junit:1.1.5")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+    testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.junit.v115)
+    androidTestImplementation(libs.androidx.espresso.core.v351)
+
+    // 确保使用正确版本的Kotlin标准库
+    implementation(libs.org.jetbrains.kotlin.kotlin.stdlib)
 }
