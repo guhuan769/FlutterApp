@@ -52,9 +52,16 @@ class TakePhotoUseCase @Inject constructor(
         val uuid = UUID.randomUUID().toString().substring(0, 8)
         val prefix = when (photoType) {
             PhotoType.PROJECT_MODEL -> "project_model"
+            PhotoType.PROJECT_SITE -> "project_site"
+            PhotoType.PROJECT_DOCUMENT -> "project_document"
             PhotoType.VEHICLE -> "vehicle"
+            PhotoType.VEHICLE_FRONT -> "vehicle_front"
+            PhotoType.VEHICLE_REAR -> "vehicle_rear"
+            PhotoType.VEHICLE_SIDE -> "vehicle_side"
+            PhotoType.VEHICLE_PLATE -> "vehicle_plate"
             PhotoType.TRACK_START -> "track_start"
             PhotoType.TRACK_MIDDLE -> "track_middle"
+            PhotoType.TRACK_MODEL -> "track_model"
             PhotoType.TRACK_END -> "track_end"
         }
         

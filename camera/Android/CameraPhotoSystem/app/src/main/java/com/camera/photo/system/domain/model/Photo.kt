@@ -44,11 +44,24 @@ data class Photo(
 
 /**
  * 照片类型枚举
+ * 用于区分不同场景下的拍照类型
  */
 enum class PhotoType {
-    PROJECT_MODEL,  // 项目模型照片
-    VEHICLE,        // 车辆照片
-    TRACK_START,    // 轨迹起始点照片
-    TRACK_MIDDLE,   // 轨迹中间点照片
-    TRACK_END       // 轨迹结束点照片
+    // 项目相关照片类型
+    PROJECT_MODEL,    // 项目模型照片
+    PROJECT_SITE,     // 项目现场照片
+    PROJECT_DOCUMENT, // 项目文档照片
+    
+    // 车辆相关照片类型
+    VEHICLE,          // 车辆照片
+    VEHICLE_FRONT,    // 车辆前部照片
+    VEHICLE_REAR,     // 车辆后部照片
+    VEHICLE_SIDE,     // 车辆侧面照片
+    VEHICLE_PLATE,    // 车辆车牌照片
+    
+    // 轨迹相关照片类型
+    TRACK_START,      // 轨迹起始点照片
+    TRACK_MIDDLE,     // 轨迹中间点照片
+    TRACK_MODEL,      // 轨迹模型点照片
+    TRACK_END         // 轨迹结束点照片
 } 
