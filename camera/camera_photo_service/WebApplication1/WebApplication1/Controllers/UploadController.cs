@@ -331,7 +331,7 @@ namespace PlyFileProcessor.Controllers
                 if (batchNumber == totalBatches)
                 {
                     _logger.LogInformation("处理最后一个批次，检查PLY文件");
-                    var hasPly = await _plyFileService.CheckAndProcessPlyFilesAsync(taskId, projectName);
+                    var hasPly = await _plyFileService.CheckAndProcessPlyFilesAsync(taskId, projectName, unifiedImagesDir);
                     if (!hasPly)
                     {
                         return StatusCode(500, new { code = 500, message = $"ply文件生成失败。" });

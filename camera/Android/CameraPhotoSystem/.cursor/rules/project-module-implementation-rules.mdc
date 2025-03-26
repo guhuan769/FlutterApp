@@ -26,3 +26,1040 @@ alwaysApply: false
 - 项目详情页必须显示关联车辆和照片统计
 - 项目创建表单必须包含必填字段验证
 - 照片预览必须支持照片类型筛选
+
+@Entity(tableName = "projects")
+data class ProjectEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val description: String,
+    val creationDate: Long
+)
+
+@Entity(
+    tableName = "vehicles",
+    foreignKeys = [
+        ForeignKey(
+            entity = ProjectEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["projectId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ]
+)
+data class VehicleEntity(
+    @PrimaryKey val id: String,
+    val projectId: String,
+    val name: String,
+    val licensePlate: String, 
+    val model: String
+)
+
+@Entity(
+    tableName = "tracks",
+    foreignKeys = [
+        ForeignKey(
+            entity = VehicleEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["vehicleId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ]
+)
+data class TrackEntity(
+    @PrimaryKey val id: String,
+    val vehicleId: String,
+    val name: String,
+    val length: Float,
+    val startTime: Long,
+    val endTime: Long
+)
+
+@Entity(tableName = "photos")
+data class PhotoEntity(
+    @PrimaryKey val id: String,
+    val path: String,
+    val timestamp: Long,
+    val width: Int,
+    val height: Int,
+    val size: Long,
+    val type: String,
+    val projectId: String? = null,
+    val vehicleId: String? = null,
+    val trackId: String? = null
+) {
+    // 转换为领域模型
+    fun toDomainModel(): Photo {
+        return Photo(
+            id = id,
+            path = path,
+            timestamp = Date(timestamp),
+            width = width,
+            height = height,
+            size = size,
+            type = PhotoType.valueOf(type)
+        )
+    }
+    
+    companion object {
+        // 从领域模型创建实体
+        fun fromDomainModel(photo: Photo, projectId: String? = null, vehicleId: String? = null, trackId: String? = null): PhotoEntity {
+            return PhotoEntity(
+                id = photo.id,
+                path = photo.path,
+                timestamp = photo.timestamp.time,
+                width = photo.width,
+                height = photo.height,
+                size = photo.size,
+                type = photo.type.name,
+                projectId = projectId,
+                vehicleId = vehicleId,
+                trackId = trackId
+            )
+        }
+    }
+}
+
+@Dao
+interface PhotoDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPhoto(photo: PhotoEntity)
+    
+    @Query("SELECT * FROM photos WHERE id = :id")
+    suspend fun getPhotoById(id: String): PhotoEntity?
+    
+    @Query("SELECT * FROM photos WHERE projectId = :projectId")
+    fun getPhotosByProjectId(projectId: String): Flow<List<PhotoEntity>>
+    
+    @Query("SELECT * FROM photos WHERE vehicleId = :vehicleId")
+    fun getPhotosByVehicleId(vehicleId: String): Flow<List<PhotoEntity>>
+    
+    @Query("SELECT * FROM photos WHERE trackId = :trackId")
+    fun getPhotosByTrackId(trackId: String): Flow<List<PhotoEntity>>
+    
+    @Query("SELECT * FROM photos WHERE projectId = :projectId AND type = :type")
+    fun getPhotosByProjectIdAndType(projectId: String, type: String): Flow<List<PhotoEntity>>
+    
+    @Query("SELECT * FROM photos WHERE vehicleId = :vehicleId AND type = :type")
+    fun getPhotosByVehicleIdAndType(vehicleId: String, type: String): Flow<List<PhotoEntity>>
+    
+    @Query("SELECT * FROM photos WHERE trackId = :trackId AND type = :type")
+    fun getPhotosByTrackIdAndType(trackId: String, type: String): Flow<List<PhotoEntity>>
+}
+
+@Composable
+fun CameraTypeIndicator(photoType: PhotoType) {
+    Surface(
+        color = MaterialTheme.colorScheme.primaryContainer,
+        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier.padding(8.dp)
+    ) {
+        Text(
+            text = when(photoType) {
+                PhotoType.PROJECT_MODEL -> "项目模型"
+                PhotoType.TRACK_START -> "轨迹起点"
+                PhotoType.TRACK_MIDDLE -> "轨迹中点"
+                PhotoType.TRACK_MODEL -> "轨迹模型"
+                PhotoType.TRACK_END -> "轨迹终点"
+                // 其他类型...
+                else -> "普通照片"
+            },
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            style = MaterialTheme.typography.labelLarge
+        )
+    }
+}
+
+fun takePhoto(photoType: PhotoType, projectId: String?, vehicleId: String?, trackId: String?) {
+    viewModelScope.launch {
+        _uiState.update { it.copy(isLoading = true) }
+        try {
+            // 根据photoType决定存储路径
+            val folderName = when {
+                trackId != null -> "tracks/$trackId/${photoType.name.lowercase()}"
+                vehicleId != null -> "vehicles/$vehicleId/${photoType.name.lowercase()}"
+                projectId != null -> "projects/$projectId/${photoType.name.lowercase()}"
+                else -> "others"
+            }
+            
+            // 拍照并获取图片路径
+            val photoPath = cameraRepository.takePhoto(folderName)
+            
+            // 保存照片信息到数据库
+            val photo = Photo(
+                id = UUID.randomUUID().toString(),
+                path = photoPath,
+                timestamp = Date(),
+                type = photoType,
+                projectId = projectId,
+                vehicleId = vehicleId,
+                trackId = trackId
+            )
+            photoRepository.savePhoto(photo)
+            
+            _events.value = CameraEvent.PhotoCaptured(photo)
+        } catch (e: Exception) {
+            _events.value = CameraEvent.Error("拍照失败: ${e.message}")
+        } finally {
+            _uiState.update { it.copy(isLoading = false) }
+        }
+    }
+}
+
+viewModel.setPhotoContext(trackId = selectedTrackId)
+viewModel.setPhotoType(PhotoType.TRACK_START)
+
+@Composable
+fun CameraPreview(
+    modifier: Modifier = Modifier,
+    viewModel: CameraViewModel
+) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    
+    Box(modifier = modifier) {
+        // 使用AndroidView嵌入CameraX预览
+        AndroidView(
+            factory = { ctx ->
+                val previewView = PreviewView(ctx).apply {
+                    scaleType = PreviewView.ScaleType.FILL_CENTER
+                    implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                }
+                
+                // 重要：在View创建后绑定到相机
+                viewModel.bindCameraToPreview(previewView, lifecycleOwner)
+                
+                previewView
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+        
+        // 添加中心十字标记
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .align(Alignment.Center)
+        ) {
+            // ... 保持原代码不变 ...
+        }
+    }
+}
+
+fun CameraViewModel.bindCameraToPreview(previewView: PreviewView, lifecycleOwner: LifecycleOwner) {
+    viewModelScope.launch {
+        try {
+            val cameraProvider = ProcessCameraProvider.getInstance(previewView.context).get()
+            
+            // 清除所有绑定
+            cameraProvider.unbindAll()
+            
+            // 创建预览用例
+            val preview = Preview.Builder().build()
+            preview.setSurfaceProvider(previewView.surfaceProvider)
+            
+            // 创建或获取ImageCapture实例
+            val imageCapture = ImageCapture.Builder()
+                .setFlashMode(uiState.value.flashMode)
+                .build()
+            
+            // 选择后置相机
+            val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+            
+            // 绑定用例到相机
+            cameraProvider.bindToLifecycle(
+                lifecycleOwner,
+                cameraSelector,
+                preview,
+                imageCapture
+            )
+            
+            // 保存ImageCapture引用
+            cameraRepository.setImageCapture(imageCapture)
+            
+            _events.value = CameraEvent.CameraInitialized
+        } catch (e: Exception) {
+            _events.value = CameraEvent.Error("相机初始化失败: ${e.message}")
+        }
+    }
+}
+
+// CameraRepository接口中添加
+fun setImageCapture(imageCapture: ImageCapture)
+
+// CameraRepositoryImpl实现
+override fun setImageCapture(imageCapture: ImageCapture) {
+    this.imageCapture = imageCapture
+}
+
+/**
+ * 用于测试的检查照片存储状态方法
+ */
+fun checkPhotoStorage() {
+    viewModelScope.launch {
+        try {
+            val baseDir = context.getExternalFilesDir(null)
+            println("基础存储目录: ${baseDir?.absolutePath}")
+            
+            // 检查项目照片目录
+            if (currentProjectId != null) {
+                val projectDir = File(baseDir, "projects/$currentProjectId")
+                println("项目照片目录存在: ${projectDir.exists()}")
+                if (projectDir.exists()) {
+                    val photoTypes = projectDir.list() ?: emptyArray()
+                    println("项目照片类型: ${photoTypes.joinToString()}")
+                    
+                    photoTypes.forEach { type ->
+                        val typeDir = File(projectDir, type)
+                        val photos = typeDir.list() ?: emptyArray()
+                        println("类型[$type]照片数量: ${photos.size}")
+                    }
+                }
+            }
+            
+            // 检查车辆照片目录
+            if (currentVehicleId != null) {
+                val vehicleDir = File(baseDir, "vehicles/$currentVehicleId")
+                println("车辆照片目录存在: ${vehicleDir.exists()}")
+                // 类似项目的详细检查...
+            }
+            
+            // 检查轨迹照片目录
+            if (currentTrackId != null) {
+                val trackDir = File(baseDir, "tracks/$currentTrackId")
+                println("轨迹照片目录存在: ${trackDir.exists()}")
+                // 类似项目的详细检查...
+            }
+        } catch (e: Exception) {
+            println("检查照片存储出错: ${e.message}")
+        }
+    }
+}
+
+LaunchedEffect(event) {
+    event?.let {
+        when (it) {
+            is CameraEvent.PhotoCaptured -> {
+                // 原有代码...
+                viewModel.checkPhotoStorage() // 添加这行
+            }
+            // 其他事件...
+        }
+    }
+}
+
+/**
+ * 验证数据库照片记录
+ * 注意：实际项目应该使用Repository查询
+ */
+fun verifyDatabaseRecords() {
+    viewModelScope.launch {
+        try {
+            // TODO: 替换为实际的数据库查询
+            // 这里只是输出日志提示用户查看Room Inspector
+            println("=============== 照片数据库验证 ===============")
+            println("请使用Android Studio的App Inspection工具查看数据库")
+            println("数据库路径: data/data/com.camera.photo.system/databases/")
+            println("表名: photos")
+            println("=============================================")
+            
+            // 如果已实现Repository可以使用如下代码
+            /*
+            when {
+                currentTrackId != null -> {
+                    val photos = photoRepository.getPhotosByTrackId(currentTrackId!!)
+                    println("轨迹照片数量: ${photos.size}")
+                }
+                currentVehicleId != null -> {
+                    val photos = photoRepository.getPhotosByVehicleId(currentVehicleId!!)
+                    println("车辆照片数量: ${photos.size}")
+                }
+                currentProjectId != null -> {
+                    val photos = photoRepository.getPhotosByProjectId(currentProjectId!!)
+                    println("项目照片数量: ${photos.size}")
+                }
+            }
+            */
+            
+        } catch (e: Exception) {
+            println("数据库验证错误: ${e.message}")
+        }
+    }
+}
+
+// 在工具类中添加
+object DatabaseDebugTools {
+    /**
+     * 导出数据库到SD卡（需要root）
+     * 可以在开发阶段使用，不要在生产环境使用
+     */
+    fun exportDatabaseFileCommand(): String {
+        return "adb shell \"run-as com.camera.photo.system cp /data/data/com.camera.photo.system/databases/camera_photo_system_db /sdcard/\""
+    }
+    
+    /**
+     * 从SD卡拉取数据库到电脑
+     */
+    fun pullDatabaseFileCommand(): String {
+        return "adb pull /sdcard/camera_photo_system_db"
+    }
+    
+    /**
+     * 使用sqlite3查询照片表
+     */
+    fun queryPhotosTableCommand(): String {
+        return "adb shell \"run-as com.camera.photo.system sqlite3 /data/data/com.camera.photo.system/databases/camera_photo_system_db 'SELECT * FROM photos;'\""
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun VehicleListScreen(
+    projectId: String,
+    viewModel: VehicleListViewModel = hiltViewModel(),
+    onNavigateBack: () -> Unit,
+    navigateToCreateVehicle: (String) -> Unit,
+    navigateToVehicleDetail: (String) -> Unit,
+    navigateToTrackList: (String) -> Unit
+) {
+    // 使用本地状态代替ViewModel，避免依赖注入问题
+    var isLoading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var vehicles by remember { mutableStateOf<List<VehicleSimple>>(emptyList()) }
+    
+    // 模拟加载数据
+    LaunchedEffect(projectId) {
+        try {
+            Log.d(TAG, "加载项目车辆: $projectId")
+            isLoading = true
+            error = null
+            
+            // 延迟模拟网络请求
+            kotlinx.coroutines.delay(500)
+            
+            // 模拟数据 - 实际应该从数据库加载
+            vehicles = listOf(
+                VehicleSimple(
+                    id = UUID.randomUUID().toString(),
+                    name = "测试车辆 1",
+                    licensePlate = "京A12345",
+                    model = "测试型号"
+                ),
+                VehicleSimple(
+                    id = UUID.randomUUID().toString(),
+                    name = "测试车辆 2",
+                    licensePlate = "京B67890",
+                    model = "测试型号 2"
+                )
+            )
+            
+            isLoading = false
+        } catch (e: Exception) {
+            Log.e(TAG, "加载车辆失败", e)
+            error = "加载车辆失败: ${e.message}"
+            isLoading = false
+        }
+    }
+    
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("车辆管理") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "返回"
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { 
+                    try {
+                        Log.d("VehicleListScreen", "点击添加车辆按钮: projectId=$projectId")
+                        navigateToCreateVehicle(projectId)
+                    } catch (e: Exception) {
+                        Log.e("VehicleListScreen", "导航失败", e)
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "添加车辆")
+            }
+        }
+    ) { paddingValues ->
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            when {
+                isLoading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+                error != null -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Text(
+                                text = "加载失败",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = error ?: "未知错误",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(onClick = onNavigateBack) {
+                                Text("返回")
+                            }
+                        }
+                    }
+                }
+                vehicles.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "暂无车辆",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "点击右下角"+"按钮添加车辆",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                            )
+                        }
+                    }
+                }
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(vehicles) { vehicle ->
+                            VehicleCardSimple(
+                                vehicle = vehicle,
+                                onVehicleClick = { 
+                                    try {
+                                        navigateToVehicleDetail(vehicle.id)
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "导航到车辆详情失败", e)
+                                    }
+                                },
+                                onTrackClick = { 
+                                    try {
+                                        navigateToTrackList(vehicle.id)
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "导航到轨迹列表失败", e)
+                                    }
+                                }
+                            )
+                        }
+                        // 底部间距
+                        item {
+                            Spacer(modifier = Modifier.height(80.dp))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 简化的车辆卡片组件
+ */
+@Composable
+fun VehicleCardSimple(
+    vehicle: VehicleSimple,
+    onVehicleClick: () -> Unit,
+    onTrackClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onVehicleClick),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            // 车辆基本信息
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.DirectionsCar,
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.size(12.dp))
+                Text(
+                    text = vehicle.name,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // 车牌号
+            Text(
+                text = "车牌号：${vehicle.licensePlate}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+            )
+            
+            // 车辆型号
+            Text(
+                text = "型号：${vehicle.model}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // 轨迹按钮
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onTrackClick)
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = "轨迹",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.size(8.dp))
+                Text(
+                    text = "查看轨迹",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+    }
+}
+
+package com.camera.photo.system.navigation
+
+import androidx.navigation.NavController
+import androidx.navigation.NavOptions
+
+/**
+ * 导航扩展函数，提供类型安全的导航API
+ */
+object NavigationActions {
+    // 项目相关导航
+    fun NavController.navigateToProjects(navOptions: NavOptions? = null) {
+        navigate(Routes.Projects.route, navOptions)
+    }
+    
+    fun NavController.navigateToProjectDetail(projectId: String, navOptions: NavOptions? = null) {
+        navigate(Routes.ProjectDetail.createRoute(projectId), navOptions)
+    }
+    
+    fun NavController.navigateToProjectVehicles(projectId: String, navOptions: NavOptions? = null) {
+        navigate(Routes.ProjectVehicles.createRoute(projectId), navOptions)
+    }
+    
+    fun NavController.navigateToProjectPhotos(projectId: String, navOptions: NavOptions? = null) {
+        navigate(Routes.ProjectPhotos.createRoute(projectId), navOptions)
+    }
+    
+    fun NavController.navigateToProjectCamera(projectId: String, navOptions: NavOptions? = null) {
+        navigate(Routes.ProjectCamera.createRoute(projectId), navOptions)
+    }
+    
+    // 车辆相关导航
+    fun NavController.navigateToVehicleDetail(vehicleId: String, navOptions: NavOptions? = null) {
+        navigate(Routes.VehicleDetail.createRoute(vehicleId), navOptions)
+    }
+    
+    fun NavController.navigateToVehicleCreate(projectId: String, navOptions: NavOptions? = null) {
+        navigate(Routes.VehicleCreate.createRoute(projectId), navOptions)
+    }
+    
+    fun NavController.navigateToVehicleTracks(vehicleId: String, navOptions: NavOptions? = null) {
+        navigate(Routes.VehicleTracks.createRoute(vehicleId), navOptions)
+    }
+    
+    fun NavController.navigateToVehiclePhotos(vehicleId: String, navOptions: NavOptions? = null) {
+        navigate(Routes.VehiclePhotos.createRoute(vehicleId), navOptions)
+    }
+    
+    fun NavController.navigateToVehicleCamera(vehicleId: String, navOptions: NavOptions? = null) {
+        navigate(Routes.VehicleCamera.createRoute(vehicleId), navOptions)
+    }
+    
+    // 轨迹相关导航
+    fun NavController.navigateToTrackDetail(trackId: String, navOptions: NavOptions? = null) {
+        navigate(Routes.TrackDetail.createRoute(trackId), navOptions)
+    }
+    
+    fun NavController.navigateToTrackCreate(vehicleId: String, navOptions: NavOptions? = null) {
+        navigate(Routes.TrackCreate.createRoute(vehicleId), navOptions)
+    }
+    
+    fun NavController.navigateToTrackPhotos(trackId: String, navOptions: NavOptions? = null) {
+        navigate(Routes.TrackPhotos.createRoute(trackId), navOptions)
+    }
+    
+    fun NavController.navigateToTrackCamera(trackId: String, navOptions: NavOptions? = null) {
+        navigate(Routes.TrackCamera.createRoute(trackId), navOptions)
+    }
+}
+
+@Composable
+fun CameraAppNavHost(
+    navController: NavHostController,
+    modifier: Modifier = Modifier
+) {
+    NavHost(
+        navController = navController,
+        startDestination = "projects",
+        modifier = modifier
+    ) {
+        // 项目列表
+        composable("projects") {
+            ProjectListScreen(
+                navigateToProjectDetail = { projectId ->
+                    navController.navigate("projects/$projectId")
+                }
+            )
+        }
+        
+        // 项目详情
+        composable(
+            route = "projects/{projectId}",
+            arguments = listOf(navArgument("projectId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val projectId = backStackEntry.arguments?.getString("projectId") ?: ""
+            ProjectDetailScreen(
+                projectId = projectId,
+                onNavigateBack = { navController.popBackStack() },
+                navigateToVehicleList = { 
+                    navController.navigate("projects/$projectId/vehicles")
+                }
+            )
+        }
+        
+        // 项目的车辆列表
+        composable(
+            route = "projects/{projectId}/vehicles",
+            arguments = listOf(navArgument("projectId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val projectId = backStackEntry.arguments?.getString("projectId") ?: ""
+            VehicleListScreen(
+                projectId = projectId,
+                onNavigateBack = { navController.popBackStack() },
+                navigateToCreateVehicle = { projectId -> 
+                    navController.navigate(Routes.VehicleCreateFromProject.createRoute(projectId))
+                },
+                navigateToVehicleDetail = { vehicleId ->
+                    navController.navigate("vehicles/$vehicleId")
+                },
+                navigateToTrackList = { vehicleId ->
+                    navController.navigate("vehicles/$vehicleId/tracks")
+                }
+            )
+        }
+        
+        // 添加新的路由 - 匹配异常中提到的格式
+        composable(
+            route = "projects/{projectId}/vehicles/create",
+            arguments = Routes.VehicleCreateFromProject.arguments
+        ) { backStackEntry ->
+            val projectId = backStackEntry.arguments?.getString("projectId") ?: ""
+            VehicleFormScreen(
+                projectId = projectId,
+                onNavigateBack = { navController.popBackStack() },
+                onVehicleCreated = { navController.popBackStack() }
+            )
+        }
+        
+        // 车辆详情
+        composable(
+            route = Routes.VehicleDetail.route,
+            arguments = Routes.VehicleDetail.arguments
+        ) { backStackEntry ->
+            val vehicleId = backStackEntry.arguments?.getString("vehicleId") ?: ""
+            VehicleDetailScreen(
+                vehicleId = vehicleId,
+                onNavigateBack = { navController.popBackStack() },
+                navigateToTrackList = { 
+                    navController.navigate(Routes.VehicleTracks.createRoute(it))
+                }
+            )
+        }
+        
+        // 车辆轨迹列表
+        composable(
+            route = Routes.VehicleTracks.route,
+            arguments = Routes.VehicleTracks.arguments
+        ) { backStackEntry ->
+            val vehicleId = backStackEntry.arguments?.getString("vehicleId") ?: ""
+            TrackListScreen(
+                vehicleId = vehicleId,
+                onNavigateBack = { navController.popBackStack() },
+                navigateToTrackDetail = { trackId ->
+                    navController.navigate(Routes.TrackDetail.createRoute(trackId))
+                },
+                navigateToCreateTrack = { 
+                    navController.navigate(Routes.TrackCreate.createRoute(vehicleId))
+                }
+            )
+        }
+
+        // 轨迹详情
+        composable(
+            route = Routes.TrackDetail.route,
+            arguments = Routes.TrackDetail.arguments
+        ) { backStackEntry ->
+            val trackId = backStackEntry.arguments?.getString("trackId") ?: ""
+            TrackDetailScreen(
+                trackId = trackId,
+                onNavigateBack = { navController.popBackStack() }
+                // 其他导航参数...
+            )
+        }
+
+        // 轨迹创建
+        composable(
+            route = Routes.TrackCreate.route,
+            arguments = Routes.TrackCreate.arguments
+        ) { backStackEntry ->
+            val vehicleId = backStackEntry.arguments?.getString("vehicleId") ?: ""
+            TrackFormScreen(
+                vehicleId = vehicleId,
+                onNavigateBack = { navController.popBackStack() },
+                onTrackCreated = { navController.popBackStack() }
+            )
+        }
+
+        // 项目照片列表
+        composable(
+            route = Routes.ProjectPhotos.route,
+            arguments = Routes.ProjectPhotos.arguments
+        ) { backStackEntry ->
+            val projectId = backStackEntry.arguments?.getString("projectId") ?: ""
+            PhotoGalleryScreen(
+                entityId = projectId,
+                entityType = EntityType.PROJECT,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // 项目相机页面
+        composable(
+            route = Routes.ProjectCamera.route,
+            arguments = Routes.ProjectCamera.arguments
+        ) { backStackEntry ->
+            val projectId = backStackEntry.arguments?.getString("projectId") ?: ""
+            val photoType = backStackEntry.arguments?.getString("photoType") ?: "PROJECT_MODEL"
+            CameraScreen(
+                entityId = projectId,
+                entityType = EntityType.PROJECT,
+                photoType = PhotoType.valueOf(photoType),
+                onNavigateBack = { navController.popBackStack() },
+                onPhotoTaken = { navController.popBackStack() }
+            )
+        }
+
+        // 车辆照片列表
+        composable(
+            route = Routes.VehiclePhotos.route,
+            arguments = Routes.VehiclePhotos.arguments
+        ) { backStackEntry ->
+            val vehicleId = backStackEntry.arguments?.getString("vehicleId") ?: ""
+            PhotoGalleryScreen(
+                entityId = vehicleId,
+                entityType = EntityType.VEHICLE,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // 车辆相机页面
+        composable(
+            route = Routes.VehicleCamera.route,
+            arguments = Routes.VehicleCamera.arguments
+        ) { backStackEntry ->
+            val vehicleId = backStackEntry.arguments?.getString("vehicleId") ?: ""
+            val photoType = backStackEntry.arguments?.getString("photoType") ?: "VEHICLE_MODEL"
+            CameraScreen(
+                entityId = vehicleId,
+                entityType = EntityType.VEHICLE,
+                photoType = PhotoType.valueOf(photoType),
+                onNavigateBack = { navController.popBackStack() },
+                onPhotoTaken = { navController.popBackStack() }
+            )
+        }
+
+        // 轨迹照片列表
+        composable(
+            route = Routes.TrackPhotos.route,
+            arguments = Routes.TrackPhotos.arguments
+        ) { backStackEntry ->
+            val trackId = backStackEntry.arguments?.getString("trackId") ?: ""
+            PhotoGalleryScreen(
+                entityId = trackId,
+                entityType = EntityType.TRACK,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // 轨迹相机页面
+        composable(
+            route = Routes.TrackCamera.route,
+            arguments = Routes.TrackCamera.arguments
+        ) { backStackEntry ->
+            val trackId = backStackEntry.arguments?.getString("trackId") ?: ""
+            val photoType = backStackEntry.arguments?.getString("photoType") ?: "TRACK_MODEL"
+            CameraScreen(
+                entityId = trackId,
+                entityType = EntityType.TRACK,
+                photoType = PhotoType.valueOf(photoType),
+                onNavigateBack = { navController.popBackStack() },
+                onPhotoTaken = { navController.popBackStack() }
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun VehicleFormScreen(
+    projectId: String,
+    viewModel: VehicleFormViewModel = hiltViewModel(),
+    onNavigateBack: () -> Unit,
+    onVehicleCreated: () -> Unit
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    
+    // 处理导航事件
+    LaunchedEffect(uiState.isVehicleCreated) {
+        if (uiState.isVehicleCreated) {
+            onVehicleCreated()
+        }
+    }
+    
+    // 加载项目ID
+    LaunchedEffect(projectId) {
+        viewModel.setProjectId(projectId)
+    }
+    
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("添加车辆") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "返回"
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            )
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // 表单字段
+            OutlinedTextField(
+                value = uiState.name,
+                onValueChange = { viewModel.updateName(it) },
+                label = { Text("车辆名称") },
+                isError = uiState.nameError != null,
+                supportingText = uiState.nameError?.let { { Text(it) } },
+                modifier = Modifier.fillMaxWidth()
+            )
+            
+            OutlinedTextField(
+                value = uiState.licensePlate,
+                onValueChange = { viewModel.updateLicensePlate(it) },
+                label = { Text("车牌号") },
+                isError = uiState.licensePlateError != null,
+                supportingText = uiState.licensePlateError?.let { { Text(it) } },
+                modifier = Modifier.fillMaxWidth()
+            )
+            
+            OutlinedTextField(
+                value = uiState.model,
+                onValueChange = { viewModel.updateModel(it) },
+                label = { Text("车型") },
+                isError = uiState.modelError != null,
+                supportingText = uiState.modelError?.let { { Text(it) } },
+                modifier = Modifier.fillMaxWidth()
+            )
+            
+            Spacer(modifier = Modifier.weight(1f))
+            
+            Button(
+                onClick = { viewModel.createVehicle() },
+                enabled = !uiState.isLoading,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (uiState.isLoading) {
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                } else {
+                    Text("添加车辆")
+                }
+            }
+            
+            // 显示错误信息
+            if (uiState.error != null) {
+                Text(
+                    text = uiState.error ?: "",
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+        }
+    }
+}

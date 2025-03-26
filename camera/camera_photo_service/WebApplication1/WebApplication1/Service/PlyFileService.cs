@@ -64,7 +64,7 @@ namespace PlyFileProcessor.Services.Implementation
         /// <param name="taskId">任务ID</param>
         /// <param name="projectName">项目名称</param>
         /// <returns>是否找到并处理了PLY文件</returns>
-        public async Task<bool> CheckAndProcessPlyFilesAsync(string taskId, string projectName)
+        public async Task<bool> CheckAndProcessPlyFilesAsync(string taskId, string projectName, string path)
         {
             await _processingLock.WaitAsync();
             try
