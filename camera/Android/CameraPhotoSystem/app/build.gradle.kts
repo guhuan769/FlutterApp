@@ -100,6 +100,7 @@ dependencies {
     implementation("androidx.room:room-runtime:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
     kapt("androidx.room:room-compiler:$roomVersion")
+    implementation("androidx.sqlite:sqlite:2.4.0")
     
     // CameraX
     implementation("androidx.camera:camera-core:$cameraxVersion")
@@ -131,7 +132,4 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
-
-
-    implementation("com.google.accompanist:accompanist-swiperefresh:0.27.0")
 }

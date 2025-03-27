@@ -124,14 +124,13 @@ fun CameraScreen(
                     .padding(bottom = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // 照片类型选择器
-                if (moduleType == ModuleType.TRACK) {
-                    PhotoTypeSelector(
-                        selectedPhotoType = selectedPhotoType,
-                        onPhotoTypeSelected = { selectedPhotoType = it }
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
+                // 照片类型选择器 - 所有模块都显示，但根据模块类型启用或禁用按钮
+                PhotoTypeSelector(
+                    selectedPhotoType = selectedPhotoType,
+                    onPhotoTypeSelected = { selectedPhotoType = it },
+                    moduleType = moduleType
+                )
+                Spacer(modifier = Modifier.height(16.dp))
                 
                 // 拍照按钮
                 Box(
@@ -223,7 +222,8 @@ fun CameraPreview(
 @Composable
 fun PhotoTypeSelector(
     selectedPhotoType: PhotoType,
-    onPhotoTypeSelected: (PhotoType) -> Unit
+    onPhotoTypeSelected: (PhotoType) -> Unit,
+    moduleType: ModuleType
 ) {
     Row(
         modifier = Modifier
@@ -231,28 +231,50 @@ fun PhotoTypeSelector(
             .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
+        // 根据模块类型确定每个按钮是否可用
+        val startPointEnabled = moduleType == ModuleType.TRACK
+        val middlePointEnabled = moduleType == ModuleType.TRACK
+        val modelPointEnabled = true // 所有模块都可用
+        val endPointEnabled = moduleType == ModuleType.TRACK
+        
         PhotoTypeButton(
             text = "起始点",
-            isSelected = selectedPhotoType == PhotoType.START_POINT,
-            onClick = { onPhotoTypeSelected(PhotoType.START_POINT) }
+            isSelected = selectedPhotoType == PhotoType.START_POINT && startPointEnabled,
+            enabled = startPointEnabled,
+            onClick = { 
+                if (startPointEnabled) {
+                    onPhotoTypeSelected(PhotoType.START_POINT)
+                }
+            }
         )
         
         PhotoTypeButton(
             text = "中间点",
-            isSelected = selectedPhotoType == PhotoType.MIDDLE_POINT,
-            onClick = { onPhotoTypeSelected(PhotoType.MIDDLE_POINT) }
+            isSelected = selectedPhotoType == PhotoType.MIDDLE_POINT && middlePointEnabled,
+            enabled = middlePointEnabled,
+            onClick = { 
+                if (middlePointEnabled) {
+                    onPhotoTypeSelected(PhotoType.MIDDLE_POINT)
+                }
+            }
         )
         
         PhotoTypeButton(
             text = "模型点",
             isSelected = selectedPhotoType == PhotoType.MODEL_POINT,
+            enabled = modelPointEnabled,
             onClick = { onPhotoTypeSelected(PhotoType.MODEL_POINT) }
         )
         
         PhotoTypeButton(
             text = "结束点",
-            isSelected = selectedPhotoType == PhotoType.END_POINT,
-            onClick = { onPhotoTypeSelected(PhotoType.END_POINT) }
+            isSelected = selectedPhotoType == PhotoType.END_POINT && endPointEnabled,
+            enabled = endPointEnabled,
+            onClick = { 
+                if (endPointEnabled) {
+                    onPhotoTypeSelected(PhotoType.END_POINT)
+                }
+            }
         )
     }
 }
@@ -261,15 +283,24 @@ fun PhotoTypeSelector(
 fun PhotoTypeButton(
     text: String,
     isSelected: Boolean,
+    enabled: Boolean = true,
     onClick: () -> Unit
 ) {
     Button(
         onClick = onClick,
         modifier = Modifier.padding(horizontal = 4.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (isSelected) MaterialTheme.colorScheme.primary 
-                           else MaterialTheme.colorScheme.secondary
-        )
+            containerColor = when {
+                !enabled -> MaterialTheme.colorScheme.surfaceVariant
+                isSelected -> MaterialTheme.colorScheme.primary
+                else -> MaterialTheme.colorScheme.secondary
+            },
+            contentColor = when {
+                !enabled -> MaterialTheme.colorScheme.onSurfaceVariant
+                else -> MaterialTheme.colorScheme.onPrimary
+            }
+        ),
+        enabled = enabled
     ) {
         Text(text, style = MaterialTheme.typography.bodySmall)
     }
@@ -286,26 +317,33 @@ private fun takePhoto(
 ) {
     imageCapture ?: return
     
-    // 创建照片文件
-    val photoFile = createPhotoFile(context, photoType)
-    
-    // 照片输出选项
-    val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
-    
-    // 拍照
-    imageCapture.takePicture(
-        outputOptions,
-        ContextCompat.getMainExecutor(context),
-        object : ImageCapture.OnImageSavedCallback {
-            override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                onPhotoTaken(photoFile.absolutePath, photoFile.name, photoType)
+    try {
+        // 创建照片文件
+        val photoFile = createPhotoFile(context, photoType)
+        
+        // 确保目录存在
+        photoFile.parentFile?.mkdirs()
+        
+        // 照片输出选项
+        val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
+        
+        // 拍照
+        imageCapture.takePicture(
+            outputOptions,
+            ContextCompat.getMainExecutor(context),
+            object : ImageCapture.OnImageSavedCallback {
+                override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                    onPhotoTaken(photoFile.absolutePath, photoFile.name, photoType)
+                }
+                
+                override fun onError(exception: ImageCaptureException) {
+                    exception.printStackTrace()
+                }
             }
-            
-            override fun onError(exception: ImageCaptureException) {
-                exception.printStackTrace()
-            }
-        }
-    )
+        )
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
 }
 
 /**
@@ -323,6 +361,8 @@ private fun createPhotoFile(context: Context, photoType: PhotoType): File {
     
     // 创建照片文件
     val storageDir = context.getExternalFilesDir("Photos")
+    // 确保目录存在
+    storageDir?.mkdirs()
     return File(storageDir, photoFileName)
 }
 

@@ -6,15 +6,18 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Refresh
@@ -23,7 +26,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -54,6 +60,7 @@ fun GalleryScreen(
     var selectedPhoto by remember { mutableStateOf<Photo?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showFilterDialog by remember { mutableStateOf(false) }
+    var showPhotoDetail by remember { mutableStateOf<Photo?>(null) }
     var selectedPhotoTypes by remember { mutableStateOf<Set<PhotoType>>(PhotoType.values().toSet()) }
     
     val filteredPhotos = remember(photos, selectedPhotoTypes) {
@@ -129,7 +136,9 @@ fun GalleryScreen(
                         ) { photo ->
                             PhotoGridItem(
                                 photo = photo,
-                                onClick = { onPhotoClick(photo) },
+                                onClick = { 
+                                    showPhotoDetail = photo 
+                                },
                                 onLongClick = {
                                     selectedPhoto = photo
                                     showDeleteDialog = true
@@ -170,6 +179,19 @@ fun GalleryScreen(
                         Text(it)
                     }
                 }
+            }
+            
+            // 照片详情查看
+            if (showPhotoDetail != null) {
+                PhotoDetailScreen(
+                    photo = showPhotoDetail!!,
+                    onClose = { showPhotoDetail = null },
+                    onDelete = {
+                        selectedPhoto = showPhotoDetail
+                        showPhotoDetail = null
+                        showDeleteDialog = true
+                    }
+                )
             }
             
             // 删除确认对话框
@@ -270,6 +292,139 @@ fun GalleryScreen(
                         }
                     }
                 )
+            }
+        }
+    }
+}
+
+/**
+ * 照片详情屏幕 - 支持缩放、平移等操作
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PhotoDetailScreen(
+    photo: Photo,
+    onClose: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val context = LocalContext.current
+    val file = remember(photo.filePath) { File(photo.filePath) }
+    val exists = remember(file) { file.exists() }
+    
+    // 缩放和平移状态
+    var scale by remember { mutableStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+    var rotation by remember { mutableStateOf(0f) }
+    
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(photo.fileName) },
+                navigationIcon = {
+                    IconButton(onClick = onClose) {
+                        Icon(Icons.Default.Close, contentDescription = "关闭")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onDelete) {
+                        Icon(Icons.Default.Delete, contentDescription = "删除")
+                    }
+                }
+            )
+        }
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues),
+            contentAlignment = Alignment.Center
+        ) {
+            if (exists) {
+                Image(
+                    painter = rememberAsyncImagePainter(
+                        ImageRequest.Builder(context)
+                            .data(file)
+                            .crossfade(true)
+                            .build()
+                    ),
+                    contentDescription = photo.fileName,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                            translationX = offset.x
+                            translationY = offset.y
+                            rotationZ = rotation
+                        }
+                        .pointerInput(Unit) {
+                            detectTransformGestures { _, pan, zoom, rotateChange ->
+                                scale = (scale * zoom).coerceIn(0.5f, 5f)
+                                
+                                // 根据缩放级别限制平移范围
+                                val maxX = (scale - 1) * size.width / 2
+                                val maxY = (scale - 1) * size.height / 2
+                                
+                                offset = Offset(
+                                    x = (offset.x + pan.x).coerceIn(-maxX, maxX),
+                                    y = (offset.y + pan.y).coerceIn(-maxY, maxY)
+                                )
+                                
+                                // 可选：启用旋转
+                                // rotation += rotateChange
+                            }
+                        },
+                    contentScale = ContentScale.Fit
+                )
+                
+                // 照片类型标识
+                Card(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = getPhotoTypeText(photo.photoType),
+                        modifier = Modifier.padding(8.dp),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+                
+                // 双指缩放提示
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.Black.copy(alpha = 0.3f)
+                    ),
+                    shape = MaterialTheme.shapes.small,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 16.dp)
+                ) {
+                    Text(
+                        text = "双指缩放查看细节",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.7f),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                }
+            } else {
+                // 照片文件不存在
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "文件不存在",
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(64.dp)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "照片文件不存在或已被删除",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
             }
         }
     }

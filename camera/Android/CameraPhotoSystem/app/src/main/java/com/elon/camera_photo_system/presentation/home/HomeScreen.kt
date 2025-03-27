@@ -293,7 +293,7 @@ private fun ProjectItem(
             ) {
                 ProjectActionButton(
                     icon = Icons.Default.PhotoCamera,
-                    label = "模型点拍照",
+                    label = "相机",
                     onClick = onTakeModelPhoto
                 )
                 
