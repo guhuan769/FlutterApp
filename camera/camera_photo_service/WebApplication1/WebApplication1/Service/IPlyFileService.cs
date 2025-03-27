@@ -11,7 +11,7 @@
         /// <param name="taskId">任务ID</param>
         /// <param name="projectName">项目名称</param>
         /// <returns>是否找到并处理了PLY文件</returns>
-        Task<bool> CheckAndProcessPlyFilesAsync(string taskId, string projectName);
+        Task<bool> CheckAndProcessPlyFilesAsync(string taskId, string projectName, string path);
 
         /// <summary>
         /// 获取PLY检查路径
