@@ -225,6 +225,7 @@ fun NavGraph(
         ) { backStackEntry ->
             val projectId = backStackEntry.arguments?.getLong("projectId") ?: 0L
             val vehiclesState by vehicleViewModel.vehiclesState.collectAsState()
+            val addVehicleState by vehicleViewModel.addVehicleState.collectAsState()
             
             // 加载该项目下的车辆
             vehicleViewModel.loadVehiclesByProject(projectId)
@@ -240,6 +241,19 @@ fun NavGraph(
                 },
                 onRefresh = {
                     vehicleViewModel.loadVehiclesByProject(projectId)
+                },
+                addVehicleState = addVehicleState,
+                onAddVehicleClick = {
+                    vehicleViewModel.resetAddVehicleState()
+                },
+                onAddVehicleDismiss = {
+                    vehicleViewModel.resetAddVehicleState()
+                },
+                onAddVehicleFieldChanged = { field, value ->
+                    vehicleViewModel.updateAddVehicleField(field, value)
+                },
+                onAddVehicleSubmit = {
+                    vehicleViewModel.addVehicle(projectId)
                 }
             )
         }

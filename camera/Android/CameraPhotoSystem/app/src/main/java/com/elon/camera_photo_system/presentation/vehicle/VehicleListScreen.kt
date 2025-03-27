@@ -38,9 +38,22 @@ fun VehicleListScreen(
     error: String?,
     onNavigateBack: () -> Unit,
     onVehicleClick: (Vehicle) -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    addVehicleState: AddVehicleState,
+    onAddVehicleClick: () -> Unit,
+    onAddVehicleDismiss: () -> Unit,
+    onAddVehicleFieldChanged: (AddVehicleField, String) -> Unit,
+    onAddVehicleSubmit: () -> Unit
 ) {
     val swipeRefreshState = rememberSwipeRefreshState(isLoading)
+    
+    var showAddVehicleDialog by remember { mutableStateOf(false) }
+    
+    LaunchedEffect(addVehicleState.isSuccess) {
+        if (addVehicleState.isSuccess) {
+            showAddVehicleDialog = false
+        }
+    }
     
     Scaffold(
         topBar = {
@@ -52,7 +65,10 @@ fun VehicleListScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* 添加车辆 */ }) {
+                    IconButton(onClick = { 
+                        showAddVehicleDialog = true
+                        onAddVehicleClick()
+                    }) {
                         Icon(Icons.Default.Add, contentDescription = "添加车辆")
                     }
                 }
@@ -60,7 +76,10 @@ fun VehicleListScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { /* 添加车辆 */ }
+                onClick = { 
+                    showAddVehicleDialog = true
+                    onAddVehicleClick()
+                }
             ) {
                 Icon(Icons.Default.Add, contentDescription = "添加车辆")
             }
@@ -166,6 +185,29 @@ fun VehicleListScreen(
                         Text(it)
                     }
                 }
+            }
+            
+            // 添加车辆对话框
+            if (showAddVehicleDialog) {
+                AddVehicleDialog(
+                    isSubmitting = addVehicleState.isSubmitting,
+                    error = addVehicleState.error,
+                    nameValue = addVehicleState.name,
+                    nameError = addVehicleState.nameError,
+                    plateNumberValue = addVehicleState.plateNumber,
+                    plateNumberError = addVehicleState.plateNumberError,
+                    brandValue = addVehicleState.brand,
+                    modelValue = addVehicleState.model,
+                    onNameChanged = { onAddVehicleFieldChanged(AddVehicleField.NAME, it) },
+                    onPlateNumberChanged = { onAddVehicleFieldChanged(AddVehicleField.PLATE_NUMBER, it) },
+                    onBrandChanged = { onAddVehicleFieldChanged(AddVehicleField.BRAND, it) },
+                    onModelChanged = { onAddVehicleFieldChanged(AddVehicleField.MODEL, it) },
+                    onDismissRequest = {
+                        showAddVehicleDialog = false
+                        onAddVehicleDismiss()
+                    },
+                    onAddClick = onAddVehicleSubmit
+                )
             }
         }
     }
