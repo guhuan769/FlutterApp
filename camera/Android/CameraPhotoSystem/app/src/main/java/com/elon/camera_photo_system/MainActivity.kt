@@ -10,22 +10,17 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.elon.camera_photo_system.domain.model.ModuleType
-import com.elon.camera_photo_system.presentation.camera.CameraScreen
 import com.elon.camera_photo_system.presentation.camera.CameraViewModel
-import com.elon.camera_photo_system.presentation.gallery.GalleryScreen
 import com.elon.camera_photo_system.presentation.gallery.GalleryViewModel
+import com.elon.camera_photo_system.presentation.navigation.NavGraph
+import com.elon.camera_photo_system.presentation.project.ProjectViewModel
+import com.elon.camera_photo_system.presentation.track.TrackViewModel
+import com.elon.camera_photo_system.presentation.vehicle.VehicleViewModel
 import com.elon.camera_photo_system.ui.theme.CameraPhotoSystemTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -34,6 +29,9 @@ class MainActivity : ComponentActivity() {
     
     private val cameraViewModel: CameraViewModel by viewModels()
     private val galleryViewModel: GalleryViewModel by viewModels()
+    private val projectViewModel: ProjectViewModel by viewModels()
+    private val vehicleViewModel: VehicleViewModel by viewModels()
+    private val trackViewModel: TrackViewModel by viewModels()
     
     // 权限请求
     private val requestPermissionLauncher = registerForActivityResult(
@@ -65,61 +63,16 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val navController = rememberNavController()
                     
-                    // 示例：项目模块ID
-                    val moduleId = 1L
-                    val moduleType = ModuleType.PROJECT
-                    
-                    // 获取相机状态
-                    val cameraUiState by cameraViewModel.cameraUIState.collectAsState()
-                    val galleryUiState by galleryViewModel.galleryUIState.collectAsState()
-                    
-                    NavHost(navController = navController, startDestination = "camera") {
-                        // 相机界面
-                        composable("camera") {
-                            CameraScreen(
-                                moduleType = moduleType,
-                                moduleId = moduleId,
-                                onNavigateBack = { finish() },
-                                onNavigateToGallery = {
-                                    // 加载该模块的照片
-                                    galleryViewModel.loadModulePhotos(moduleId, moduleType)
-                                    navController.navigate("gallery")
-                                },
-                                onPhotoTaken = { filePath, fileName, photoType ->
-                                    // 保存照片到数据库
-                                    cameraViewModel.savePhoto(
-                                        moduleId = moduleId,
-                                        moduleType = moduleType,
-                                        photoType = photoType,
-                                        filePath = filePath,
-                                        fileName = fileName
-                                    )
-                                    
-                                    // 显示提示
-                                    Toast.makeText(
-                                        this@MainActivity, 
-                                        "照片已保存", 
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                            )
-                        }
-                        
-                        // 相册界面
-                        composable("gallery") {
-                            GalleryScreen(
-                                photos = galleryUiState.photos,
-                                moduleType = moduleType,
-                                onNavigateBack = { navController.popBackStack() },
-                                onPhotoClick = { photo ->
-                                    // 点击查看照片详情（可以扩展）
-                                },
-                                onDeletePhoto = { photo ->
-                                    galleryViewModel.deletePhoto(photo)
-                                }
-                            )
-                        }
-                    }
+                    // 使用NavGraph来处理所有导航逻辑
+                    NavGraph(
+                        navController = navController,
+                        projectViewModel = projectViewModel,
+                        vehicleViewModel = vehicleViewModel,
+                        trackViewModel = trackViewModel,
+                        cameraViewModel = cameraViewModel,
+                        galleryViewModel = galleryViewModel,
+                        onBackPressed = { finish() }
+                    )
                 }
             }
         }
@@ -146,4 +99,4 @@ class MainActivity : ComponentActivity() {
             requestPermissionLauncher.launch(permissions)
         }
     }
-}
+} 

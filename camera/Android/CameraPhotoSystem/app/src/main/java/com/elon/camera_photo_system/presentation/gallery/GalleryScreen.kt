@@ -1,5 +1,10 @@
 package com.elon.camera_photo_system.presentation.gallery
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -11,10 +16,14 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -23,6 +32,8 @@ import coil.request.ImageRequest
 import com.elon.camera_photo_system.domain.model.ModuleType
 import com.elon.camera_photo_system.domain.model.Photo
 import com.elon.camera_photo_system.domain.model.PhotoType
+import com.google.accompanist.swiperefresh.SwipeRefresh
+import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import java.io.File
 
 /**
@@ -35,10 +46,21 @@ fun GalleryScreen(
     moduleType: ModuleType,
     onNavigateBack: () -> Unit,
     onPhotoClick: (Photo) -> Unit,
-    onDeletePhoto: (Photo) -> Unit
+    onDeletePhoto: (Photo) -> Unit,
+    isLoading: Boolean = false,
+    error: String? = null,
+    onRefresh: () -> Unit = {}
 ) {
     var selectedPhoto by remember { mutableStateOf<Photo?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showFilterDialog by remember { mutableStateOf(false) }
+    var selectedPhotoTypes by remember { mutableStateOf<Set<PhotoType>>(PhotoType.values().toSet()) }
+    
+    val filteredPhotos = remember(photos, selectedPhotoTypes) {
+        photos.filter { it.photoType in selectedPhotoTypes }
+    }
+    
+    val swipeRefreshState = rememberSwipeRefreshState(isLoading)
     
     Scaffold(
         topBar = {
@@ -47,6 +69,17 @@ fun GalleryScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+                    }
+                },
+                actions = {
+                    // 刷新按钮
+                    IconButton(onClick = onRefresh) {
+                        Icon(Icons.Default.Refresh, contentDescription = "刷新")
+                    }
+                    
+                    // 筛选按钮
+                    IconButton(onClick = { showFilterDialog = true }) {
+                        Icon(Icons.Default.FilterList, contentDescription = "筛选")
                     }
                 }
             )
@@ -57,29 +90,84 @@ fun GalleryScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            if (photos.isEmpty()) {
-                // 空状态
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("暂无照片")
-                }
-            } else {
-                // 照片网格
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    contentPadding = PaddingValues(4.dp)
-                ) {
-                    items(photos) { photo ->
-                        PhotoGridItem(
-                            photo = photo,
-                            onClick = { onPhotoClick(photo) },
-                            onLongClick = {
-                                selectedPhoto = photo
-                                showDeleteDialog = true
+            SwipeRefresh(
+                state = swipeRefreshState,
+                onRefresh = onRefresh,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                if (filteredPhotos.isEmpty()) {
+                    // 空状态
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text("暂无照片")
+                            
+                            if (photos.isNotEmpty() && filteredPhotos.isEmpty()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    "请尝试调整筛选条件",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
                             }
-                        )
+                        }
+                    }
+                } else {
+                    // 照片网格
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(3),
+                        contentPadding = PaddingValues(4.dp)
+                    ) {
+                        items(
+                            items = filteredPhotos,
+                            key = { it.id }
+                        ) { photo ->
+                            PhotoGridItem(
+                                photo = photo,
+                                onClick = { onPhotoClick(photo) },
+                                onLongClick = {
+                                    selectedPhoto = photo
+                                    showDeleteDialog = true
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+            
+            // 加载状态指示器
+            AnimatedVisibility(
+                visible = isLoading,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier.align(Alignment.Center)
+            ) {
+                CircularProgressIndicator()
+            }
+            
+            // 错误提示
+            AnimatedVisibility(
+                visible = error != null,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(16.dp)
+            ) {
+                error?.let {
+                    Snackbar(
+                        action = {
+                            TextButton(onClick = onRefresh) {
+                                Text("重试")
+                            }
+                        }
+                    ) {
+                        Text(it)
                     }
                 }
             }
@@ -116,6 +204,73 @@ fun GalleryScreen(
                     }
                 )
             }
+            
+            // 照片类型筛选对话框
+            if (showFilterDialog) {
+                AlertDialog(
+                    onDismissRequest = { showFilterDialog = false },
+                    title = { Text("照片类型筛选") },
+                    text = {
+                        Column {
+                            PhotoType.values().forEach { photoType ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Checkbox(
+                                        checked = photoType in selectedPhotoTypes,
+                                        onCheckedChange = { checked ->
+                                            selectedPhotoTypes = if (checked) {
+                                                selectedPhotoTypes + photoType
+                                            } else {
+                                                selectedPhotoTypes - photoType
+                                            }
+                                        }
+                                    )
+                                    
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    
+                                    Text(getPhotoTypeText(photoType))
+                                    
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    
+                                    // 显示该类型照片的数量
+                                    val count = photos.count { it.photoType == photoType }
+                                    Card(
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = getPhotoTypeColor(photoType)
+                                        )
+                                    ) {
+                                        Text(
+                                            text = count.toString(),
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = Color.White
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { showFilterDialog = false }) {
+                            Text("确定")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = { 
+                                selectedPhotoTypes = PhotoType.values().toSet()
+                                showFilterDialog = false
+                            }
+                        ) {
+                            Text("重置")
+                        }
+                    }
+                )
+            }
         }
     }
 }
@@ -134,13 +289,30 @@ fun PhotoGridItem(
     val file = remember(photo.filePath) { File(photo.filePath) }
     val exists = remember(file) { file.exists() }
     
+    // 添加动画效果
+    var isPressed by remember { mutableStateOf(false) }
+    val elevation by animateDpAsState(
+        targetValue = if (isPressed) 8.dp else 2.dp,
+        animationSpec = tween(durationMillis = 200),
+        label = "elevation"
+    )
+    val scale by animateDpAsState(
+        targetValue = if (isPressed) 0.95.dp else 1.dp,
+        animationSpec = tween(durationMillis = 200),
+        label = "scale"
+    )
+    
     Card(
         modifier = Modifier
             .padding(4.dp)
             .fillMaxWidth()
             .aspectRatio(1f)
-            .clickable { onClick() },
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            .scale(scale.value)
+            .clickable { 
+                isPressed = true
+                onClick() 
+            },
+        elevation = CardDefaults.cardElevation(defaultElevation = elevation)
     ) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -166,7 +338,10 @@ fun PhotoGridItem(
                         .fillMaxSize()
                         .combinedClickable(
                             onClick = {},
-                            onLongClick = onLongClick
+                            onLongClick = {
+                                isPressed = true
+                                onLongClick()
+                            }
                         )
                 )
                 
@@ -187,6 +362,28 @@ fun PhotoGridItem(
                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                             style = MaterialTheme.typography.bodySmall
                         )
+                    }
+                }
+                
+                // 添加上传状态标识
+                if (photo.isUploaded) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(4.dp)
+                    ) {
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            ),
+                            modifier = Modifier.padding(2.dp)
+                        ) {
+                            Text(
+                                text = "已上传",
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
                     }
                 }
             } else {
@@ -234,7 +431,7 @@ private fun getPhotoTypeText(photoType: PhotoType): String {
  * 获取照片类型颜色
  */
 @Composable
-private fun getPhotoTypeColor(photoType: PhotoType): androidx.compose.ui.graphics.Color {
+private fun getPhotoTypeColor(photoType: PhotoType): Color {
     return when (photoType) {
         PhotoType.START_POINT -> MaterialTheme.colorScheme.primary
         PhotoType.MIDDLE_POINT -> MaterialTheme.colorScheme.secondary

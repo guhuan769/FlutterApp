@@ -1,0 +1,576 @@
+package com.elon.camera_photo_system.presentation.camera
+
+import android.content.Context
+import android.graphics.Color
+import android.view.ViewGroup
+import androidx.camera.core.*
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
+import androidx.compose.animation.*
+import androidx.compose.foundation.*
+import androidx.compose.foundation.gestures.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.LifecycleOwner
+import com.elon.camera_photo_system.domain.model.ModuleType
+import com.elon.camera_photo_system.domain.model.PhotoType
+import com.elon.camera_photo_system.presentation.camera.components.*
+import com.elon.camera_photo_system.presentation.common.components.ErrorDialog
+import com.elon.camera_photo_system.presentation.common.components.LoadingOverlay
+import kotlinx.coroutines.launch
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.*
+import kotlin.coroutines.suspendCoroutine
+import kotlin.coroutines.resume
+
+/**
+ * 相机界面状态
+ */
+sealed class CameraScreenState {
+    object Loading : CameraScreenState()
+    object Ready : CameraScreenState()
+    object Capturing : CameraScreenState()
+    data class Error(val message: String) : CameraScreenState()
+}
+
+/**
+ * 相机界面
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CameraScreen(
+    viewModel: CameraViewModel,
+    moduleType: ModuleType,
+    moduleId: Long,
+    onNavigateBack: () -> Unit,
+    onNavigateToGallery: () -> Unit,
+    onPhotoTaken: (filePath: String, fileName: String, photoType: PhotoType) -> Unit,
+    initialPhotoType: PhotoType? = null,
+    isTrackStarted: Boolean = false,
+    isTrackEnded: Boolean = false
+) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val scope = rememberCoroutineScope()
+    
+    var screenState by remember { mutableStateOf<CameraScreenState>(CameraScreenState.Loading) }
+    var imageCapture: ImageCapture? by remember { mutableStateOf(null) }
+    var camera: Camera? by remember { mutableStateOf(null) }
+    
+    // 设置默认照片类型，如果有指定类型则使用指定类型，否则根据模块类型决定
+    var selectedPhotoType by remember { 
+        mutableStateOf(
+            initialPhotoType ?: getDefaultPhotoType(moduleType, isTrackStarted, isTrackEnded)
+        ) 
+    }
+    
+    var cameraUiState by remember { mutableStateOf(viewModel.cameraUIState.value) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var showErrorDialog by remember { mutableStateOf(false) }
+    
+    // 缩放状态
+    var cameraZoom by remember { mutableStateOf(1f) }
+    
+    LaunchedEffect(viewModel.cameraUIState) {
+        viewModel.cameraUIState.collect { state ->
+            cameraUiState = state
+        }
+    }
+    
+    // 错误处理
+    LaunchedEffect(cameraUiState.error) {
+        cameraUiState.error?.let {
+            errorMessage = it
+            showErrorDialog = true
+            screenState = CameraScreenState.Error(it)
+        }
+    }
+    
+    Scaffold(
+        topBar = {
+            CameraTopAppBar(
+                onNavigateBack = onNavigateBack,
+                onNavigateToGallery = onNavigateToGallery
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            // 相机预览
+            CameraPreviewWithGestures(
+                context = context,
+                lifecycleOwner = lifecycleOwner,
+                onImageCaptureCreated = { 
+                    imageCapture = it
+                    screenState = CameraScreenState.Ready
+                },
+                onCameraCreated = { camera = it },
+                onZoomChanged = { zoom ->
+                    cameraZoom = zoom
+                    camera?.cameraControl?.setZoomRatio(zoom)
+                }
+            )
+            
+            // 拍照提示和辅助线
+            CameraOverlay(
+                moduleType = moduleType,
+                selectedPhotoType = selectedPhotoType,
+                cameraZoom = cameraZoom
+            )
+            
+            // 底部控制区
+            CameraControls(
+                moduleType = moduleType,
+                selectedPhotoType = selectedPhotoType,
+                onPhotoTypeSelected = { 
+                    // 检查是否允许选择该照片类型
+                    if (isPhotoTypeAllowed(moduleType, it, isTrackStarted, isTrackEnded)) {
+                        selectedPhotoType = it 
+                    } else {
+                        // 显示错误信息
+                        errorMessage = "当前状态不允许选择该照片类型"
+                        showErrorDialog = true
+                    }
+                },
+                isCapturing = screenState == CameraScreenState.Capturing,
+                onCaptureClick = {
+                    // 检查照片类型是否允许
+                    if (!isPhotoTypeAllowed(moduleType, selectedPhotoType, isTrackStarted, isTrackEnded)) {
+                        errorMessage = "当前状态不允许使用该照片类型拍照"
+                        showErrorDialog = true
+                        return@CameraControls
+                    }
+                    
+                    scope.launch {
+                        try {
+                            screenState = CameraScreenState.Capturing
+                            takePhoto(
+                                imageCapture = imageCapture,
+                                context = context,
+                                photoType = selectedPhotoType,
+                                onPhotoTaken = { filePath, fileName, type ->
+                                    onPhotoTaken(filePath, fileName, type)
+                                    screenState = CameraScreenState.Ready
+                                },
+                                onError = { error ->
+                                    errorMessage = error
+                                    showErrorDialog = true
+                                    screenState = CameraScreenState.Error(error)
+                                }
+                            )
+                        } catch (e: Exception) {
+                            errorMessage = e.message ?: "拍照失败"
+                            showErrorDialog = true
+                            screenState = CameraScreenState.Error(e.message ?: "拍照失败")
+                        }
+                    }
+                },
+                // 传递轨迹状态，用于决定照片类型按钮的可用性
+                isTrackStarted = isTrackStarted,
+                isTrackEnded = isTrackEnded
+            )
+            
+            // 加载状态
+            if (screenState == CameraScreenState.Loading) {
+                LoadingOverlay(message = "正在初始化相机...")
+            }
+            
+            // 拍照状态
+            if (screenState == CameraScreenState.Capturing) {
+                LoadingOverlay(message = "正在保存照片...")
+            }
+        }
+    }
+    
+    // 错误对话框
+    if (showErrorDialog) {
+        ErrorDialog(
+            message = errorMessage ?: "未知错误",
+            onDismiss = {
+                showErrorDialog = false
+                errorMessage = null
+                screenState = CameraScreenState.Ready
+            },
+            onRetry = {
+                showErrorDialog = false
+                errorMessage = null
+                screenState = CameraScreenState.Ready
+            }
+        )
+    }
+}
+
+/**
+ * 相机预览组件
+ */
+@Composable
+fun CameraPreview(
+    context: Context,
+    lifecycleOwner: LifecycleOwner,
+    onImageCaptureCreated: (ImageCapture) -> Unit
+) {
+    val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
+    
+    AndroidView(
+        factory = { ctx ->
+            val previewView = PreviewView(ctx).apply {
+                layoutParams = ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+                implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                scaleType = PreviewView.ScaleType.FILL_CENTER
+            }
+            
+            cameraProviderFuture.addListener({
+                val cameraProvider = cameraProviderFuture.get()
+                val preview = Preview.Builder().build().also {
+                    it.setSurfaceProvider(previewView.surfaceProvider)
+                }
+                
+                val imageCapture = ImageCapture.Builder()
+                    .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
+                    .build()
+                
+                val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+                
+                try {
+                    cameraProvider.unbindAll()
+                    cameraProvider.bindToLifecycle(
+                        lifecycleOwner,
+                        cameraSelector,
+                        preview,
+                        imageCapture
+                    )
+                    onImageCaptureCreated(imageCapture)
+                } catch (ex: Exception) {
+                    ex.printStackTrace()
+                }
+            }, ContextCompat.getMainExecutor(ctx))
+            
+            previewView
+        },
+        modifier = Modifier.fillMaxSize()
+    )
+}
+
+/**
+ * 照片类型选择器
+ */
+@Composable
+fun PhotoTypeSelector(
+    selectedPhotoType: PhotoType,
+    onPhotoTypeSelected: (PhotoType) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+        PhotoTypeButton(
+            text = "起始点",
+            isSelected = selectedPhotoType == PhotoType.START_POINT,
+            onClick = { onPhotoTypeSelected(PhotoType.START_POINT) }
+        )
+        
+        PhotoTypeButton(
+            text = "中间点",
+            isSelected = selectedPhotoType == PhotoType.MIDDLE_POINT,
+            onClick = { onPhotoTypeSelected(PhotoType.MIDDLE_POINT) }
+        )
+        
+        PhotoTypeButton(
+            text = "模型点",
+            isSelected = selectedPhotoType == PhotoType.MODEL_POINT,
+            onClick = { onPhotoTypeSelected(PhotoType.MODEL_POINT) }
+        )
+        
+        PhotoTypeButton(
+            text = "结束点",
+            isSelected = selectedPhotoType == PhotoType.END_POINT,
+            onClick = { onPhotoTypeSelected(PhotoType.END_POINT) }
+        )
+    }
+}
+
+@Composable
+fun PhotoTypeButton(
+    text: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier.padding(horizontal = 4.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primary 
+                           else MaterialTheme.colorScheme.secondary
+        )
+    ) {
+        Text(text, style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+/**
+ * 拍照方法
+ */
+private fun takePhoto(
+    imageCapture: ImageCapture?,
+    context: Context,
+    photoType: PhotoType,
+    onPhotoTaken: (filePath: String, fileName: String, photoType: PhotoType) -> Unit,
+    onError: (String) -> Unit
+) {
+    imageCapture ?: return
+    
+    // 创建照片文件
+    val photoFile = createPhotoFile(context, photoType)
+    
+    // 照片输出选项
+    val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
+    
+    // 拍照
+    imageCapture.takePicture(
+        outputOptions,
+        ContextCompat.getMainExecutor(context),
+        object : ImageCapture.OnImageSavedCallback {
+            override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                onPhotoTaken(photoFile.absolutePath, photoFile.name, photoType)
+            }
+            
+            override fun onError(exception: ImageCaptureException) {
+                onError(exception.message ?: "拍照失败")
+                exception.printStackTrace()
+            }
+        }
+    )
+}
+
+/**
+ * 创建照片文件
+ */
+private fun createPhotoFile(context: Context, photoType: PhotoType): File {
+    // 生成照片名称
+    val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+    val photoFileName = when (photoType) {
+        PhotoType.START_POINT -> "起始点拍照_$timeStamp.jpg"
+        PhotoType.MIDDLE_POINT -> "中间点拍照_$timeStamp.jpg"
+        PhotoType.MODEL_POINT -> "模型点拍照_$timeStamp.jpg"
+        PhotoType.END_POINT -> "结束点拍照_$timeStamp.jpg"
+    }
+    
+    // 创建照片文件
+    val storageDir = context.getExternalFilesDir("Photos")
+    return File(storageDir, photoFileName)
+}
+
+/**
+ * 根据模块类型和轨迹状态获取默认照片类型
+ */
+fun getDefaultPhotoType(
+    moduleType: ModuleType,
+    isTrackStarted: Boolean = false,
+    isTrackEnded: Boolean = false
+): PhotoType {
+    return when (moduleType) {
+        ModuleType.PROJECT, ModuleType.VEHICLE -> PhotoType.MODEL_POINT
+        ModuleType.TRACK -> {
+            when {
+                !isTrackStarted -> PhotoType.START_POINT
+                isTrackEnded -> PhotoType.MODEL_POINT
+                else -> PhotoType.MIDDLE_POINT
+            }
+        }
+    }
+}
+
+/**
+ * 检查照片类型是否允许在当前模块和状态下使用
+ */
+fun isPhotoTypeAllowed(
+    moduleType: ModuleType,
+    photoType: PhotoType,
+    isTrackStarted: Boolean = false,
+    isTrackEnded: Boolean = false
+): Boolean {
+    return when (moduleType) {
+        // 项目和车辆模块只允许模型点拍照
+        ModuleType.PROJECT, ModuleType.VEHICLE -> photoType == PhotoType.MODEL_POINT
+        
+        // 轨迹模块根据状态决定可用的照片类型
+        ModuleType.TRACK -> {
+            when (photoType) {
+                PhotoType.START_POINT -> !isTrackStarted
+                PhotoType.MIDDLE_POINT -> isTrackStarted && !isTrackEnded
+                PhotoType.END_POINT -> isTrackStarted && !isTrackEnded
+                PhotoType.MODEL_POINT -> true // 模型点随时可用
+            }
+        }
+    }
+}
+
+@Composable
+private fun getModuleColor(moduleType: ModuleType): androidx.compose.ui.graphics.Color {
+    return when (moduleType) {
+        ModuleType.PROJECT -> MaterialTheme.colorScheme.primary
+        ModuleType.VEHICLE -> MaterialTheme.colorScheme.secondary
+        ModuleType.TRACK -> MaterialTheme.colorScheme.tertiary
+    }
+}
+
+@Composable
+fun AddProjectDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (name: String, description: String) -> Unit
+) {
+    // 状态管理
+    var projectName by remember { mutableStateOf("") }
+    var projectDescription by remember { mutableStateOf("") }
+    var hasNameError by remember { mutableStateOf(false) }
+    
+    // 验证逻辑
+    val validateName = { name: String ->
+        name.isNotBlank() && name.length <= 50
+    }
+    
+    // 对话框UI
+    AlertDialog(
+        // 标题和内容布局
+        // 表单字段（项目名称、描述）
+        // 错误提示（如果有）
+        // 确认和取消按钮
+    )
+}
+
+// 项目实体
+@Entity(tableName = "projects")
+data class ProjectEntity(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    val name: String,
+    val description: String,
+    val creationDate: Long // 存储时间戳
+)
+
+// 项目DAO
+@Dao
+interface ProjectDao {
+    @Insert
+    suspend fun insertProject(project: ProjectEntity): Long
+    
+    @Query("SELECT * FROM projects ORDER BY creationDate DESC")
+    suspend fun getAllProjects(): List<ProjectEntity>
+    
+    // 其他必要的查询方法
+}
+
+// 数据库类
+@Database(entities = [ProjectEntity::class], version = 1)
+abstract class AppDatabase : RoomDatabase() {
+    abstract fun projectDao(): ProjectDao
+}
+
+class ProjectRepositoryImpl @Inject constructor(
+    private val projectDao: ProjectDao
+) : ProjectRepository {
+    override suspend fun addProject(project: Project): Long {
+        // 转换领域模型为数据库实体
+        val entity = ProjectEntity(
+            name = project.name,
+            description = project.description,
+            creationDate = project.creationDate.toEpochSecond(ZoneOffset.UTC)
+        )
+        
+        // 存储并返回ID
+        return projectDao.insertProject(entity)
+    }
+    
+    override suspend fun getProjects(): List<Project> {
+        // 加载并转换数据库实体为领域模型
+        return projectDao.getAllProjects().map { entity ->
+            Project(
+                id = entity.id,
+                name = entity.name,
+                description = entity.description,
+                creationDate = LocalDateTime.ofEpochSecond(entity.creationDate, 0, ZoneOffset.UTC),
+                vehicleCount = 0, // 这些可以通过关联查询获取
+                photoCount = 0
+            )
+        }
+    }
+}
+
+@Composable
+fun HomeScreen(
+    state: HomeScreenState,
+    onAddProject: (name: String, description: String) -> Unit,
+    // 其他参数
+) {
+    // 控制对话框显示状态
+    var showAddProjectDialog by remember { mutableStateOf(false) }
+    
+    // 现有的Scaffold和内容...
+    
+    // 添加项目对话框
+    if (showAddProjectDialog) {
+        AddProjectDialog(
+            onDismiss = { showAddProjectDialog = false },
+            onConfirm = { name, description ->
+                onAddProject(name, description)
+                showAddProjectDialog = false
+            }
+        )
+    }
+    
+    // 修改添加按钮的onClick
+    IconButton(onClick = { showAddProjectDialog = true }) {
+        Icon(Icons.Default.Add, "新建项目")
+    }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+object DatabaseModule {
+    @Provides
+    @Singleton
+    fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
+        return Room.databaseBuilder(
+            context,
+            AppDatabase::class.java,
+            "camera_photo_system.db"
+        ).build()
+    }
+    
+    @Provides
+    fun provideProjectDao(database: AppDatabase): ProjectDao {
+        return database.projectDao()
+    }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class RepositoryModule {
+    @Binds
+    abstract fun bindProjectRepository(
+        repository: ProjectRepositoryImpl
+    ): ProjectRepository
+} 

@@ -4,8 +4,11 @@ import android.content.Context
 import androidx.room.Room
 import com.elon.camera_photo_system.data.local.AppDatabase
 import com.elon.camera_photo_system.data.local.dao.PhotoDao
+import com.elon.camera_photo_system.data.local.dao.ProjectDao
 import com.elon.camera_photo_system.data.repository.PhotoRepositoryImpl
+import com.elon.camera_photo_system.data.repository.ProjectRepositoryImpl
 import com.elon.camera_photo_system.domain.repository.PhotoRepository
+import com.elon.camera_photo_system.domain.repository.ProjectRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -35,7 +38,19 @@ object AppModule {
     
     @Provides
     @Singleton
+    fun provideProjectDao(database: AppDatabase): ProjectDao {
+        return database.projectDao()
+    }
+    
+    @Provides
+    @Singleton
     fun providePhotoRepository(photoDao: PhotoDao): PhotoRepository {
         return PhotoRepositoryImpl(photoDao)
+    }
+    
+    @Provides
+    @Singleton
+    fun provideProjectRepository(projectDao: ProjectDao): ProjectRepository {
+        return ProjectRepositoryImpl(projectDao)
     }
 } 
