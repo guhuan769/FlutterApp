@@ -82,8 +82,10 @@ namespace PlyFileProcessor.Services.Implementation
                 //    else:
                 //        print("发生未知错误。")
 
-                string param1 = "success"; // 尝试将此改为其他值以测试失败情况
-                string param2 = "测试参数";
+                //string param1 = "success"; // 尝试将此改为其他值以测试失败情况
+                //string param2 = "测试参数";
+                string param1 = path; // 尝试将此改为其他值以测试失败情况
+                string param2 = path;
 
                 // 调用Python脚本并传递参数 1 成功 2 失败
                 (int statusCode, string resultMessage) = Common.RunPythonScript("main.py", param1, param2);

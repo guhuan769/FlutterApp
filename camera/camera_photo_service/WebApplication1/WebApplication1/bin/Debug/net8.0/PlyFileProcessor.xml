@@ -219,7 +219,7 @@
             PLY文件服务接口
             </summary>
         </member>
-        <member name="M:PlyFileProcessor.Services.IPlyFileService.CheckAndProcessPlyFilesAsync(System.String,System.String)">
+        <member name="M:PlyFileProcessor.Services.IPlyFileService.CheckAndProcessPlyFilesAsync(System.String,System.String,System.String)">
             <summary>
             检查并处理PLY文件
             </summary>
@@ -252,7 +252,7 @@
             </summary>
             <returns>PLY文件检查路径</returns>
         </member>
-        <member name="M:PlyFileProcessor.Services.Implementation.PlyFileService.CheckAndProcessPlyFilesAsync(System.String,System.String)">
+        <member name="M:PlyFileProcessor.Services.Implementation.PlyFileService.CheckAndProcessPlyFilesAsync(System.String,System.String,System.String)">
             <summary>
             检查并处理PLY文件
             </summary>
