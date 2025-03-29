@@ -107,23 +107,6 @@ namespace PlyFileProcessor.Controllers
                 var projectName = projectInfo.GetValueOrDefault("name", "unknown_project");
                 var projectDir = Path.Combine(baseSavePath, projectName);
 
-                // 添加：如果是第一个批次，并且项目目录已存在，则删除已存在的项目
-                if (batchNumber == 1 && Directory.Exists(projectDir))
-                {
-                    try
-                    {
-                        _logger.LogInformation("发现同名项目目录已存在，正在删除: {ProjectDir}", projectDir);
-                        Directory.Delete(projectDir, true); // 递归删除目录及其内容
-                        _logger.LogInformation("已成功删除同名项目目录");
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "删除同名项目目录失败: {ProjectDir}", projectDir);
-                        // 如果删除失败，可以考虑返回错误，或继续处理（覆盖现有文件）
-                        // 这里选择继续处理，因为后续文件处理会覆盖相同文件
-                    }
-                }
-
                 Directory.CreateDirectory(baseSavePath);
                 Directory.CreateDirectory(projectDir);
                 
