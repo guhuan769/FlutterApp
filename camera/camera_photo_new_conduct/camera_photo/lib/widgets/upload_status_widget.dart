@@ -70,29 +70,76 @@ class _UploadStatusWidgetState extends State<UploadStatusWidget>
     
     // 如果状态标记为完成但显示失败，检查日志或状态消息来判断真实情况
     if (widget.status.isComplete && !widget.status.isSuccess) {
-      // 检查状态消息中是否包含成功上传的关键词
+      // 检查状态消息中是否包含成功上传的关键词和百分比信息
       final statusText = widget.status.status.toLowerCase();
+      
+      // 1. 检查是否存在上传成功的百分比信息
       if (statusText.contains('成功上传') && 
           statusText.contains('%') &&
           !statusText.contains('0%')) {
-        // 如果状态中包含成功上传的百分比信息且不是0%，认为是实际上传成功
+        
+        // 尝试解析百分比值
+        try {
+          // 解析百分比字符串，格式如"成功上传: 20/25 张照片 (80.0%)"
+          RegExp percentRegex = RegExp(r'\(([\d\.]+)%\)');
+          final match = percentRegex.firstMatch(statusText);
+          if (match != null) {
+            final percentString = match.group(1);
+            if (percentString != null) {
+              final percent = double.tryParse(percentString);
+              // 如果上传成功率大于等于50%，认为是基本成功
+              if (percent != null && percent >= 50.0) {
+                _actualUploadStatus = true;
+              }
+            }
+          }
+        } catch (e) {
+          print('解析上传百分比失败: $e');
+          // 解析失败时，如果包含"成功上传"字样，默认认为基本成功
+          if (statusText.contains('成功上传')) {
+            _actualUploadStatus = true;
+          }
+        }
+      }
+      
+      // 2. 检查日志中的成功和失败记录
+      bool hasSuccessLog = false;
+      bool hasCriticalErrorLog = false;
+      int successBatchCount = 0;
+      int failedBatchCount = 0;
+      int serverIssueCount = 0;
+      
+      for (var log in widget.status.logs) {
+        // 统计批次上传成功和失败数
+        if (log.message.contains('批次') && log.message.contains('上传成功')) {
+          hasSuccessLog = true;
+          successBatchCount++;
+        } else if (log.isError && log.message.contains('批次') && log.message.contains('上传失败')) {
+          failedBatchCount++;
+        } else if (log.message.contains('状态码异常') || log.message.contains('服务器可能未记录')) {
+          serverIssueCount++;
+        }
+        
+        // 检查是否有严重错误
+        if (log.isError && (
+            log.message.contains('网络连接失败') || 
+            log.message.contains('没有可上传的文件') ||
+            log.message.contains('服务器地址') ||
+            log.message.contains('配置错误'))) {
+          hasCriticalErrorLog = true;
+        }
+      }
+      
+      // 如果有成功记录且失败不超过总数的一半
+      if (hasSuccessLog && !hasCriticalErrorLog && 
+          ((successBatchCount > 0 && failedBatchCount <= successBatchCount) || 
+           (serverIssueCount > 0 && failedBatchCount == 0))) {
         _actualUploadStatus = true;
       }
       
-      // 检查日志，如果有批次上传成功的记录且没有批次上传错误记录，认为是成功
-      bool hasSuccessLog = false;
-      bool hasErrorLog = false;
-      
-      for (var log in widget.status.logs) {
-        if (log.message.contains('批次') && log.message.contains('上传成功')) {
-          hasSuccessLog = true;
-        }
-        if (log.isError && log.message.contains('批次') && log.message.contains('上传失败')) {
-          hasErrorLog = true;
-        }
-      }
-      
-      if (hasSuccessLog && !hasErrorLog) {
+      // 3. 处理特殊情况：服务器返回问题但文件可能已上传
+      if (statusText.contains('状态码异常') || statusText.contains('服务器可能未记录')) {
+        // 如果状态中提到服务器异常但文件可能已上传，设置为"部分成功"状态
         _actualUploadStatus = true;
       }
     }
