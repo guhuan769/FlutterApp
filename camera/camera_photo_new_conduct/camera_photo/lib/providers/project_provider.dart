@@ -12,12 +12,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/project.dart';
 import 'package:http/http.dart' as http;
 
-// 上传类型枚举
-enum UploadType {
-  model,  // 模型
-  craft   // 工艺
-}
-
 // lib/models/upload_status.dart
 
 class UploadStatus {

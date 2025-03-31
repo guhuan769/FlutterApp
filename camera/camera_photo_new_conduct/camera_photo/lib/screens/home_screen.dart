@@ -15,7 +15,6 @@ import 'qr_test_page.dart'; // 仅在开发测试时使用
 import 'dart:convert';
 import 'package:path/path.dart' as path;
 import 'package:file/file.dart';
-import 'package:camera_photo/providers/project_provider.dart';
 import 'package:camera_photo/providers/photo_provider.dart';
 
 // 添加用于存储项目信息的辅助类
