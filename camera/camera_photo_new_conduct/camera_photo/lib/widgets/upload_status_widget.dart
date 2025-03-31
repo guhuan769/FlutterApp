@@ -540,15 +540,15 @@ class UploadLogDetail extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      child: Column(
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+          children: [
           // 拖动条
           Center(
             child: Container(
               margin: const EdgeInsets.only(top: 8, bottom: 16),
               width: 40,
-              height: 4,
+                    height: 4,
               decoration: BoxDecoration(
                 color: Colors.grey[300],
                 borderRadius: BorderRadius.circular(2),
@@ -562,10 +562,10 @@ class UploadLogDetail extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  children: [
+                children: [
                     const Icon(Icons.folder, color: Colors.blue),
                     const SizedBox(width: 8),
-                    Expanded(
+                  Expanded(
                       child: Text(
                         status.projectName,
                         style: const TextStyle(
@@ -576,22 +576,22 @@ class UploadLogDetail extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
+                ],
+              ),
+                  const SizedBox(height: 4),
+                              Text(
                   '上传日志 (${logs.length})',
-                  style: TextStyle(
+                                style: TextStyle(
                     color: Colors.grey[600],
                     fontSize: 14,
-                  ),
-                ),
+                                ),
+                              ),
                 const SizedBox(height: 4),
-                Text(
+                              Text(
                   status.isComplete 
                     ? (status.isSuccess ? '上传已完成' : '上传失败') 
                     : '上传中...',
-                  style: TextStyle(
+                                style: TextStyle(
                     color: status.isComplete
                         ? (status.isSuccess ? Colors.green : Colors.red)
                         : Colors.blue,
@@ -633,10 +633,10 @@ class UploadLogDetail extends StatelessWidget {
                       final log = logs[index];
                       return LogItem(log: log);
                     },
-                  ),
-          ),
-        ],
-      ),
+                      ),
+                    ),
+                ],
+              ),
     );
   }
 }
@@ -712,9 +712,9 @@ class LogItem extends StatelessWidget {
                   ),
                 ),
               ],
+                    ),
             ),
-          ),
-        ],
+          ],
       ),
     );
   }

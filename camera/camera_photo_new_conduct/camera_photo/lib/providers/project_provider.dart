@@ -175,6 +175,7 @@ class ProjectProvider with ChangeNotifier {
   Vehicle? _currentVehicle;
   Track? _currentTrack;
   final Map<String, UploadStatus> _uploadStatuses = {};
+  final Map<String, String> _uploadSessions = {};
 
   List<Project> get projects => _projects;
   Project? get currentProject => _currentProject;
@@ -1317,6 +1318,20 @@ class ProjectProvider with ChangeNotifier {
         'relativePath': fileInfo['relativePath']
       });
 
+      // 增加文件唯一标识字段
+      for (int i = 0; i < batch.length; i++) {
+        final fileInfo = batch[i];
+        final filePath = fileInfo['path'] as String;
+        // 生成唯一标识符 - 路径+时间戳
+        final uniqueId = '$filePath-${DateTime.now().millisecondsSinceEpoch}-$i';
+        request.fields['file_unique_id_$i'] = uniqueId;
+      }
+
+      // 添加会话ID
+      if (_uploadSessions.containsKey(project.id)) {
+        request.fields['session_id'] = _uploadSessions[project.id];
+      }
+
       try {
         // 设置超时时间防止长时间阻塞，增加超时时间
         final startTime = DateTime.now();
@@ -1339,8 +1354,16 @@ class ProjectProvider with ChangeNotifier {
           try {
             responseJson = json.decode(responseData);
             int savedFiles = responseJson['saved_files'] ?? 0;
+            // 新增：从服务器获取确认数量
+            int serverConfirmedCount = responseJson['server_confirmed_count'] ?? savedFiles;
             String successRate = responseJson['success_rate'] ?? '';
             String serverMessage = responseJson['message'] ?? '';
+            
+            // 新增：保存会话ID
+            if (responseJson.containsKey('session_id')) {
+              String sessionId = responseJson['session_id'];
+              _uploadSessions[project.id] = sessionId;
+            }
             
             // 验证上传成功
             if (savedFiles > 0) {
@@ -1354,14 +1377,14 @@ class ProjectProvider with ChangeNotifier {
                 }
                 status.addLog(successMessage);
                 // 记录服务器确认的文件保存数量
-                status.addLog('服务器已确认保存：$savedFiles 个文件');
+                status.addLog('服务器已确认保存：$serverConfirmedCount 个文件');
                 _uploadStatuses[project.id] = status;
                 notifyListeners();
               }
               return BatchUploadResult(
                 success: true, 
                 filesCount: 1,
-                serverConfirmedCount: savedFiles // 从服务器响应获取实际保存的文件数
+                serverConfirmedCount: serverConfirmedCount // 使用服务器确认数量
               );
             } else if (retryCount < maxRetries) {
               // 如果服务器报告没有保存文件，且还有重试机会
