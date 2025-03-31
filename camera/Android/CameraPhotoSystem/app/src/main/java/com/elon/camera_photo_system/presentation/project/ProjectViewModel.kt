@@ -3,6 +3,7 @@ package com.elon.camera_photo_system.presentation.project
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.elon.camera_photo_system.domain.model.Project
+import com.elon.camera_photo_system.domain.repository.ProjectRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,15 +15,14 @@ import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
-class ProjectViewModel @Inject constructor() : ViewModel() {
+class ProjectViewModel @Inject constructor(
+    private val projectRepository: ProjectRepository
+) : ViewModel() {
     private val _projectsState = MutableStateFlow(ProjectsState())
     val projectsState: StateFlow<ProjectsState> = _projectsState.asStateFlow()
 
     private val _projectState = MutableStateFlow(ProjectState())
     val projectState: StateFlow<ProjectState> = _projectState.asStateFlow()
-
-    // 保存项目列表
-    private val projectsList = mutableListOf<Project>()
 
     init {
         // 初始加载项目
@@ -33,8 +33,9 @@ class ProjectViewModel @Inject constructor() : ViewModel() {
         viewModelScope.launch {
             _projectsState.update { it.copy(isLoading = true, error = null) }
             try {
-                // 从内存中获取现有项目列表
-                _projectsState.update { it.copy(isLoading = false, projects = projectsList) }
+                // 从数据库加载项目列表
+                val projects = projectRepository.getProjects()
+                _projectsState.update { it.copy(isLoading = false, projects = projects) }
             } catch (e: Exception) {
                 _projectsState.update { it.copy(isLoading = false, error = e.message) }
             }
@@ -45,8 +46,9 @@ class ProjectViewModel @Inject constructor() : ViewModel() {
         viewModelScope.launch {
             _projectState.update { it.copy(isLoading = true, error = null) }
             try {
-                // 从内存中查找项目
-                val project = projectsList.find { it.id == projectId }
+                // 从数据库加载单个项目
+                val projects = projectRepository.getProjects()
+                val project = projects.find { it.id == projectId }
                 _projectState.update { it.copy(isLoading = false, project = project) }
             } catch (e: Exception) {
                 _projectState.update { it.copy(isLoading = false, error = e.message) }
@@ -63,7 +65,7 @@ class ProjectViewModel @Inject constructor() : ViewModel() {
             try {
                 // 创建新项目对象
                 val newProject = Project(
-                    id = UUID.randomUUID().mostSignificantBits and Long.MAX_VALUE, // 生成随机ID
+                    id = 0, // 自动生成ID
                     name = name,
                     description = description,
                     vehicleCount = 0,
@@ -71,16 +73,12 @@ class ProjectViewModel @Inject constructor() : ViewModel() {
                     creationDate = LocalDateTime.now()
                 )
                 
-                // 添加到项目列表
-                projectsList.add(newProject)
+                // 保存到数据库
+                val projectId = projectRepository.addProject(newProject)
                 
-                // 更新状态
-                _projectsState.update { it.copy(
-                    isLoading = false, 
-                    projects = projectsList.toList()
-                ) }
+                // 重新加载项目列表以获取最新数据
+                loadProjects()
                 
-                // TODO: 实际项目中应该将项目保存到数据库
             } catch (e: Exception) {
                 _projectsState.update { it.copy(
                     isLoading = false, 
