@@ -768,7 +768,10 @@ class ProjectProvider with ChangeNotifier {
   }
 
   // 在 ProjectProvider 类中更新上传方法
-  Future<void> uploadProject(Project project, {UploadType? type, String? value}) async {
+  Future<void> uploadProject(Project project, {bool forceNewSession = false}) async {
+    if (forceNewSession) {
+      _uploadSessions.remove(project.id);
+    }
     // 获取或创建上传状态
     UploadStatus status = _uploadStatuses[project.id] ?? UploadStatus(
       projectId: project.id,
@@ -1616,6 +1619,12 @@ class ProjectProvider with ChangeNotifier {
   // 获取项目的上传次数
   int getProjectUploadCount(String projectId) {
     return _uploadStatuses[projectId]?.uploadCount ?? 0;
+  }
+
+  // 在发现服务器目录不存在时，清除会话ID
+  void resetUploadSession(String projectId) {
+    _uploadSessions.remove(projectId);
+    notifyListeners();
   }
 }
 
