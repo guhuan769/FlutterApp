@@ -37,18 +37,15 @@ namespace PlyFileProcessor.Controllers
             _plyFileService = plyFileService;
             _mqttClientService = mqttClientService;
             _uploadFolder = configuration.GetValue<string>("UploadFolder") ?? Path.Combine(Directory.GetCurrentDirectory(), "Uploads");
-            
+
             // 确保上传根目录存在
-            if (!Directory.Exists(_uploadFolder))
-            {
-                Directory.CreateDirectory(_uploadFolder);
+                if (!Directory.Exists(_uploadFolder))
+                {
+                    Directory.CreateDirectory(_uploadFolder);
             }
         }
 
         [HttpPost("/upload")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         [RequestSizeLimit(100 * 1024 * 1024)] // 100MB
         [RequestFormLimits(MultipartBodyLengthLimit = 100 * 1024 * 1024)] // 100MB
         public async Task<IActionResult> UploadImage()
@@ -77,10 +74,12 @@ namespace PlyFileProcessor.Controllers
                     _logger.LogWarning("总批次数未提供或格式错误，使用默认值 1");
                 }
 
-                // 获取重试计数（如果有）
-                if (!int.TryParse(Request.Form["retry_count"], out int retryCount))
+                int expectedFilesCount = 0;
+                if (Request.Form.ContainsKey("expected_files_count") && 
+                    int.TryParse(Request.Form["expected_files_count"], out int expected))
                 {
-                    retryCount = 0;
+                    expectedFilesCount = expected;
+                    _logger.LogInformation("客户端预期文件数量: {ExpectedCount}", expectedFilesCount);
                 }
 
                 var uploadType = Request.Form["type"].ToString() ?? "";
@@ -119,58 +118,25 @@ namespace PlyFileProcessor.Controllers
                 var projectName = projectInfo.ContainsKey("name") ?
                     projectInfo["name"].ToString() : "unknown_project";
                 var projectDir = Path.Combine(baseSavePath, projectName);
+                var unifiedImagesDir = Path.Combine(projectDir, "all_images");
 
-                // 使用锁确保目录创建的原子性
-                var lockObject = new object();
-                lock (lockObject)
+                // 确保目录存在
+                EnsureDirectoriesExist(projectDir, unifiedImagesDir);
+
+                // 如果是第一批次，清理原有文件
+                if (batchNumber == 1)
                 {
-                    // 检查并创建必要的目录
-                    try
-                    {
-                        if (!Directory.Exists(_uploadFolder))
-                        {
-                            Directory.CreateDirectory(_uploadFolder);
-                            _logger.LogInformation("创建上传根目录: {UploadFolder}", _uploadFolder);
-                        }
-
-                        if (!Directory.Exists(baseSavePath))
-                        {
-                            Directory.CreateDirectory(baseSavePath);
-                            _logger.LogInformation("创建分类目录: {BaseSavePath}", baseSavePath);
-                        }
-
-                        if (!Directory.Exists(projectDir))
-                        {
-                            Directory.CreateDirectory(projectDir);
-                            _logger.LogInformation("创建项目目录: {ProjectDir}", projectDir);
-                        }
-
-                        // 创建统一存放图片的目录
-                        var unifiedImagesDir = Path.Combine(projectDir, "all_images");
-                        if (!Directory.Exists(unifiedImagesDir))
-                        {
-                            Directory.CreateDirectory(unifiedImagesDir);
-                            _logger.LogInformation("创建统一图片目录: {UnifiedImagesDir}", unifiedImagesDir);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "创建目录结构失败");
-                        return StatusCode(500, new
-                        {
-                            code = 500,
-                            error = "DIRECTORY_CREATE_ERROR",
-                            message = "创建目录结构失败，请重试",
-                            details = ex.Message
-                        });
-                    }
+                    _logger.LogInformation("开始清理现有文件...");
+                    CleanupExistingFiles(projectDir, unifiedImagesDir);
+                    _logger.LogInformation("清理完成");
                 }
 
                 // 处理上传的文件
                 var files = Request.Form.Files;
+                _logger.LogInformation("实际接收到文件数量: {Count}", files.Count);
+
                 if (files.Count == 0)
                 {
-                    _logger.LogWarning("没有接收到文件");
                     return BadRequest(new
                     {
                         code = 400,
@@ -178,20 +144,30 @@ namespace PlyFileProcessor.Controllers
                     });
                 }
 
-                _logger.LogInformation("接收到 {FileCount} 个文件", files.Count);
-                
-                // 处理文件上传
+                // 验证接收到的文件数量与预期是否一致
+                if (expectedFilesCount > 0 && files.Count != expectedFilesCount)
+                {
+                    _logger.LogWarning("文件数量不匹配：预期 {Expected}，实际接收 {Actual}", 
+                        expectedFilesCount, files.Count);
+                }
+
+                // 临时存储所有文件信息
+                var fileInfoList = new List<(string TempPath, string OriginalName, string Type, Dictionary<string, string> Info)>();
+
+                // 第一步：保存所有文件到临时位置
                 for (int i = 0; i < files.Count; i++)
                 {
                     var file = files[i];
-                    var fileInfoJson = Request.Form[$"file_info_{i}"].ToString();
+                    var fileName = file.FileName;
+                    var fileInfoKey = $"file_info_{i}";
                     Dictionary<string, string> fileInfo = new Dictionary<string, string>();
-                    
-                    try
+
+                    // 解析文件信息
+                    if (Request.Form.ContainsKey(fileInfoKey))
                     {
-                        if (!string.IsNullOrEmpty(fileInfoJson))
+                        try
                         {
-                            using (JsonDocument doc = JsonDocument.Parse(fileInfoJson))
+                            using (JsonDocument doc = JsonDocument.Parse(Request.Form[fileInfoKey]))
                             {
                                 JsonElement root = doc.RootElement;
                                 foreach (JsonProperty property in root.EnumerateObject())
@@ -200,122 +176,242 @@ namespace PlyFileProcessor.Controllers
                                 }
                             }
                         }
-                    }
-                    catch (JsonException ex)
-                    {
-                        _logger.LogError(ex, "解析文件信息JSON失败: {FileInfoJson}", fileInfoJson);
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "解析文件信息失败: {FileInfoKey}", fileInfoKey);
+                        }
                     }
 
-                    // 获取文件类型和相对路径
+                    // 获取文件类型
                     var fileType = fileInfo.ContainsKey("type") ? fileInfo["type"] : "unknown";
-                    var relativePath = fileInfo.ContainsKey("relativePath") ? fileInfo["relativePath"] : file.FileName;
                     
-                    // 构建文件保存路径
-                    string savePath;
-                    string uniqueFileName = $"{DateTime.Now.ToString("yyyyMMddHHmmssfff")}_{Guid.NewGuid().ToString("N").Substring(0, 8)}_{Path.GetFileName(file.FileName)}";
-                    
-                    // 统一目录的保存路径
-                    var unifiedImagePath = Path.Combine(projectDir, "all_images", uniqueFileName);
-                    
+                    // 临时文件名和路径
+                    var tempFileName = $"temp_{i}_{Guid.NewGuid().ToString("N").Substring(0, 8)}_{fileName}";
+                    var tempFilePath = Path.Combine(unifiedImagesDir, tempFileName);
+
                     try
                     {
-                        // 保存到统一目录
-                        using (var stream = new FileStream(unifiedImagePath, FileMode.Create))
+                        // 保存临时文件
+                        using (var stream = System.IO.File.Create(tempFilePath))
                         {
                             await file.CopyToAsync(stream);
                         }
-                        
-                        // 判断文件类型，确定是否需要额外保存到特定目录
-                        if (fileType == "project")
-                        {
-                            // 项目级别照片直接保存在项目目录
-                            savePath = Path.Combine(projectDir, uniqueFileName);
-                        }
-                        else if (fileType == "vehicle" && fileInfo.ContainsKey("vehicleId"))
-                        {
-                            // 创建车辆目录
-                            var vehicleDir = Path.Combine(projectDir, "vehicles", fileInfo["vehicleId"]);
-                            if (!Directory.Exists(vehicleDir))
-                            {
-                                Directory.CreateDirectory(vehicleDir);
-                            }
-                            savePath = Path.Combine(vehicleDir, uniqueFileName);
-                        }
-                        else if (fileType == "track" && fileInfo.ContainsKey("vehicleId") && fileInfo.ContainsKey("trackId"))
-                        {
-                            // 创建轨迹目录
-                            var trackDir = Path.Combine(projectDir, "vehicles", fileInfo["vehicleId"], "tracks", fileInfo["trackId"]);
-                            if (!Directory.Exists(trackDir))
-                            {
-                                Directory.CreateDirectory(trackDir);
-                            }
-                            savePath = Path.Combine(trackDir, uniqueFileName);
-                        }
-                        else
-                        {
-                            // 默认保存到项目根目录
-                            savePath = Path.Combine(projectDir, uniqueFileName);
-                        }
-                        
-                        // 同时保存到特定目录
-                        using (var stream = new FileStream(savePath, FileMode.Create))
-                        {
-                            using (var unifiedStream = new FileStream(unifiedImagePath, FileMode.Open))
-                            {
-                                await unifiedStream.CopyToAsync(stream);
-                            }
-                        }
-                        
-                        _logger.LogInformation("文件 {FileName} 已保存到 {SavePath} 和统一目录", file.FileName, savePath);
-                        
-                        // 记录成功保存的文件
-                        savedFiles.Add(new Dictionary<string, object>
-                        {
-                            { "fileName", file.FileName },
-                            { "savedPath", savePath },
-                            { "unifiedPath", unifiedImagePath },
-                            { "fileSize", file.Length },
-                            { "fileType", fileType },
-                            { "fileInfo", fileInfo }
-                        });
+
+                        // 添加到处理列表
+                        fileInfoList.Add((tempFilePath, fileName, fileType, fileInfo));
+                        _logger.LogInformation("已保存临时文件 {Index}: {FileName}", i, fileName);
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "保存文件 {FileName} 失败", file.FileName);
-                        
-                        // 记录失败的文件
+                        _logger.LogError(ex, "保存临时文件失败 {Index}: {FileName}", i, fileName);
                         failedFiles.Add(new Dictionary<string, object>
                         {
-                            { "fileName", file.FileName },
-                            { "error", ex.Message },
-                            { "fileInfo", fileInfo }
+                            { "fileName", fileName },
+                            { "error", ex.Message }
                         });
                     }
                 }
 
-                // 返回处理结果
+                // 验证所有文件是否已保存
+                if (fileInfoList.Count != files.Count)
+                {
+                    _logger.LogError("部分文件保存失败: 预期 {Expected}，实际保存 {Actual}", 
+                        files.Count, fileInfoList.Count);
+                }
+
+                // 第二步：从11开始重命名文件并创建清单
+                var imageListPath = Path.Combine(unifiedImagesDir, "image_list.txt");
+                var imageListEntries = new List<string>
+                {
+                    "# 图片清单文件",
+                    "# 格式: 序号\t原文件名\t新文件名"
+                };
+
+                int fileIndex = 11; // 从11开始命名
+                
+                foreach (var (tempPath, originalName, fileType, fileInfo) in fileInfoList)
+                {
+                    try
+                    {
+                        // 新文件名和路径
+                        string newFileName = $"{fileIndex}.jpg";
+                        string newFilePath = Path.Combine(unifiedImagesDir, newFileName);
+                        
+                        // 重命名临时文件
+                        System.IO.File.Move(tempPath, newFilePath, true);
+                        
+                        // 添加到清单
+                        imageListEntries.Add($"{fileIndex}\t{originalName}\t{newFileName}");
+                        
+                        // 根据文件类型复制到特定目录
+                        string specificPath;
+                        if (fileType == "project")
+                        {
+                            specificPath = Path.Combine(projectDir, newFileName);
+                        }
+                        else if (fileType == "vehicle" && fileInfo.ContainsKey("vehicleId"))
+                        {
+                            var vehicleDir = Path.Combine(projectDir, "vehicles", fileInfo["vehicleId"]);
+                            Directory.CreateDirectory(vehicleDir);
+                            specificPath = Path.Combine(vehicleDir, newFileName);
+                        }
+                        else if (fileType == "track" && fileInfo.ContainsKey("vehicleId") && fileInfo.ContainsKey("trackId"))
+                        {
+                            var trackDir = Path.Combine(projectDir, "vehicles", fileInfo["vehicleId"], "tracks", fileInfo["trackId"]);
+                            Directory.CreateDirectory(trackDir);
+                            specificPath = Path.Combine(trackDir, newFileName);
+                        }
+                        else
+                        {
+                            specificPath = Path.Combine(projectDir, newFileName);
+                        }
+                        
+                        // 复制到特定目录
+                        System.IO.File.Copy(newFilePath, specificPath, true);
+                        
+                        // 记录成功
+                        savedFiles.Add(new Dictionary<string, object>
+                        {
+                            { "fileName", originalName },
+                            { "newFileName", newFileName },
+                            { "index", fileIndex },
+                            { "path", specificPath }
+                        });
+                        
+                        fileIndex++;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "处理文件 {FileName} 失败", originalName);
+                        failedFiles.Add(new Dictionary<string, object>
+                        {
+                            { "fileName", originalName },
+                            { "error", ex.Message }
+                        });
+                    }
+                }
+
+                // 保存清单文件
+                await System.IO.File.WriteAllLinesAsync(imageListPath, imageListEntries);
+                _logger.LogInformation("已生成图片清单，包含 {Count} 条记录", imageListEntries.Count - 2);
+
+                // 返回结果
                 return Ok(new
                 {
                     code = 200,
-                    message = "文件上传成功",
-                    data = new { 
-                        savedFiles, 
+                    message = $"成功处理 {savedFiles.Count}/{files.Count} 个文件",
+                    data = new
+                    {
+                        savedFiles,
                         failedFiles,
+                        imageList = imageListEntries.Skip(2).Take(Math.Min(10, imageListEntries.Count - 2)).ToList(),
+                        totalFiles = files.Count,
+                        processedFiles = savedFiles.Count,
                         serverConfirmedCount = savedFiles.Count
                     },
-                    sessionId = taskId  // 返回任务ID作为会话标识
+                    sessionId = taskId
                 });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "处理文件上传时发生错误");
+                _logger.LogError(ex, "上传处理失败");
                 return StatusCode(500, new
                 {
                     code = 500,
                     error = "UPLOAD_ERROR",
-                    message = "处理文件上传时发生错误，请重试",
-                    details = ex.Message
+                    message = ex.Message,
+                    details = ex.StackTrace
                 });
+            }
+        }
+
+        // 确保目录存在
+        private void EnsureDirectoriesExist(string projectDir, string unifiedImagesDir)
+        {
+            Directory.CreateDirectory(projectDir);
+            Directory.CreateDirectory(unifiedImagesDir);
+        }
+
+        // 清理现有文件
+        private void CleanupExistingFiles(string projectDir, string unifiedImagesDir)
+        {
+            // 清理统一图片目录中的文件
+            if (Directory.Exists(unifiedImagesDir))
+            {
+                foreach (var file in Directory.GetFiles(unifiedImagesDir, "*.jpg")
+                             .Concat(Directory.GetFiles(unifiedImagesDir, "*.jpeg")))
+                {
+                    try
+                    {
+                        System.IO.File.Delete(file);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "无法删除文件: {FilePath}", file);
+                    }
+                }
+            }
+
+            // 清理项目目录中的图片
+            foreach (var file in Directory.GetFiles(projectDir, "*.jpg")
+                         .Concat(Directory.GetFiles(projectDir, "*.jpeg")))
+            {
+                try
+                {
+                    System.IO.File.Delete(file);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "无法删除文件: {FilePath}", file);
+                }
+            }
+
+            // 清理车辆和轨迹目录中的图片
+            var vehiclesDir = Path.Combine(projectDir, "vehicles");
+            if (Directory.Exists(vehiclesDir))
+            {
+                foreach (var vehicleDir in Directory.GetDirectories(vehiclesDir))
+                {
+                    // 清理车辆目录图片
+                    foreach (var file in Directory.GetFiles(vehicleDir, "*.jpg")
+                                 .Concat(Directory.GetFiles(vehicleDir, "*.jpeg")))
+                    {
+                        try
+                        {
+                            System.IO.File.Delete(file);
+                        }
+                        catch { }
+                    }
+
+                    // 清理轨迹目录图片
+                    var tracksDir = Path.Combine(vehicleDir, "tracks");
+                    if (Directory.Exists(tracksDir))
+                    {
+                        foreach (var trackDir in Directory.GetDirectories(tracksDir))
+                        {
+                            foreach (var file in Directory.GetFiles(trackDir, "*.jpg")
+                                         .Concat(Directory.GetFiles(trackDir, "*.jpeg")))
+                            {
+                                try
+                                {
+                                    System.IO.File.Delete(file);
+                                }
+                                catch { }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 删除图片清单文件
+            var imageListFile = Path.Combine(unifiedImagesDir, "image_list.txt");
+            if (System.IO.File.Exists(imageListFile))
+            {
+                try
+                {
+                    System.IO.File.Delete(imageListFile);
+                }
+                catch { }
             }
         }
 
@@ -337,23 +433,23 @@ namespace PlyFileProcessor.Controllers
                 bool directoryCreated = false;
                 
                 if (!directoryExists)
-                {
-                    try
-                    {
+        {
+            try
+            {
                         // 创建必要的目录
-                        Directory.CreateDirectory(baseSavePath);
-                        Directory.CreateDirectory(projectDir);
+                            Directory.CreateDirectory(baseSavePath);
+                            Directory.CreateDirectory(projectDir);
                         Directory.CreateDirectory(imagesDir);
                         directoryCreated = true;
                         
                         // 创建临时文件测试写入权限
                         var testFilePath = Path.Combine(projectDir, "write_test.tmp");
                         System.IO.File.WriteAllText(testFilePath, "write test");
-                        System.IO.File.Delete(testFilePath);
+                            System.IO.File.Delete(testFilePath);
                         hasWritePermission = true;
-                    }
-                    catch (Exception ex)
-                    {
+            }
+            catch (Exception ex)
+            {
                         _logger.LogError(ex, "创建目录失败");
                         return Ok(new
                         {
@@ -362,36 +458,36 @@ namespace PlyFileProcessor.Controllers
                             has_write_permission = false,
                             message = $"创建目录失败: {ex.Message}"
                         });
-                    }
+            }
                 }
                 else
-                {
-                    try
-                    {
+        {
+            try
+            {
                         // 验证写入权限
                         var testFilePath = Path.Combine(projectDir, "write_test.tmp");
                         System.IO.File.WriteAllText(testFilePath, "write test");
                         System.IO.File.Delete(testFilePath);
                         hasWritePermission = true;
-                    }
-                    catch (Exception ex)
-                    {
+            }
+            catch (Exception ex)
+            {
                         _logger.LogWarning(ex, "验证写入权限失败");
                         hasWritePermission = false;
-                    }
+                        }
                     
                     // 确保统一图片目录存在
                     if (!Directory.Exists(imagesDir))
+                {
+                    try
                     {
-                        try
-                        {
                             Directory.CreateDirectory(imagesDir);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError(ex, "创建统一图片目录失败");
-                        }
                     }
+                    catch (Exception ex)
+                    {
+                            _logger.LogError(ex, "创建统一图片目录失败");
+                    }
+                }
                 }
                 
                 return Ok(new
@@ -400,17 +496,17 @@ namespace PlyFileProcessor.Controllers
                     directory_created = directoryCreated,
                     has_write_permission = hasWritePermission
                 });
-            }
-            catch (Exception ex)
-            {
+                    }
+                    catch (Exception ex)
+                    {
                 _logger.LogError(ex, "检查目录结构失败");
                 return StatusCode(500, new
                 {
                     error = "CHECK_DIRECTORY_ERROR",
                     message = ex.Message
                 });
-            }
-        }
+                        }
+                    }
 
         private string GetClientIpAddress()
         {
