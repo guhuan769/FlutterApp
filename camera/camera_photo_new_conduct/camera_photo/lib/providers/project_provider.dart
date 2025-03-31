@@ -768,7 +768,7 @@ class ProjectProvider with ChangeNotifier {
   }
 
   // 在 ProjectProvider 类中更新上传方法
-  Future<void> uploadProject(Project project, {UploadType? type, String? value, bool forceNewSession = false}) async {
+  Future<bool> uploadProject(Project project, {UploadType? type, String? value, bool forceNewSession = false}) async {
     if (forceNewSession) {
       _uploadSessions.remove(project.id);
     }
@@ -791,7 +791,7 @@ class ProjectProvider with ChangeNotifier {
       );
       _uploadStatuses[project.id] = status;
       notifyListeners();
-      return;
+      return false;
     }
 
     // 如果上一次上传失败或超时，重置状态
@@ -820,7 +820,7 @@ class ProjectProvider with ChangeNotifier {
 
     try {
       // 验证服务器目录结构
-      final bool directoriesValid = await _verifyServerDirectories(project, type, value);
+      final bool directoriesValid = await ensureServerDirectories(project, type, value);
       if (!directoriesValid) {
         // 如果目录验证失败，尝试重置会话并继续
         _uploadSessions.remove(project.id);
@@ -969,6 +969,7 @@ class ProjectProvider with ChangeNotifier {
       notifyListeners();
       await _saveUploadStatuses();
     }
+    return finalSuccessCount > 0;
   }
   
   // 格式化上传时间的辅助方法
@@ -1153,8 +1154,9 @@ class ProjectProvider with ChangeNotifier {
     final total = batches.length;
     var completed = 0;
     var serverConfirmedFiles = 0;
-    var sessionResetAttempts = 0; // 添加会话重置计数器
-    const maxSessionResets = 3; // 最大会话重置次数
+    var sessionResetAttempts = 0;
+    const maxSessionResets = 3;
+    var retryDelay = const Duration(seconds: 2);
 
     // 顺序上传每个批次
     for (int i = 0; i < batches.length; i++) {
@@ -1162,7 +1164,7 @@ class ProjectProvider with ChangeNotifier {
       final batchNumber = i + 1;
       
       try {
-        final result = await _uploadBatch(
+        var result = await _uploadBatch(
           batch: batch,
           batchNumber: batchNumber,
           totalBatches: batches.length,
@@ -1186,10 +1188,38 @@ class ProjectProvider with ChangeNotifier {
             notifyListeners();
           }
           
-          // 等待一段时间后重试当前批次
-          await Future.delayed(const Duration(seconds: 2));
-          i--; // 重试当前批次
-          continue;
+          // 检查并确保目录存在
+          await ensureServerDirectories(project, type, value);
+          
+          // 等待后重试当前批次
+          await Future.delayed(retryDelay * sessionResetAttempts);
+          
+          // 再次尝试上传
+          result = await _uploadBatch(
+            batch: batch,
+            batchNumber: batchNumber,
+            totalBatches: batches.length,
+            apiUrl: apiUrl,
+            project: project,
+            type: type,
+            value: value,
+            retryCount: sessionResetAttempts,
+          );
+          
+          // 如果仍然失败，跳过这个文件
+          if (!result.success) {
+            final status = _uploadStatuses[project.id];
+            if (status != null) {
+              status.addLog('重试后仍然失败，跳过该文件', isError: true);
+              _uploadStatuses[project.id] = status;
+              notifyListeners();
+            }
+            
+            completed++;
+            results.add(result);
+            onProgress(completed, total, serverConfirmedFiles);
+            continue;
+          }
         }
         
         completed++;
@@ -1212,7 +1242,6 @@ class ProjectProvider with ChangeNotifier {
         }
         
         onProgress(completed, total, serverConfirmedFiles);
-
       } catch (e) {
         print('上传批次 $batchNumber 错误: $e');
         completed++;
@@ -1233,20 +1262,21 @@ class ProjectProvider with ChangeNotifier {
     required Project project,
     required UploadType? type,
     required String? value,
+    int retryCount = 0,
   }) async {
     final status = _uploadStatuses[project.id];
     if (status != null) {
-      status.addLog('正在上传第 $batchNumber/$totalBatches 张图片');
+      status.addLog('正在上传第 $batchNumber/$totalBatches 张图片${retryCount > 0 ? "（重试第 $retryCount 次）" : ""}');
       _uploadStatuses[project.id] = status;
       notifyListeners();
     }
 
-    // 增加最大重试次数和延迟时间，提高成功率
-    const int maxRetries = UploadOptions.maxRetries + 1; // 增加一次重试机会
-    const Duration retryDelay = Duration(seconds: 3); // 增加重试延迟时间
-    int retryCount = 0;
+    // 增加最大重试次数和延迟
+    const int maxRetries = 3;
+    const Duration retryDelay = Duration(seconds: 3);
+    int currentRetry = retryCount;
     
-    // 在上传前验证文件是否仍然存在且可读取
+    // 验证文件是否存在且可读
     if (batch.isEmpty) {
       if (status != null) {
         status.addLog('批次 $batchNumber 没有文件数据', isError: true);
@@ -1256,7 +1286,7 @@ class ProjectProvider with ChangeNotifier {
       return BatchUploadResult(success: false, filesCount: 0, errorType: 'empty_batch');
     }
     
-    final fileInfo = batch[0]; // 只处理每批次的第一个文件
+    final fileInfo = batch[0];
     final filePath = fileInfo['path'] as String;
     final file = File(filePath);
     final fileName = path.basename(filePath);
@@ -1272,13 +1302,11 @@ class ProjectProvider with ChangeNotifier {
     
     Uint8List? fileBytes;
     try {
-      // 尝试读取文件以确保文件可访问
       fileBytes = await file.readAsBytes();
       if (fileBytes.isEmpty) {
         throw Exception('文件内容为空');
       }
       
-      // 记录文件大小，帮助诊断
       final fileSizeKB = (fileBytes.length / 1024).toStringAsFixed(2);
       if (status != null) {
         status.addLog('文件验证成功: $fileName (${fileSizeKB}KB)');
@@ -1296,13 +1324,13 @@ class ProjectProvider with ChangeNotifier {
     }
 
     // 重试循环
-    List<String> errorMessages = []; // 保存所有失败尝试的错误信息
-    String lastResponseData = ''; // 保存最后一次响应数据
+    List<String> errorMessages = [];
+    String lastResponseData = '';
     
-    while (retryCount <= maxRetries) {
+    while (currentRetry <= maxRetries) {
       if (status != null) {
-        if (retryCount > 0) {
-          status.addLog('重试上传: $fileName (第 $retryCount/${maxRetries} 次重试)');
+        if (currentRetry > 0) {
+          status.addLog('重试上传: $fileName (第 $currentRetry/${maxRetries} 次重试)');
         } else {
           status.addLog('开始上传: $fileName');
         }
@@ -1310,208 +1338,178 @@ class ProjectProvider with ChangeNotifier {
         notifyListeners();
       }
       
-      var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
-
-      // 添加项目信息和上传类型
-      Map<String, String> requestFields = {
-        'type': type?.name ?? 'unknown',
-        'value': value ?? 'unknown',
-        'project_info': json.encode(project.toJson()),
-        'batch_number': batchNumber.toString(),
-        'total_batches': totalBatches.toString(),
-        'retry_count': retryCount.toString(), // 添加重试计数到请求字段
-      };
-      
-      request.fields.addAll(requestFields);
-
-      // 添加单个文件
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'files[]',
-          fileBytes!,
-          filename: fileName,
-          contentType: MediaType('image', 'jpeg')
-        )
-      );
-
-      request.fields['file_info_0'] = json.encode({
-        'type': fileInfo['type'],
-        'trackId': fileInfo['trackId'] ?? '',
-        'trackName': fileInfo['trackName'] ?? '',
-        'vehicleId': fileInfo['vehicleId'] ?? '',
-        'vehicleName': fileInfo['vehicleName'] ?? '',
-        'relativePath': fileInfo['relativePath']
-      });
-
-      // 增加文件唯一标识字段
-      for (int i = 0; i < batch.length; i++) {
-        final fileInfo = batch[i];
-        final filePath = fileInfo['path'] as String;
-        // 生成唯一标识符 - 路径+时间戳
-        final uniqueId = '$filePath-${DateTime.now().millisecondsSinceEpoch}-$i';
-        request.fields['file_unique_id_$i'] = uniqueId;
-      }
-
-      // 添加会话ID
-      if (_uploadSessions.containsKey(project.id)) {
-        request.fields['session_id'] = _uploadSessions[project.id]!;
-      }
-
       try {
-        // 设置超时时间防止长时间阻塞，增加超时时间
-        final startTime = DateTime.now();
-        final responseStream = await request.send().timeout(
-          const Duration(seconds: 90), // 增加超时时间
-          onTimeout: () {
-            throw TimeoutException('上传超时，请检查网络连接或文件大小');
-          },
+        var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
+        
+        // 添加项目信息和上传类型
+        Map<String, String> requestFields = {
+          'type': type?.name ?? 'unknown',
+          'value': value ?? 'unknown',
+          'project_info': json.encode(project.toJson()),
+          'batch_number': batchNumber.toString(),
+          'total_batches': totalBatches.toString(),
+          'retry_count': currentRetry.toString(),
+        };
+        
+        request.fields.addAll(requestFields);
+        
+        // 添加文件
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'files[]',
+            fileBytes!,
+            filename: fileName,
+            contentType: MediaType('image', 'jpeg')
+          )
         );
         
-        final response = responseStream;
-        final responseData = await response.stream.bytesToString();
-        lastResponseData = responseData; // 保存响应数据
-        final endTime = DateTime.now();
-        final uploadDuration = endTime.difference(startTime);
+        // 添加文件信息
+        request.fields['file_info_0'] = json.encode({
+          'type': fileInfo['type'],
+          'trackId': fileInfo['trackId'] ?? '',
+          'trackName': fileInfo['trackName'] ?? '',
+          'vehicleId': fileInfo['vehicleId'] ?? '',
+          'vehicleName': fileInfo['vehicleName'] ?? '',
+          'relativePath': fileInfo['relativePath']
+        });
+        
+        // 添加文件唯一标识
+        for (int i = 0; i < batch.length; i++) {
+          final fileInfo = batch[i];
+          final filePath = fileInfo['path'] as String;
+          final uniqueId = '$filePath-${DateTime.now().millisecondsSinceEpoch}-$i';
+          request.fields['file_unique_id_$i'] = uniqueId;
+        }
+        
+        // 添加会话ID
+        if (_uploadSessions.containsKey(project.id)) {
+          request.fields['session_id'] = _uploadSessions[project.id]!;
+        }
+        
+        // 发送请求
+        var response = await request.send().timeout(Duration(seconds: 60));
+        var responseData = await response.stream.bytesToString();
         
         if (response.statusCode == 200) {
-          // 解析响应数据，确认服务器确实保存了文件
-          Map<String, dynamic> responseJson;
           try {
-            responseJson = json.decode(responseData);
-            int savedFiles = responseJson['saved_files'] ?? 0;
-            // 新增：从服务器获取确认数量
-            int serverConfirmedCount = responseJson['server_confirmed_count'] ?? savedFiles;
-            String successRate = responseJson['success_rate'] ?? '';
-            String serverMessage = responseJson['message'] ?? '';
+            var responseJson = json.decode(responseData);
             
-            // 新增：保存会话ID
-            if (responseJson.containsKey('session_id')) {
-              String sessionId = responseJson['session_id'];
-              _uploadSessions[project.id] = sessionId;
-            }
-            
-            // 验证上传成功
-            if (savedFiles > 0) {
+            // 成功响应处理
+            if (responseJson['code'] == 200) {
+              // 保存会话ID
+              if (responseJson.containsKey('session_id') && responseJson['session_id'] != null) {
+                _uploadSessions[project.id] = responseJson['session_id'];
+              }
+              
               if (status != null) {
-                String successMessage = '上传成功: $fileName (耗时: ${uploadDuration.inSeconds}秒)';
-                if (successRate.isNotEmpty) {
-                  successMessage += ' ($successRate)';
-                }
-                if (serverMessage.isNotEmpty) {
-                  successMessage += ' - $serverMessage';
-                }
-                status.addLog(successMessage);
-                // 记录服务器确认的文件保存数量
-                status.addLog('服务器已确认保存：$serverConfirmedCount 个文件');
+                status.addLog('上传成功: $fileName');
                 _uploadStatuses[project.id] = status;
                 notifyListeners();
               }
-              return BatchUploadResult(
-                success: true, 
-                filesCount: 1,
-                serverConfirmedCount: serverConfirmedCount // 使用服务器确认数量
-              );
-            } else if (retryCount < maxRetries) {
-              // 如果服务器报告没有保存文件，且还有重试机会
-              String errorMessage = '服务器未确认接收文件: $fileName';
-              if (serverMessage.isNotEmpty) {
-                errorMessage += ' - $serverMessage';
+              
+              // 获取服务器确认数量
+              int serverConfirmedCount = 0;
+              if (responseJson.containsKey('server_confirmed_count') && 
+                  responseJson['server_confirmed_count'] != null) {
+                serverConfirmedCount = int.tryParse(responseJson['server_confirmed_count'].toString()) ?? 0;
               }
+              
+              return BatchUploadResult(
+                success: true,
+                filesCount: 1,
+                serverConfirmedCount: serverConfirmedCount
+              );
+            } else {
+              // 服务器返回错误码
+              var errorMessage = '服务器错误: ${responseJson['message'] ?? "未知错误"}';
               errorMessages.add(errorMessage);
               
-              retryCount++;
               if (status != null) {
-                status.addLog(errorMessage, isError: true);
+                status.addLog('上传失败: $fileName - $errorMessage', isError: true);
                 _uploadStatuses[project.id] = status;
                 notifyListeners();
-              }
-              await Future.delayed(retryDelay * (retryCount / 2 + 0.5)); // 随着重试次数增加延迟时间
-              continue;
-            } else {
-              // 已达到最大重试次数，报告失败
-              String finalError = '服务器未保存文件，可能是服务器临时问题';
-              if (serverMessage.isNotEmpty) {
-                finalError = serverMessage;
               }
               
-              if (status != null) {
-                status.addLog('上传失败: $fileName - $finalError (已重试 $retryCount 次)', isError: true);
-                _uploadStatuses[project.id] = status;
-                notifyListeners();
+              currentRetry++;
+              if (currentRetry <= maxRetries) {
+                await Future.delayed(retryDelay);
+                continue;
               }
+              
               return BatchUploadResult(
-                success: false, 
-                filesCount: 0, 
-                errorType: 'server_rejected', 
-                errorMessage: finalError
+                success: false,
+                filesCount: 0,
+                errorMessage: errorMessage
               );
             }
           } catch (e) {
-            // 无法解析JSON响应但状态码为200
+            // JSON解析错误
             String parseError = '无法解析服务器响应: $e';
             errorMessages.add(parseError);
             
             if (status != null) {
               status.addLog('上传返回数据异常: $fileName ($parseError)', isError: true);
-              // 保存响应数据用于调试
-              String responseSummary = responseData;
-              if (responseData.length > 100) {
-                responseSummary = '${responseData.substring(0, 100)}...';
-              }
+              var responseSummary = responseData.length > 100 ? '${responseData.substring(0, 100)}...' : responseData;
               status.addLog('服务器响应: $responseSummary', isError: true);
               _uploadStatuses[project.id] = status;
               notifyListeners();
             }
             
-            // 如果仍有重试机会
-            if (retryCount < maxRetries) {
-              retryCount++;
-              await Future.delayed(retryDelay * (retryCount / 2 + 0.5));
+            currentRetry++;
+            if (currentRetry <= maxRetries) {
+              await Future.delayed(retryDelay);
               continue;
             }
             
-            // 状态码200但无法解析，尝试分析响应内容判断是否成功
-            if (responseData.toLowerCase().contains('success') || 
-                responseData.toLowerCase().contains('uploaded') ||
-                responseData.toLowerCase().contains('received')) {
-              if (status != null) {
-                status.addLog('尽管响应解析失败，但可能已成功上传: $fileName', isError: false);
-                _uploadStatuses[project.id] = status;
-                notifyListeners();
-              }
-              return BatchUploadResult(success: true, filesCount: 1);
-            }
-            
-            // 否则视为失败
-            if (status != null) {
-              status.addLog('最终判定上传失败: $fileName', isError: true);
-              _uploadStatuses[project.id] = status;
-              notifyListeners();
-            }
             return BatchUploadResult(
-              success: false, 
-              filesCount: 0, 
+              success: false,
+              filesCount: 0,
               errorType: 'parse_error',
               errorMessage: parseError
             );
           }
         } else {
-          // 服务器返回非200状态码
+          // 非200状态码
           String errorMessage = '服务器返回状态码: ${response.statusCode}';
-          String serverErrorDetail = '';
+          
           try {
-            // 尝试解析服务器返回的错误信息
-            final errorData = json.decode(responseData);
+            var errorData = json.decode(responseData);
             if (errorData.containsKey('message')) {
-              serverErrorDetail = errorData['message'].toString();
-              errorMessage += ' - $serverErrorDetail';
+              errorMessage += ' - ${errorData['message']}';
+            }
+            
+            // 检查特殊的会话目录不存在错误
+            if (response.statusCode == 410 && errorData.containsKey('error') && 
+                errorData['error'] == 'SESSION_DIRECTORY_NOT_FOUND') {
+              
+              // 重置会话ID
+              _uploadSessions.remove(project.id);
+              
+              if (status != null) {
+                status.addLog('服务器目录已被删除，需要重置会话', isError: true);
+                if (errorData.containsKey('message')) {
+                  status.addLog('服务器消息: ${errorData['message']}', isError: true);
+                }
+                _uploadStatuses[project.id] = status;
+                notifyListeners();
+              }
+              
+              // 返回特殊错误类型，触发会话重置流程
+              return BatchUploadResult(
+                success: false,
+                filesCount: 0,
+                statusCode: 410,
+                errorType: 'session_reset_required',
+                errorMessage: errorData['message'] ?? '服务器目录不存在，需要重新上传'
+              );
             }
           } catch (e) {
-            // 如果解析失败，尝试直接提取一部分响应内容作为错误信息
-            if (responseData.isNotEmpty) {
-              String responseSummary = responseData.length > 50 ? 
-                  '${responseData.substring(0, 50)}...' : responseData;
-              errorMessage += ' - 响应内容: $responseSummary';
+            // 解析错误，记录原始响应
+            if (status != null) {
+              status.addLog('解析错误响应失败: $e', isError: true);
+              status.addLog('原始响应: $responseData', isError: true);
+              _uploadStatuses[project.id] = status;
+              notifyListeners();
             }
           }
           
@@ -1523,150 +1521,51 @@ class ProjectProvider with ChangeNotifier {
             notifyListeners();
           }
           
-          // 处理特殊的目录不存在错误
-          if (response.statusCode == 410) {
-            try {
-              final errorData = json.decode(responseData);
-              if (errorData['error'] == 'SESSION_DIRECTORY_NOT_FOUND') {
-                // 重置会话ID
-                _uploadSessions.remove(project.id);
-                
-                if (status != null) {
-                  status.addLog('服务器目录已被删除，需要重置会话', isError: true);
-                  if (errorData.containsKey('message')) {
-                    status.addLog('服务器消息: ${errorData['message']}', isError: true);
-                  }
-                  _uploadStatuses[project.id] = status;
-                  notifyListeners();
-                }
-                
-                // 返回特殊错误类型，触发重试逻辑
-                return BatchUploadResult(
-                  success: false,
-                  filesCount: 0,
-                  statusCode: 410,
-                  errorType: 'session_reset_required',
-                  errorMessage: errorData['message'] ?? '服务器目录不存在，需要重新上传'
-                );
-              }
-            } catch (e) {
-              // 解析错误，记录日志
-              if (status != null) {
-                status.addLog('解析410错误响应失败: $e', isError: true);
-                status.addLog('原始响应: $responseData', isError: true);
-                _uploadStatuses[project.id] = status;
-                notifyListeners();
-              }
-            }
+          currentRetry++;
+          if (currentRetry <= maxRetries) {
+            await Future.delayed(retryDelay);
+            continue;
           }
           
-          // 根据状态码决定是否需要重试和等待时间
-          if (retryCount < maxRetries) {
-            // 对于服务器错误(5xx)，可能是临时问题，值得多次重试
-            // 对于客户端错误(4xx)，减少重试次数，因为可能是请求本身有问题
-            if (response.statusCode >= 500) {
-              retryCount++;
-              await Future.delayed(retryDelay * (retryCount / 2 + 0.5));
-              continue;
-            } else if (response.statusCode >= 400 && retryCount < 1) {
-              // 对于客户端错误，只尝试一次重试
-              retryCount++;
-              await Future.delayed(retryDelay);
-              continue;
-            } else {
-              // 对于其他错误或客户端错误已尝试重试，直接报告失败
-              break;
-            }
-          }
-              
           return BatchUploadResult(
-            success: false, 
+            success: false,
             filesCount: 0,
             statusCode: response.statusCode,
-            errorType: 'http_error',
-            errorMessage: serverErrorDetail.isNotEmpty ? serverErrorDetail : '服务器返回错误状态码'
+            errorMessage: errorMessages.join('; ')
           );
         }
       } catch (e) {
-        // 网络或其他错误
-        String errorMessage = '上传出错: $e';
+        // 网络错误等
+        String errorMessage = '上传请求错误: $e';
         errorMessages.add(errorMessage);
         
-        if (retryCount < maxRetries) {
-          retryCount++;
-          if (status != null) {
-            status.addLog('$errorMessage，准备第 $retryCount/${maxRetries} 次重试...', isError: true);
-            _uploadStatuses[project.id] = status;
-            notifyListeners();
-          }
-          
-          // 根据错误类型调整等待时间
-          Duration waitTime = retryDelay;
-          if (e is TimeoutException) {
-            // 超时错误，可能需要更长的等待时间
-            waitTime = Duration(seconds: 5 * retryCount);
-          } else if (e is SocketException) {
-            // 网络连接问题，适当延长等待时间
-            waitTime = Duration(seconds: 4 * retryCount);
-          }
-          
-          await Future.delayed(waitTime); 
-          continue;
-        }
-        
-        // 构建完整错误信息
-        String finalErrorMessage = '多次尝试后上传失败: $fileName\n';
-        finalErrorMessage += '最后错误: $e\n';
-        if (errorMessages.isNotEmpty) {
-          // 添加前几次尝试的错误概要
-          finalErrorMessage += '之前错误: ${errorMessages.join("; ")}';
-        }
-        
         if (status != null) {
-          status.addLog(finalErrorMessage, isError: true);
+          status.addLog('$errorMessage, 文件: $fileName', isError: true);
           _uploadStatuses[project.id] = status;
           notifyListeners();
         }
         
-        String errorType = 'network_error';
-        if (e is TimeoutException) {
-          errorType = 'timeout';
-        } else if (e is SocketException) {
-          errorType = 'socket_error';
-        } else if (e is FormatException) {
-          errorType = 'format_error';
+        currentRetry++;
+        if (currentRetry <= maxRetries) {
+          await Future.delayed(retryDelay);
+          continue;
         }
         
         return BatchUploadResult(
-          success: false, 
-          filesCount: 0, 
-          errorType: errorType,
-          errorMessage: e.toString()
+          success: false,
+          filesCount: 0,
+          errorType: 'network_error',
+          errorMessage: errorMessage
         );
       }
     }
     
-    // 所有重试失败后，提供详细的失败总结
-    if (status != null) {
-      status.addLog('文件上传最终失败: $fileName，已尝试 ${maxRetries + 1} 次', isError: true);
-      if (lastResponseData.isNotEmpty) {
-        // 添加最后一次服务器响应的摘要
-        String responseSummary = lastResponseData.length > 100 ? 
-            '${lastResponseData.substring(0, 100)}...' : lastResponseData;
-        status.addLog('最后一次服务器响应: $responseSummary', isError: true);
-      }
-      if (errorMessages.isNotEmpty) {
-        status.addLog('所有错误信息: ${errorMessages.join(" | ")}', isError: true);
-      }
-      _uploadStatuses[project.id] = status;
-      notifyListeners();
-    }
-    
+    // 不应该到达这里，但以防万一
     return BatchUploadResult(
-      success: false, 
-      filesCount: 0, 
-      errorType: 'max_retries_reached',
-      errorMessage: '达到最大重试次数'
+      success: false,
+      filesCount: 0,
+      errorType: 'unknown_error',
+      errorMessage: '未知错误: 超过重试次数'
     );
   }
 
@@ -1686,77 +1585,77 @@ class ProjectProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> _verifyServerDirectories(Project project, UploadType? type, String? value) async {
-    final prefs = await SharedPreferences.getInstance();
-    final apiUrl = prefs.getString('api_url');
-    
-    if (apiUrl == null || apiUrl.isEmpty) {
-      throw Exception('请先在设置中配置服务器地址');
-    }
-    
-    // 处理空类型和空值的情况
-    final uploadType = type?.name ?? 'unknown';
-    final uploadValue = value ?? 'unknown';
-    
-    final status = _uploadStatuses[project.id];
-    if (status != null) {
-      status.addLog('验证服务器目录结构...');
-      _uploadStatuses[project.id] = status;
-      notifyListeners();
-    }
-    
+  Future<bool> ensureServerDirectories(Project project, UploadType? type, String? value) async {
     try {
-      // 构建检查目录的请求
+      final prefs = await SharedPreferences.getInstance();
+      final apiUrl = prefs.getString('api_url');
+      
+      if (apiUrl == null || apiUrl.isEmpty) {
+        throw Exception('请先在设置中配置服务器地址');
+      }
+      
+      final uploadType = type?.name ?? 'unknown';
+      final uploadValue = value ?? 'unknown';
+      
+      final status = _uploadStatuses[project.id];
+      if (status != null) {
+        status.addLog('检查服务器目录结构...');
+        _uploadStatuses[project.id] = status;
+        notifyListeners();
+      }
+      
       final response = await http.get(
         Uri.parse('$apiUrl/check-directory?type=$uploadType&value=$uploadValue&project=${Uri.encodeComponent(project.name)}'),
         headers: {'Content-Type': 'application/json'},
-      );
+      ).timeout(Duration(seconds: 10));
       
       if (response.statusCode == 200) {
         final result = json.decode(response.body);
-        if (result['directory_exists'] == true) {
-          if (status != null) {
-            status.addLog('服务器目录结构验证通过');
-            _uploadStatuses[project.id] = status;
-            notifyListeners();
-          }
-          return true;
-        } else {
-          // 目录不存在，但API返回成功（可能是尝试创建了目录）
-          if (result['directory_created'] == true) {
-            if (status != null) {
-              status.addLog('服务器目录结构已自动创建');
-              _uploadStatuses[project.id] = status;
-              notifyListeners();
-            }
-            return true;
-          } else {
-            // 目录不存在且创建失败
-            if (status != null) {
-              status.addLog('服务器目录结构验证失败: ${result['message'] ?? "未知错误"}', isError: true);
-              _uploadStatuses[project.id] = status;
-              notifyListeners();
-            }
-            return false;
-          }
-        }
-      } else {
-        // 请求失败
+        
+        // 记录详细日志
         if (status != null) {
-          status.addLog('服务器目录结构验证请求失败: ${response.statusCode}', isError: true);
+          if (result['directory_exists'] == true) {
+            status.addLog('服务器目录结构已存在');
+            
+            // 检查写入权限
+            if (result['has_write_permission'] == true) {
+              status.addLog('服务器目录具有写入权限');
+            } else {
+              status.addLog('警告: 服务器目录可能没有写入权限', isError: true);
+            }
+          } else if (result['directory_created'] == true) {
+            status.addLog('服务器目录结构已自动创建');
+          } else {
+            status.addLog('服务器目录结构检查失败: ${result['message'] ?? "未知原因"}', isError: true);
+          }
+          
+          _uploadStatuses[project.id] = status;
+          notifyListeners();
+        }
+        
+        // 无论是已存在还是新创建，只要目录结构成功创建就返回true
+        return result['directory_exists'] == true || result['directory_created'] == true;
+      } else {
+        if (status != null) {
+          status.addLog('服务器目录检查请求失败: HTTP ${response.statusCode}', isError: true);
+          try {
+            final errorData = json.decode(response.body);
+            status.addLog('错误信息: ${errorData['message'] ?? "未知错误"}', isError: true);
+          } catch (e) {
+            // 解析失败，忽略
+          }
           _uploadStatuses[project.id] = status;
           notifyListeners();
         }
         return false;
       }
     } catch (e) {
-      // 网络错误等
       if (status != null) {
-        status.addLog('服务器目录结构验证过程中发生错误: $e', isError: true);
+        status.addLog('服务器目录检查异常: $e', isError: true);
         _uploadStatuses[project.id] = status;
         notifyListeners();
       }
-      print('验证服务器目录结构失败: $e');
+      print('检查服务器目录异常: $e');
       return false;
     }
   }
