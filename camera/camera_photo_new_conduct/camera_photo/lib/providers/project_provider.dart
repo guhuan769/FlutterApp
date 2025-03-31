@@ -1329,7 +1329,7 @@ class ProjectProvider with ChangeNotifier {
 
       // 添加会话ID
       if (_uploadSessions.containsKey(project.id)) {
-        request.fields['session_id'] = _uploadSessions[project.id];
+        request.fields['session_id'] = _uploadSessions[project.id]!;
       }
 
       try {
