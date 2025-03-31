@@ -11,6 +11,7 @@ using System.IO;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace PlyFileProcessor.Controllers
 {
@@ -88,6 +89,8 @@ namespace PlyFileProcessor.Controllers
 
                 // 解析项目信息
                 Dictionary<string, object> projectInfo = new Dictionary<string, object>();
+                List<Dictionary<string, object>> vehicles = new List<Dictionary<string, object>>();
+                
                 if (Request.Form.ContainsKey("project_info"))
                 {
                     try
@@ -97,7 +100,59 @@ namespace PlyFileProcessor.Controllers
                             JsonElement root = doc.RootElement;
                             foreach (JsonProperty property in root.EnumerateObject())
                             {
-                                projectInfo[property.Name] = property.Value.ToString();
+                                if (property.Name == "vehicles")
+                                {
+                                    // 尝试解析vehicles字符串为JSON数组
+                                    try
+                                    {
+                                        string vehiclesJson = property.Value.ToString();
+                                        using (JsonDocument vehiclesDoc = JsonDocument.Parse(vehiclesJson))
+                                        {
+                                            JsonElement vehiclesArray = vehiclesDoc.RootElement;
+                                            if (vehiclesArray.ValueKind == JsonValueKind.Array)
+                                            {
+                                                foreach (JsonElement vehicleElement in vehiclesArray.EnumerateArray())
+                                                {
+                                                    var vehicleInfo = new Dictionary<string, object>();
+                                                    foreach (JsonProperty vehicleProp in vehicleElement.EnumerateObject())
+                                                    {
+                                                        if (vehicleProp.Name != "tracks")
+                                                        {
+                                                            vehicleInfo[vehicleProp.Name] = vehicleProp.Value.ToString();
+                                                        }
+                                                        else
+                                                        {
+                                                            // 处理tracks数组
+                                                            List<Dictionary<string, object>> tracks = new List<Dictionary<string, object>>();
+                                                            if (vehicleProp.Value.ValueKind == JsonValueKind.Array)
+                                                            {
+                                                                foreach (JsonElement trackElement in vehicleProp.Value.EnumerateArray())
+                                                                {
+                                                                    var trackInfo = new Dictionary<string, object>();
+                                                                    foreach (JsonProperty trackProp in trackElement.EnumerateObject())
+                                                                    {
+                                                                        trackInfo[trackProp.Name] = trackProp.Value.ToString();
+                                                                    }
+                                                                    tracks.Add(trackInfo);
+                                                                }
+                                                            }
+                                                            vehicleInfo["tracks"] = tracks;
+                                                        }
+                                                    }
+                                                    vehicles.Add(vehicleInfo);
+                                                }
+                                            }
+                    }
+                }
+                catch (Exception ex)
+                {
+                                        _logger.LogError(ex, "解析vehicles JSON失败");
+                                    }
+                    }
+                    else
+                    {
+                                    projectInfo[property.Name] = property.Value.ToString();
+                                }
                             }
                         }
                     }
@@ -108,10 +163,31 @@ namespace PlyFileProcessor.Controllers
                     }
                 }
 
+                // 添加解析后的vehicles到projectInfo
+                projectInfo["parsed_vehicles"] = vehicles;
+
                 _logger.LogInformation("批次: {BatchNumber}/{TotalBatches}", batchNumber, totalBatches);
                 _logger.LogInformation("上传类型: {UploadType}", uploadType);
                 _logger.LogInformation("上传值: {UploadValue}", uploadValue);
                 _logger.LogInformation("项目信息: {ProjectInfo}", JsonSerializer.Serialize(projectInfo));
+                _logger.LogInformation("已解析的车辆数量: {VehicleCount}", vehicles.Count);
+                
+                foreach (var vehicle in vehicles)
+                {
+                    _logger.LogInformation("车辆: {VehicleId} - {VehicleName}", 
+                        vehicle.ContainsKey("id") ? vehicle["id"] : "无ID", 
+                        vehicle.ContainsKey("name") ? vehicle["name"] : "无名称");
+                    
+                    if (vehicle.ContainsKey("tracks") && vehicle["tracks"] is List<Dictionary<string, object>> tracksList)
+                    {
+                        foreach (var track in tracksList)
+                        {
+                            _logger.LogInformation("轨迹: {TrackId} - {TrackName}", 
+                                track.ContainsKey("id") ? track["id"] : "无ID",
+                                track.ContainsKey("name") ? track["name"] : "无名称");
+                        }
+                    }
+                }
 
                 // 创建保存目录结构
                 var categoryFolder = uploadType == "model" ? "模型" : "工艺";
@@ -160,14 +236,14 @@ namespace PlyFileProcessor.Controllers
                 {
                     var file = files[i];
                     var fileName = file.FileName;
-                    var fileInfoKey = $"file_info_{i}";
-                    Dictionary<string, string> fileInfo = new Dictionary<string, string>();
+                        var fileInfoKey = $"file_info_{i}";
+                        Dictionary<string, string> fileInfo = new Dictionary<string, string>();
 
                     // 解析文件信息
-                    if (Request.Form.ContainsKey(fileInfoKey))
-                    {
-                        try
+                        if (Request.Form.ContainsKey(fileInfoKey))
                         {
+                            try
+                            {
                             using (JsonDocument doc = JsonDocument.Parse(Request.Form[fileInfoKey]))
                             {
                                 JsonElement root = doc.RootElement;
@@ -186,6 +262,48 @@ namespace PlyFileProcessor.Controllers
                     // 获取文件类型
                     var fileType = fileInfo.ContainsKey("type") ? fileInfo["type"] : "unknown";
                     
+                    // 如果是track或vehicle类型，尝试从已解析的vehicles中获取额外信息
+                    if ((fileType == "track" || fileType == "vehicle") && vehicles.Count > 0)
+                    {
+                        if (fileType == "track" && fileInfo.ContainsKey("trackId") && fileInfo.ContainsKey("vehicleId"))
+                        {
+                            // 记录轨迹信息
+                            var vehicleId = fileInfo["vehicleId"];
+                            var trackId = fileInfo["trackId"];
+                            
+                            var vehicle = vehicles.FirstOrDefault(v => v.ContainsKey("id") && v["id"].ToString() == vehicleId);
+                            if (vehicle != null && vehicle.ContainsKey("tracks") && vehicle["tracks"] is List<Dictionary<string, object>> tracksList)
+                            {
+                                var track = tracksList.FirstOrDefault(t => t.ContainsKey("id") && t["id"].ToString() == trackId);
+                                if (track != null)
+                                {
+                                    _logger.LogInformation("找到相关轨迹信息: 车辆[{VehicleName}]的轨迹[{TrackName}]", 
+                                        vehicle.ContainsKey("name") ? vehicle["name"] : "未命名", 
+                                        track.ContainsKey("name") ? track["name"] : "未命名");
+                                    
+                                    // 可以添加额外的轨迹信息到fileInfo中
+                                    if (track.ContainsKey("name") && !fileInfo.ContainsKey("trackName"))
+                                        fileInfo["trackName"] = track["name"].ToString();
+                                }
+                            }
+                        }
+                        else if (fileType == "vehicle" && fileInfo.ContainsKey("vehicleId"))
+                        {
+                            // 记录车辆信息
+                            var vehicleId = fileInfo["vehicleId"];
+                            var vehicle = vehicles.FirstOrDefault(v => v.ContainsKey("id") && v["id"].ToString() == vehicleId);
+                            if (vehicle != null)
+                            {
+                                _logger.LogInformation("找到相关车辆信息: [{VehicleName}]", 
+                                    vehicle.ContainsKey("name") ? vehicle["name"] : "未命名");
+                                
+                                // 可以添加额外的车辆信息到fileInfo中
+                                if (vehicle.ContainsKey("name") && !fileInfo.ContainsKey("vehicleName"))
+                                    fileInfo["vehicleName"] = vehicle["name"].ToString();
+                            }
+                        }
+                    }
+                    
                     // 临时文件名和路径
                     var tempFileName = $"temp_{i}_{Guid.NewGuid().ToString("N").Substring(0, 8)}_{fileName}";
                     var tempFilePath = Path.Combine(unifiedImagesDir, tempFileName);
@@ -201,9 +319,9 @@ namespace PlyFileProcessor.Controllers
                         // 添加到处理列表
                         fileInfoList.Add((tempFilePath, fileName, fileType, fileInfo));
                         _logger.LogInformation("已保存临时文件 {Index}: {FileName}", i, fileName);
-                    }
-                    catch (Exception ex)
-                    {
+            }
+            catch (Exception ex)
+            {
                         _logger.LogError(ex, "保存临时文件失败 {Index}: {FileName}", i, fileName);
                         failedFiles.Add(new Dictionary<string, object>
                         {
@@ -227,22 +345,47 @@ namespace PlyFileProcessor.Controllers
                     // 如果不是第一批次，获取当前所有图片的最大索引
                     try
                     {
-                        var existingImages = Directory.GetFiles(unifiedImagesDir, "*.jpg")
-                            .Select(f => Path.GetFileNameWithoutExtension(f))
-                            .Where(f => int.TryParse(f, out _))
-                            .Select(f => int.Parse(f))
-                            .ToList();
+                        _logger.LogInformation("开始查找现有最大索引...");
+                        var allImageFiles = Directory.GetFiles(unifiedImagesDir, "*.jpg");
+                        List<int> indices = new List<int>();
                         
-                        if (existingImages.Count > 0)
+                        foreach (var file in allImageFiles)
                         {
-                            fileIndex = existingImages.Max() + 1;
+                            string fileName = Path.GetFileNameWithoutExtension(file);
+                            // 使用正则表达式提取文件名的数字部分
+                            var match = Regex.Match(fileName, @"_(\d+)$|(\d+)$");
+                            if (match.Success)
+                            {
+                                string indexStr = match.Groups[1].Value;
+                                if (string.IsNullOrEmpty(indexStr))
+                                    indexStr = match.Groups[2].Value;
+                                
+                                if (int.TryParse(indexStr, out int index))
+                                {
+                                    indices.Add(index);
+                                    _logger.LogDebug("找到索引: {Index} 来自文件: {FileName}", index, fileName);
+                                }
+                            }
                         }
-                        _logger.LogInformation("当前批次文件索引从 {FileIndex} 开始", fileIndex);
+                        
+                        if (indices.Count > 0)
+                        {
+                            fileIndex = indices.Max() + 1;
+                            _logger.LogInformation("找到现有最大索引: {MaxIndex}，新文件从 {FileIndex} 开始", indices.Max(), fileIndex);
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        _logger.LogError(ex, "获取现有图片索引失败，使用默认值 11");
+                            _logger.LogInformation("未找到有效的索引，使用默认值 {FileIndex}", fileIndex);
                     }
+                }
+                catch (Exception ex)
+                {
+                        _logger.LogError(ex, "获取现有图片索引失败，使用默认值 {DefaultIndex}", fileIndex);
+                    }
+                }
+                else
+                {
+                    _logger.LogInformation("首批次上传，使用初始索引值 {FileIndex}", fileIndex);
                 }
 
                 // 更新或创建图片清单
@@ -277,11 +420,28 @@ namespace PlyFileProcessor.Controllers
                 }
                 
                 foreach (var (tempPath, originalName, fileType, fileInfo) in fileInfoList)
-                {
-                    try
-                    {
-                        // 新文件名和路径
-                        string newFileName = $"{fileIndex}.jpg";
+        {
+            try
+            {
+                        // 确定文件类型前缀
+                        string typePrefix = "";
+                        if (fileType == "project")
+                        {
+                            typePrefix = "P_";
+                        }
+                        else if (fileType == "vehicle" && fileInfo.ContainsKey("vehicleId"))
+                        {
+                            // 为车辆图片添加车辆ID
+                            typePrefix = $"V_{fileInfo["vehicleId"]}_";
+                        }
+                        else if (fileType == "track" && fileInfo.ContainsKey("vehicleId") && fileInfo.ContainsKey("trackId"))
+                        {
+                            // 为轨迹图片添加车辆ID和轨迹ID
+                            typePrefix = $"T_{fileInfo["vehicleId"]}_{fileInfo["trackId"]}_";
+                        }
+                        
+                        // all_images目录中的文件命名 - 加上类型前缀
+                        string newFileName = $"{typePrefix}{fileIndex}.jpg";
                         string newFilePath = Path.Combine(unifiedImagesDir, newFileName);
                         
                         // 重命名临时文件
@@ -290,27 +450,29 @@ namespace PlyFileProcessor.Controllers
                         // 添加到清单
                         imageListEntries.Add($"{fileIndex}\t{originalName}\t{newFileName}");
                         
-                        // 根据文件类型复制到特定目录
+                        // 根据文件类型复制到特定目录 - 使用原始文件名
                         string specificPath;
+                        string originalFileName = Path.GetFileName(originalName);
+                        
                         if (fileType == "project")
                         {
-                            specificPath = Path.Combine(projectDir, newFileName);
+                            specificPath = Path.Combine(projectDir, originalFileName);
                         }
                         else if (fileType == "vehicle" && fileInfo.ContainsKey("vehicleId"))
                         {
                             var vehicleDir = Path.Combine(projectDir, "vehicles", fileInfo["vehicleId"]);
                             Directory.CreateDirectory(vehicleDir);
-                            specificPath = Path.Combine(vehicleDir, newFileName);
+                            specificPath = Path.Combine(vehicleDir, originalFileName);
                         }
                         else if (fileType == "track" && fileInfo.ContainsKey("vehicleId") && fileInfo.ContainsKey("trackId"))
                         {
                             var trackDir = Path.Combine(projectDir, "vehicles", fileInfo["vehicleId"], "tracks", fileInfo["trackId"]);
                             Directory.CreateDirectory(trackDir);
-                            specificPath = Path.Combine(trackDir, newFileName);
+                            specificPath = Path.Combine(trackDir, originalFileName);
                         }
                         else
                         {
-                            specificPath = Path.Combine(projectDir, newFileName);
+                            specificPath = Path.Combine(projectDir, originalFileName);
                         }
                         
                         // 复制到特定目录
@@ -321,14 +483,15 @@ namespace PlyFileProcessor.Controllers
                         {
                             { "fileName", originalName },
                             { "newFileName", newFileName },
+                            { "originalCopy", originalFileName },
                             { "index", fileIndex },
                             { "path", specificPath }
                         });
                         
                         fileIndex++;
-                    }
-                    catch (Exception ex)
-                    {
+            }
+            catch (Exception ex)
+            {
                         _logger.LogError(ex, "处理文件 {FileName} 失败", originalName);
                         failedFiles.Add(new Dictionary<string, object>
                         {
@@ -339,8 +502,128 @@ namespace PlyFileProcessor.Controllers
                 }
 
                 // 保存清单文件
+                // 修改为更结构化的格式，按车辆和轨迹分组
+                List<string> structuredImageList = new List<string>
+                {
+                    "# 图片清单文件 - 按类型分组",
+                    "# 生成时间: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    "",
+                    "# 项目图片 (P_)",
+                    "# 序号\t原文件名\t新文件名"
+                };
+
+                // 按前缀分组整理图片清单
+                var projectImages = imageListEntries.Skip(2)
+                    .Where(line => line.Contains("\tP_"))
+                    .ToList();
+                
+                if (projectImages.Any())
+                {
+                    structuredImageList.AddRange(projectImages);
+                }
+                else
+                {
+                    structuredImageList.Add("# (暂无项目图片)");
+                }
+
+                // 按车辆分组
+                var vehicleGroups = vehicles.Select(v => v["id"].ToString()).Distinct().ToList();
+                foreach (var vehicleId in vehicleGroups)
+                {
+                    string vehicleName = "未命名车辆";
+                    var vehicleObj = vehicles.FirstOrDefault(v => v["id"].ToString() == vehicleId);
+                    if (vehicleObj != null && vehicleObj.ContainsKey("name"))
+                    {
+                        vehicleName = vehicleObj["name"].ToString();
+                    }
+                    
+                    structuredImageList.Add("");
+                    structuredImageList.Add($"# 车辆图片: {vehicleName} (ID: {vehicleId})");
+                    structuredImageList.Add("# 序号\t原文件名\t新文件名");
+                    
+                    // 添加该车辆的图片
+                    var vehicleImages = imageListEntries.Skip(2)
+                        .Where(line => line.Contains($"\tV_{vehicleId}_"))
+                        .ToList();
+                    
+                    if (vehicleImages.Any())
+                    {
+                        structuredImageList.AddRange(vehicleImages);
+                    }
+                    else
+                    {
+                        structuredImageList.Add("# (暂无此车辆图片)");
+                    }
+                    
+                    // 按轨迹分组
+                    var vehicle = vehicles.FirstOrDefault(v => v["id"].ToString() == vehicleId);
+                    if (vehicle != null && vehicle.ContainsKey("tracks") && vehicle["tracks"] is List<Dictionary<string, object>> tracks)
+                    {
+                        foreach (var track in tracks)
+                        {
+                            if (track.ContainsKey("id"))
+                            {
+                                var trackId = track["id"].ToString();
+                                string trackName = "未命名轨迹";
+                                if (track.ContainsKey("name"))
+                                {
+                                    trackName = track["name"].ToString();
+                                }
+                                
+                                structuredImageList.Add("");
+                                structuredImageList.Add($"# 轨迹图片: {trackName} (车辆: {vehicleName}, 轨迹ID: {trackId})");
+                                structuredImageList.Add("# 序号\t原文件名\t新文件名");
+                                
+                                // 添加该轨迹的图片
+                                var trackImages = imageListEntries.Skip(2)
+                                    .Where(line => line.Contains($"\tT_{vehicleId}_{trackId}_"))
+                                    .ToList();
+                                
+                                if (trackImages.Any())
+                                {
+                                    structuredImageList.AddRange(trackImages);
+                                }
+                                else
+                                {
+                                    structuredImageList.Add("# (暂无此轨迹图片)");
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 其他未分类图片
+                var otherImages = imageListEntries.Skip(2)
+                    .Where(line => !line.Contains("\tP_") && 
+                                  !vehicleGroups.Any(v => line.Contains($"\tV_{v}_")) && 
+                                  !vehicleGroups.Any(v => 
+                                  {
+                                      var vehicle = vehicles.FirstOrDefault(vehicle => vehicle["id"].ToString() == v);
+                                      if (vehicle != null && vehicle.ContainsKey("tracks") && vehicle["tracks"] is List<Dictionary<string, object>> tracksList)
+                                      {
+                                          return tracksList.Any(t => t.ContainsKey("id") && 
+                                                                line.Contains($"\tT_{v}_{t["id"]}_"));
+                                      }
+                                      return false;
+                                  }))
+                    .ToList();
+                
+                if (otherImages.Any())
+                {
+                    structuredImageList.Add("");
+                    structuredImageList.Add("# 其他未分类图片");
+                    structuredImageList.Add("# 序号\t原文件名\t新文件名");
+                    structuredImageList.AddRange(otherImages);
+                }
+
+                // 同时保存原始顺序的清单和结构化清单
                 await System.IO.File.WriteAllLinesAsync(imageListPath, imageListEntries);
                 _logger.LogInformation("已生成图片清单，包含 {Count} 条记录", imageListEntries.Count - 2);
+                
+                // 保存结构化清单
+                var structuredImageListPath = Path.Combine(unifiedImagesDir, "image_list_structured.txt");
+                await System.IO.File.WriteAllLinesAsync(structuredImageListPath, structuredImageList);
+                _logger.LogInformation("已生成结构化图片清单，包含 {Count} 个分组", vehicleGroups.Count + 1);
 
                 // 返回结果
                 return Ok(new
@@ -441,13 +724,13 @@ namespace PlyFileProcessor.Controllers
             // 清理项目目录中的图片
             foreach (var file in Directory.GetFiles(projectDir, "*.jpg")
                          .Concat(Directory.GetFiles(projectDir, "*.jpeg")))
-            {
-                try
                 {
+                    try
+                    {
                     System.IO.File.Delete(file);
-                }
-                catch (Exception ex)
-                {
+                    }
+                    catch (Exception ex)
+                    {
                     _logger.LogError(ex, "无法删除文件: {FilePath}", file);
                 }
             }
@@ -492,9 +775,9 @@ namespace PlyFileProcessor.Controllers
             // 删除图片清单文件
             var imageListFile = Path.Combine(unifiedImagesDir, "image_list.txt");
             if (System.IO.File.Exists(imageListFile))
+        {
+            try
             {
-                try
-                {
                     System.IO.File.Delete(imageListFile);
                 }
                 catch { }
@@ -503,9 +786,9 @@ namespace PlyFileProcessor.Controllers
 
         [HttpGet("/check-directory")]
         public IActionResult CheckDirectory([FromQuery] string type, [FromQuery] string value, [FromQuery] string project)
-        {
-            try
-            {
+                {
+                    try
+                    {
                 _logger.LogInformation("检查目录结构 - 类型: {Type}, 值: {Value}, 项目: {Project}", type, value, project);
                 
                 // 创建保存目录结构
@@ -519,9 +802,9 @@ namespace PlyFileProcessor.Controllers
                 bool directoryCreated = false;
                 
                 if (!directoryExists)
-        {
-            try
-            {
+                        {
+                            try
+                            {
                         // 创建必要的目录
                             Directory.CreateDirectory(baseSavePath);
                             Directory.CreateDirectory(projectDir);
@@ -545,9 +828,9 @@ namespace PlyFileProcessor.Controllers
                             message = $"创建目录失败: {ex.Message}"
                         });
             }
-                }
-                else
-        {
+                                }
+                                else
+                                {
             try
             {
                         // 验证写入权限
@@ -555,9 +838,9 @@ namespace PlyFileProcessor.Controllers
                         System.IO.File.WriteAllText(testFilePath, "write test");
                         System.IO.File.Delete(testFilePath);
                         hasWritePermission = true;
-            }
-            catch (Exception ex)
-            {
+                            }
+                            catch (Exception ex)
+                            {
                         _logger.LogWarning(ex, "验证写入权限失败");
                         hasWritePermission = false;
                         }
@@ -568,9 +851,9 @@ namespace PlyFileProcessor.Controllers
                     try
                     {
                             Directory.CreateDirectory(imagesDir);
-                    }
-                    catch (Exception ex)
-                    {
+                            }
+                            catch (Exception ex)
+                            {
                             _logger.LogError(ex, "创建统一图片目录失败");
                     }
                 }
@@ -582,9 +865,9 @@ namespace PlyFileProcessor.Controllers
                     directory_created = directoryCreated,
                     has_write_permission = hasWritePermission
                 });
-                    }
-                    catch (Exception ex)
-                    {
+            }
+            catch (Exception ex)
+            {
                 _logger.LogError(ex, "检查目录结构失败");
                 return StatusCode(500, new
                 {
