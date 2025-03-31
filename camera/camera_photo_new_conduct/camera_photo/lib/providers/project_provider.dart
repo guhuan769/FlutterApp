@@ -12,6 +12,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/project.dart';
 import 'package:http/http.dart' as http;
 
+// 上传类型枚举
+enum UploadType {
+  model,  // 模型
+  craft   // 工艺
+}
+
 // lib/models/upload_status.dart
 
 class UploadStatus {
@@ -763,12 +769,12 @@ class ProjectProvider with ChangeNotifier {
   // 批量上传项目
   Future<void> uploadProjects(List<Project> projects) async {
     for (var project in projects) {
-      await uploadProject(project);
+      await uploadProject(project, type: UploadType.model, value: "A");
     }
   }
 
   // 在 ProjectProvider 类中更新上传方法
-  Future<void> uploadProject(Project project, {bool forceNewSession = false}) async {
+  Future<void> uploadProject(Project project, {UploadType? type, String? value, bool forceNewSession = false}) async {
     if (forceNewSession) {
       _uploadSessions.remove(project.id);
     }
@@ -1198,7 +1204,9 @@ class ProjectProvider with ChangeNotifier {
           _uploadSessions.remove(project.id);
           
           // 记录日志
-          status.addLog('重置会话状态并重新开始上传');
+          if (status != null) {
+            status.addLog('重置会话状态并重新开始上传');
+          }
           
           // 重启上传流程（可选，取决于你希望如何处理）
           // 可以在这里递归调用uploadProject，但要防止无限循环
@@ -1511,6 +1519,39 @@ class ProjectProvider with ChangeNotifier {
             status.addLog('$errorMessage, 文件: $fileName', isError: true);
             _uploadStatuses[project.id] = status;
             notifyListeners();
+          }
+          
+          // 处理特殊的目录不存在错误
+          if (response.statusCode == 410) {
+            try {
+              final errorData = json.decode(responseData);
+              if (errorData['error'] == 'SESSION_DIRECTORY_NOT_FOUND') {
+                // 重置会话ID
+                _uploadSessions.remove(project.id);
+                
+                if (status != null) {
+                  status.addLog('服务器目录已被删除，重置会话ID', isError: true);
+                  _uploadStatuses[project.id] = status;
+                  notifyListeners();
+                }
+                
+                // 返回特殊错误类型
+                return BatchUploadResult(
+                  success: false,
+                  filesCount: 0,
+                  statusCode: 410,
+                  errorType: 'session_reset_required',
+                  errorMessage: '服务器目录不存在，需要重新上传'
+                );
+              }
+            } catch (e) {
+              // 解析错误，继续正常流程
+              if (status != null) {
+                status.addLog('解析错误响应失败: $e', isError: true);
+                _uploadStatuses[project.id] = status;
+                notifyListeners();
+              }
+            }
           }
           
           // 根据状态码决定是否需要重试和等待时间
