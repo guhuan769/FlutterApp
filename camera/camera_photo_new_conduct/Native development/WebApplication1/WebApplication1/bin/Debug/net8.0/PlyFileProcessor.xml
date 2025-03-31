@@ -1,0 +1,209 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>PlyFileProcessor</name>
+    </assembly>
+    <members>
+        <member name="T:PlyFileProcessor.Models.ApiResponse">
+            <summary>
+            通用API响应
+            </summary>
+        </member>
+        <member name="P:PlyFileProcessor.Models.ApiResponse.Code">
+            <summary>
+            响应代码
+            </summary>
+        </member>
+        <member name="P:PlyFileProcessor.Models.ApiResponse.Message">
+            <summary>
+            响应消息
+            </summary>
+        </member>
+        <member name="M:PlyFileProcessor.Models.ApiResponse.Success(System.String)">
+            <summary>
+            创建成功响应
+            </summary>
+            <param name="message">成功消息</param>
+            <returns>API响应对象</returns>
+        </member>
+        <member name="M:PlyFileProcessor.Models.ApiResponse.Error(System.String,System.Int32)">
+            <summary>
+            创建错误响应
+            </summary>
+            <param name="message">错误消息</param>
+            <param name="code">错误代码</param>
+            <returns>API响应对象</returns>
+        </member>
+        <member name="T:PlyFileProcessor.Models.UploadResponse">
+            <summary>
+            上传响应
+            </summary>
+        </member>
+        <member name="P:PlyFileProcessor.Models.UploadResponse.TaskId">
+            <summary>
+            任务ID
+            </summary>
+        </member>
+        <member name="P:PlyFileProcessor.Models.UploadResponse.SavedFiles">
+            <summary>
+            保存的文件数量
+            </summary>
+        </member>
+        <member name="P:PlyFileProcessor.Models.UploadResponse.PlyFilesFound">
+            <summary>
+            是否找到PLY文件
+            </summary>
+        </member>
+        <member name="T:PlyFileProcessor.Models.StatusResponse">
+            <summary>
+            服务器状态响应
+            </summary>
+        </member>
+        <member name="P:PlyFileProcessor.Models.StatusResponse.Status">
+            <summary>
+            服务器状态
+            </summary>
+        </member>
+        <member name="P:PlyFileProcessor.Models.StatusResponse.Timestamp">
+            <summary>
+            时间戳
+            </summary>
+        </member>
+        <member name="P:PlyFileProcessor.Models.StatusResponse.MqttConnected">
+            <summary>
+            MQTT连接状态
+            </summary>
+        </member>
+        <member name="P:PlyFileProcessor.Models.StatusResponse.WorkerThreads">
+            <summary>
+            工作线程数
+            </summary>
+        </member>
+        <member name="P:PlyFileProcessor.Models.StatusResponse.PlyWatchDir">
+            <summary>
+            PLY观察目录
+            </summary>
+        </member>
+        <member name="P:PlyFileProcessor.Models.StatusResponse.ServerIp">
+            <summary>
+            服务器IP地址
+            </summary>
+        </member>
+        <member name="P:PlyFileProcessor.Models.StatusResponse.UploadFolder">
+            <summary>
+            上传文件夹
+            </summary>
+        </member>
+        <member name="P:PlyFileProcessor.Models.StatusResponse.DotnetVersion">
+            <summary>
+            .NET版本
+            </summary>
+        </member>
+        <member name="P:PlyFileProcessor.Models.StatusResponse.OsVersion">
+            <summary>
+            操作系统版本
+            </summary>
+        </member>
+        <member name="P:PlyFileProcessor.Models.StatusResponse.MqttInfo">
+            <summary>
+            MQTT客户端信息
+            </summary>
+        </member>
+        <member name="T:PlyFileProcessor.Models.MqttInfo">
+            <summary>
+            MQTT信息
+            </summary>
+        </member>
+        <member name="P:PlyFileProcessor.Models.MqttInfo.Broker">
+            <summary>
+            代理地址
+            </summary>
+        </member>
+        <member name="P:PlyFileProcessor.Models.MqttInfo.ClientId">
+            <summary>
+            客户端ID
+            </summary>
+        </member>
+        <member name="P:PlyFileProcessor.Models.MqttInfo.Topic">
+            <summary>
+            主题
+            </summary>
+        </member>
+        <member name="T:PlyFileProcessor.Models.FileInfo">
+            <summary>
+            文件信息
+            </summary>
+        </member>
+        <member name="P:PlyFileProcessor.Models.FileInfo.Type">
+            <summary>
+            文件类型
+            </summary>
+        </member>
+        <member name="P:PlyFileProcessor.Models.FileInfo.TrackName">
+            <summary>
+            轨道名称（针对轨道类型）
+            </summary>
+        </member>
+        <member name="P:PlyFileProcessor.Models.FileInfo.RelativePath">
+            <summary>
+            相对路径
+            </summary>
+        </member>
+        <member name="T:PlyFileProcessor.Models.ProjectInfo">
+            <summary>
+            项目信息
+            </summary>
+        </member>
+        <member name="P:PlyFileProcessor.Models.ProjectInfo.Name">
+            <summary>
+            项目名称
+            </summary>
+        </member>
+        <member name="T:PlyFileProcessor.Services.IPlyFileService">
+            <summary>
+            PLY文件服务接口
+            </summary>
+        </member>
+        <member name="M:PlyFileProcessor.Services.IPlyFileService.CheckAndProcessPlyFilesAsync(System.String,System.String,System.String)">
+            <summary>
+            检查并处理PLY文件
+            </summary>
+            <param name="taskId">任务ID</param>
+            <param name="projectName">项目名称</param>
+            <returns>是否找到并处理了PLY文件</returns>
+        </member>
+        <member name="M:PlyFileProcessor.Services.IPlyFileService.GetPlyCheckPath">
+            <summary>
+            获取PLY检查路径
+            </summary>
+            <returns>PLY文件检查路径</returns>
+        </member>
+        <member name="T:PlyFileProcessor.Services.Implementation.PlyFileService">
+            <summary>
+            PLY文件服务实现
+            </summary>
+        </member>
+        <member name="M:PlyFileProcessor.Services.Implementation.PlyFileService.#ctor(Microsoft.Extensions.Logging.ILogger{PlyFileProcessor.Services.Implementation.PlyFileService},PlyFileProcessor.IMqttClientService,Microsoft.Extensions.Configuration.IConfiguration)">
+            <summary>
+            初始化PLY文件服务
+            </summary>
+            <param name="logger">日志记录器</param>
+            <param name="mqttClientService">MQTT客户端服务</param>
+            <param name="configuration">配置</param>
+        </member>
+        <member name="M:PlyFileProcessor.Services.Implementation.PlyFileService.GetPlyCheckPath">
+            <summary>
+            获取PLY检查路径
+            </summary>
+            <returns>PLY文件检查路径</returns>
+        </member>
+        <member name="M:PlyFileProcessor.Services.Implementation.PlyFileService.CheckAndProcessPlyFilesAsync(System.String,System.String,System.String)">
+            <summary>
+            检查并处理PLY文件
+            </summary>
+            <param name="taskId">任务ID</param>
+            <param name="projectName">项目名称</param>
+            <returns>是否找到并处理了PLY文件</returns>
+        </member>
+    </members>
+</doc>

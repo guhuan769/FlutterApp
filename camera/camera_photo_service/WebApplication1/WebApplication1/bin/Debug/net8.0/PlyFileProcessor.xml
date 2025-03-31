@@ -4,6 +4,61 @@
         <name>PlyFileProcessor</name>
     </assembly>
     <members>
+        <member name="M:PlyFileProcessor.Controllers.UploadController.UploadImage">
+            <summary>
+            处理文件上传请求
+            </summary>
+            <remarks>
+            上传图片文件并处理PLY文件。
+            
+            示例请求:
+            
+                POST /upload
+                Content-Type: multipart/form-data
+                
+                batch_number: 1
+                total_batches: 1
+                type: model
+                value: some_value
+                project_info: {"name":"project_name"}
+                files[]: [binary_data]
+                
+            </remarks>
+            <returns>上传结果信息</returns>
+            <response code="200">上传成功</response>
+            <response code="400">请求无效</response>
+            <response code="500">服务器错误</response>
+        </member>
+        <member name="M:PlyFileProcessor.Controllers.UploadController.GetStatus">
+            <summary>
+            获取服务器状态
+            </summary>
+            <remarks>
+            获取服务器当前运行状态，包括MQTT连接状态、系统信息等。
+            
+            示例请求:
+            
+                GET /status
+                
+            </remarks>
+            <returns>服务器状态信息</returns>
+            <response code="200">成功获取状态</response>
+        </member>
+        <member name="M:PlyFileProcessor.Controllers.UploadController.Test">
+            <summary>
+            测试API服务是否正常运行
+            </summary>
+            <remarks>
+            简单的测试端点，用于确认API服务是否正常运行。
+            
+            示例请求:
+            
+                GET /test
+                
+            </remarks>
+            <returns>测试结果信息</returns>
+            <response code="200">服务运行正常</response>
+        </member>
         <member name="T:PlyFileProcessor.Models.ApiResponse">
             <summary>
             通用API响应
