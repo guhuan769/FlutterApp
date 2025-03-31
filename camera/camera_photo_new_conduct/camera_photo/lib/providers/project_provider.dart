@@ -1686,13 +1686,17 @@ class ProjectProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> _verifyServerDirectories(Project project, UploadType type, String value) async {
+  Future<bool> _verifyServerDirectories(Project project, UploadType? type, String? value) async {
     final prefs = await SharedPreferences.getInstance();
     final apiUrl = prefs.getString('api_url');
     
     if (apiUrl == null || apiUrl.isEmpty) {
       throw Exception('请先在设置中配置服务器地址');
     }
+    
+    // 处理空类型和空值的情况
+    final uploadType = type?.name ?? 'unknown';
+    final uploadValue = value ?? 'unknown';
     
     final status = _uploadStatuses[project.id];
     if (status != null) {
@@ -1704,7 +1708,7 @@ class ProjectProvider with ChangeNotifier {
     try {
       // 构建检查目录的请求
       final response = await http.get(
-        Uri.parse('$apiUrl/check-directory?type=${type.name}&value=$value&project=${Uri.encodeComponent(project.name)}'),
+        Uri.parse('$apiUrl/check-directory?type=$uploadType&value=$uploadValue&project=${Uri.encodeComponent(project.name)}'),
         headers: {'Content-Type': 'application/json'},
       );
       
