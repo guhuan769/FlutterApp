@@ -20,14 +20,25 @@ class UploadStatusWidget extends StatelessWidget {
     // 格式化上传开始时间
     final timeString = _formatUploadTime(status.uploadTime);
     
+    // 判断显示状态类型
+    bool isPartialSuccess = false;
+    if (status.isComplete && status.isSuccess) {
+      // 检查状态消息，判断是否是部分成功
+      isPartialSuccess = status.status.contains('部分上传完成');
+    }
+    
     // 上传状态的颜色
     final Color statusColor = status.isComplete
-        ? (status.isSuccess ? Colors.green : Colors.red)
+        ? (status.isSuccess 
+            ? (isPartialSuccess ? Colors.orange : Colors.green) 
+            : Colors.red)
         : Colors.blue;
 
     // 上传状态图标
     final IconData statusIcon = status.isComplete
-        ? (status.isSuccess ? Icons.check_circle : Icons.error)
+        ? (status.isSuccess 
+            ? (isPartialSuccess ? Icons.warning : Icons.check_circle) 
+            : Icons.error)
         : Icons.cloud_upload;
 
     return Dismissible(
@@ -47,7 +58,9 @@ class UploadStatusWidget extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           side: BorderSide(
             color: status.isComplete
-                ? (status.isSuccess ? Colors.green.shade100 : Colors.red.shade100)
+                ? (status.isSuccess 
+                    ? (isPartialSuccess ? Colors.orange.shade100 : Colors.green.shade100)
+                    : Colors.red.shade100)
                 : Colors.blue.shade100,
             width: 1,
           ),
@@ -111,6 +124,7 @@ class UploadStatusWidget extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 if (!status.isComplete) ...[
+                  // 上传进行中的状态
                   LinearProgressIndicator(
                     value: status.progress,
                     backgroundColor: Colors.grey[200],
@@ -158,13 +172,33 @@ class UploadStatusWidget extends StatelessWidget {
                   ],
                 ] else ...[
                   // 已完成上传的状态显示
-                  Text(
-                    status.status,
-                    style: TextStyle(
-                      color: statusColor,
-                      fontSize: 13,
+                  // 将状态信息分行显示，更清晰
+                  if (status.status.contains('\n')) ...[
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: status.status.split('\n').map((line) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text(
+                            line,
+                            style: TextStyle(
+                              color: statusColor,
+                              fontSize: 13,
+                              fontWeight: line.contains('成功上传:') ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                        );
+                      }).toList(),
                     ),
-                  ),
+                  ] else ...[
+                    Text(
+                      status.status,
+                      style: TextStyle(
+                        color: statusColor,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
                   if (status.isSuccess && status.hasPlyFiles) ...[
                     const SizedBox(height: 8),
                     Row(
