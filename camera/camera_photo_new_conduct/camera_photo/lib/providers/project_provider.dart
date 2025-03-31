@@ -819,6 +819,16 @@ class ProjectProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      // 验证服务器目录结构
+      final bool directoriesValid = await _verifyServerDirectories(project, type, value);
+      if (!directoriesValid) {
+        // 如果目录验证失败，尝试重置会话并继续
+        _uploadSessions.remove(project.id);
+        status.addLog('服务器目录结构验证失败，将尝试重新创建目录', isError: true);
+        _uploadStatuses[project.id] = status;
+        notifyListeners();
+      }
+
       final prefs = await SharedPreferences.getInstance();
       final apiUrl = prefs.getString('api_url');
       
@@ -875,12 +885,7 @@ class ProjectProvider with ChangeNotifier {
           currentFileIndex = completed;
           
           // 构建进度状态文本，包含服务器确认信息
-          String progressStatus = '已上传: $completed/$total 张图片 (${(progress * 100).toStringAsFixed(1)}%)';
-          
-          // 如果有服务器确认的文件，显示确认数量
-          if (serverConfirmed > 0) {
-            progressStatus += '\n服务器已确认: $serverConfirmed 个文件';
-          }
+          String progressStatus = '已上传: $completed/$total 个文件, 服务器已确认: $serverConfirmed 个文件';
           
           progressStatus += '\n当前处理: $currentFileName';
           
@@ -1679,6 +1684,77 @@ class ProjectProvider with ChangeNotifier {
   void resetUploadSession(String projectId) {
     _uploadSessions.remove(projectId);
     notifyListeners();
+  }
+
+  Future<bool> _verifyServerDirectories(Project project, UploadType type, String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    final apiUrl = prefs.getString('api_url');
+    
+    if (apiUrl == null || apiUrl.isEmpty) {
+      throw Exception('请先在设置中配置服务器地址');
+    }
+    
+    final status = _uploadStatuses[project.id];
+    if (status != null) {
+      status.addLog('验证服务器目录结构...');
+      _uploadStatuses[project.id] = status;
+      notifyListeners();
+    }
+    
+    try {
+      // 构建检查目录的请求
+      final response = await http.get(
+        Uri.parse('$apiUrl/check-directory?type=${type.name}&value=$value&project=${Uri.encodeComponent(project.name)}'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      
+      if (response.statusCode == 200) {
+        final result = json.decode(response.body);
+        if (result['directory_exists'] == true) {
+          if (status != null) {
+            status.addLog('服务器目录结构验证通过');
+            _uploadStatuses[project.id] = status;
+            notifyListeners();
+          }
+          return true;
+        } else {
+          // 目录不存在，但API返回成功（可能是尝试创建了目录）
+          if (result['directory_created'] == true) {
+            if (status != null) {
+              status.addLog('服务器目录结构已自动创建');
+              _uploadStatuses[project.id] = status;
+              notifyListeners();
+            }
+            return true;
+          } else {
+            // 目录不存在且创建失败
+            if (status != null) {
+              status.addLog('服务器目录结构验证失败: ${result['message'] ?? "未知错误"}', isError: true);
+              _uploadStatuses[project.id] = status;
+              notifyListeners();
+            }
+            return false;
+          }
+        }
+      } else {
+        // 请求失败
+        if (status != null) {
+          status.addLog('服务器目录结构验证请求失败: ${response.statusCode}', isError: true);
+          _uploadStatuses[project.id] = status;
+          notifyListeners();
+        }
+        return false;
+      }
+    } catch (e) {
+      // 网络错误等
+      if (status != null) {
+        status.addLog('服务器目录结构验证过程中发生错误: $e', isError: true);
+        _uploadStatuses[project.id] = status;
+        notifyListeners();
+      }
+      print('验证服务器目录结构失败: $e');
+      return false;
+    }
   }
 }
 

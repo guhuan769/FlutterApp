@@ -186,11 +186,17 @@ namespace PlyFileProcessor.Controllers
                 // 使用异步方法创建目录结构并验证权限
                 try
                 {
-                    await EnsureDirectoryStructureAsync(new[] {
-                        baseSavePath,
-                        projectDir,
-                        unifiedImagesDir
-                    });
+                    bool directoriesExist = await EnsureDirectoriesExist(baseSavePath, projectDir, unifiedImagesDir);
+                    if (!directoriesExist)
+                    {
+                        _logger.LogError("创建目录结构失败，无法继续上传");
+                        return StatusCode(500, new Dictionary<string, object> {
+                            { "code", 500 },
+                            { "error", "DIRECTORY_ACCESS_ERROR" },
+                            { "message", "无法创建或访问必要的目录，请检查权限" },
+                            { "session_id", sessionId }
+                        });
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -198,9 +204,16 @@ namespace PlyFileProcessor.Controllers
                     return StatusCode(500, new Dictionary<string, object> {
                         { "code", 500 },
                         { "error", "DIRECTORY_ACCESS_ERROR" },
-                        { "message", $"无法创建或访问必要的目录: {ex.Message}" }
+                        { "message", $"无法创建或访问必要的目录: {ex.Message}" },
+                        { "session_id", sessionId }
                     });
                 }
+
+                // 检查项目目录是否为空，判断是否是第二次上传
+                bool isProjectDirEmpty = IsDirectoryEmpty(projectDir);
+                bool isUnifiedDirEmpty = IsDirectoryEmpty(unifiedImagesDir);
+                _logger.LogInformation("项目目录状态 - 项目目录空: {IsEmpty}, 统一目录空: {UnifiedEmpty}", 
+                    isProjectDirEmpty, isUnifiedDirEmpty);
 
                 // 在创建目录后再次检查目录存在性
                 if (!Directory.Exists(projectDir))
@@ -218,6 +231,41 @@ namespace PlyFileProcessor.Controllers
                         { "action", "RESET_SESSION" },
                         { "session_id", sessionId }
                     });
+                }
+
+                // 准备将会话关联到项目目录
+                if (!_activeSessions.TryGetValue(sessionId, out var existingSession))
+                {
+                    // 如果会话不存在但目录不为空，这可能是第二次上传
+                    if (!isProjectDirEmpty || !isUnifiedDirEmpty)
+                    {
+                        _logger.LogInformation("项目目录已存在且不为空，尝试恢复项目数据");
+                        
+                        // 恢复项目会话
+                        session = new UploadSession
+                        {
+                            SessionId = sessionId,
+                            ProjectName = projectName,
+                            LastActivity = DateTime.Now
+                        };
+
+                        // 扫描并恢复已有文件信息
+                        await RecoverExistingFiles(session, projectDir, unifiedImagesDir);
+                        
+                        _activeSessions[sessionId] = session;
+                        _logger.LogInformation("已恢复会话，包含 {FileCount} 个文件", session.Files.Count);
+                    }
+                    else
+                    {
+                        // 正常情况，会话已在前面创建
+                        _logger.LogInformation("创建新会话，目录为空");
+                    }
+                }
+                else
+                {
+                    // 会话存在，使用现有会话
+                    session = existingSession;
+                    _logger.LogInformation("使用现有会话，包含 {FileCount} 个文件", session.Files.Count);
                 }
 
                 // 创建/更新图片清单文件
@@ -662,6 +710,270 @@ namespace PlyFileProcessor.Controllers
                 { "time", DateTime.Now },
                 { "server", Environment.MachineName }
             });
+        }
+
+        [HttpGet("/check-directory")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<IActionResult> CheckDirectory([FromQuery] string type, [FromQuery] string value, [FromQuery] string project)
+        {
+            _logger.LogInformation("检查目录结构 - 类型: {Type}, 值: {Value}, 项目: {Project}", type, value, project);
+            
+            try
+            {
+                var categoryFolder = type == "model" ? "模型" : "工艺";
+                var baseSavePath = Path.Combine(_uploadFolder, categoryFolder, value);
+                var projectDir = Path.Combine(baseSavePath, project);
+                var unifiedImagesDir = Path.Combine(projectDir, "all_images");
+                
+                bool rootExists = Directory.Exists(_uploadFolder);
+                bool baseSavePathExists = Directory.Exists(baseSavePath);
+                bool projectDirExists = Directory.Exists(projectDir);
+                bool unifiedDirExists = Directory.Exists(unifiedImagesDir);
+                
+                _logger.LogInformation("目录检查 - 根目录: {RootExists}, 基本路径: {BaseExists}, 项目目录: {ProjectExists}, 统一目录: {UnifiedExists}",
+                    rootExists, baseSavePathExists, projectDirExists, unifiedDirExists);
+                
+                // 如果目录不存在，尝试创建
+                if (!rootExists || !baseSavePathExists || !projectDirExists || !unifiedDirExists)
+                {
+                    // 创建所有必要的目录
+                    try 
+                    {
+                        await EnsureDirectoryStructureAsync(new[] {
+                            _uploadFolder,
+                            baseSavePath,
+                            projectDir,
+                            unifiedImagesDir
+                        });
+                        
+                        // 重新检查
+                        rootExists = Directory.Exists(_uploadFolder);
+                        baseSavePathExists = Directory.Exists(baseSavePath);
+                        projectDirExists = Directory.Exists(projectDir);
+                        unifiedDirExists = Directory.Exists(unifiedImagesDir);
+                        
+                        bool allCreated = rootExists && baseSavePathExists && projectDirExists && unifiedDirExists;
+                        
+                        return Ok(new Dictionary<string, object> {
+                            { "directory_exists", allCreated },
+                            { "directory_created", allCreated },
+                            { "details", new Dictionary<string, object> {
+                                { "root_directory", rootExists },
+                                { "base_path", baseSavePathExists },
+                                { "project_directory", projectDirExists },
+                                { "unified_directory", unifiedDirExists }
+                            }},
+                            { "message", allCreated ? "目录结构已创建" : "部分目录创建失败" }
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "创建目录结构失败");
+                        return Ok(new Dictionary<string, object> {
+                            { "directory_exists", false },
+                            { "directory_created", false },
+                            { "error", ex.Message },
+                            { "message", "目录创建失败" }
+                        });
+                    }
+                }
+                
+                // 检查目录权限
+                bool hasPermission = await CheckDirectoryPermission(projectDir);
+                
+                return Ok(new Dictionary<string, object> {
+                    { "directory_exists", true },
+                    { "has_permission", hasPermission },
+                    { "details", new Dictionary<string, object> {
+                        { "root_directory", rootExists },
+                        { "base_path", baseSavePathExists },
+                        { "project_directory", projectDirExists },
+                        { "unified_directory", unifiedDirExists }
+                    }},
+                    { "message", hasPermission ? "目录结构完整且有权限访问" : "目录存在但权限不足" }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "检查目录结构时发生错误");
+                return Ok(new Dictionary<string, object> {
+                    { "directory_exists", false },
+                    { "error", ex.Message },
+                    { "message", "检查目录结构时发生错误" }
+                });
+            }
+        }
+
+        private async Task<bool> CheckDirectoryPermission(string directory)
+        {
+            try
+            {
+                if (!Directory.Exists(directory))
+                {
+                    return false;
+                }
+                
+                var testFilePath = Path.Combine(directory, $"perm_test_{Guid.NewGuid()}.txt");
+                await System.IO.File.WriteAllTextAsync(testFilePath, "权限测试");
+                await Task.Delay(100); // 短暂等待确保文件完全写入
+                
+                if (System.IO.File.Exists(testFilePath))
+                {
+                    System.IO.File.Delete(testFilePath);
+                    return true;
+                }
+                
+                return false;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private bool IsDirectoryEmpty(string path)
+        {
+            try
+            {
+                return !Directory.EnumerateFileSystemEntries(path).Any();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "检查目录是否为空时出错: {Path}", path);
+                return true; // 出错时假设为空
+            }
+        }
+
+        private async Task<bool> EnsureDirectoriesExist(string baseSavePath, string projectDir, string unifiedImagesDir)
+        {
+            try
+            {
+                // 使用互斥锁确保只有一个线程在创建目录
+                using (var mutex = new Mutex(false, "DirectoryCreationMutex"))
+                {
+                    bool mutexAcquired = mutex.WaitOne(TimeSpan.FromSeconds(30));
+                    if (!mutexAcquired)
+                    {
+                        _logger.LogError("无法获取目录创建互斥锁");
+                        return false;
+                    }
+
+                    try
+                    {
+                        // 确保上传根目录存在
+                        if (!Directory.Exists(_uploadFolder))
+                        {
+                            _logger.LogInformation("创建上传根目录: {Dir}", _uploadFolder);
+                            Directory.CreateDirectory(_uploadFolder);
+                        }
+
+                        // 确保分类目录存在
+                        if (!Directory.Exists(baseSavePath))
+                        {
+                            _logger.LogInformation("创建分类目录: {Dir}", baseSavePath);
+                            Directory.CreateDirectory(baseSavePath);
+                        }
+
+                        // 确保项目目录存在
+                        if (!Directory.Exists(projectDir))
+                        {
+                            _logger.LogInformation("创建项目目录: {Dir}", projectDir);
+                            Directory.CreateDirectory(projectDir);
+                        }
+                        
+                        // 确保统一图片目录存在
+                        if (!Directory.Exists(unifiedImagesDir))
+                        {
+                            _logger.LogInformation("创建统一图片目录: {Dir}", unifiedImagesDir);
+                            Directory.CreateDirectory(unifiedImagesDir);
+                        }
+
+                        // 验证目录权限
+                        var testFilePath = Path.Combine(projectDir, $"perm_test_{Guid.NewGuid()}.txt");
+                        await System.IO.File.WriteAllTextAsync(testFilePath, "权限测试");
+                        await Task.Delay(100); // 短暂等待确保文件完全写入
+                        if (System.IO.File.Exists(testFilePath))
+                        {
+                            System.IO.File.Delete(testFilePath);
+                        }
+                        else
+                        {
+                            _logger.LogError("目录权限验证失败: {Dir}", projectDir);
+                            return false;
+                        }
+
+                        return true;
+                    }
+                    finally
+                    {
+                        mutex.ReleaseMutex();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "创建或验证目录失败");
+                return false;
+            }
+        }
+
+        private async Task RecoverExistingFiles(UploadSession session, string projectDir, string unifiedImagesDir)
+        {
+            try
+            {
+                _logger.LogInformation("恢复项目 {ProjectName} 的现有文件", session.ProjectName);
+                
+                // 扫描统一目录中的所有图片
+                var imageFiles = Directory.GetFiles(unifiedImagesDir, "*.jpg")
+                    .Concat(Directory.GetFiles(unifiedImagesDir, "*.jpeg"))
+                    .ToList();
+                    
+                _logger.LogInformation("在统一目录中找到 {Count} 个图片文件", imageFiles.Count);
+                
+                // 加载图片清单
+                var imageListPath = Path.Combine(unifiedImagesDir, "image_list.txt");
+                var imageMap = new Dictionary<string, string>(); // 文件名 -> 唯一ID映射
+                
+                if (System.IO.File.Exists(imageListPath))
+                {
+                    var lines = await System.IO.File.ReadAllLinesAsync(imageListPath);
+                    foreach (var line in lines)
+                    {
+                        var parts = line.Split('\t');
+                        if (parts.Length >= 2)
+                        {
+                            var fileName = parts[1];
+                            var uniqueId = $"recovered_{parts[0]}_{Path.GetFileNameWithoutExtension(fileName)}";
+                            imageMap[fileName] = uniqueId;
+                        }
+                    }
+                    _logger.LogInformation("从图片清单中加载了 {Count} 个文件映射", imageMap.Count);
+                }
+                
+                // 为每个文件创建FileStatus对象
+                foreach (var imagePath in imageFiles)
+                {
+                    var fileName = Path.GetFileName(imagePath);
+                    var uniqueId = imageMap.ContainsKey(fileName) 
+                        ? imageMap[fileName] 
+                        : $"recovered_{Path.GetFileNameWithoutExtension(fileName)}_{Guid.NewGuid()}";
+                        
+                    session.Files[uniqueId] = new FileStatus
+                    {
+                        FileName = fileName,
+                        FilePath = imagePath,
+                        IsSuccess = true,
+                        ProcessTime = System.IO.File.GetCreationTime(imagePath),
+                        ErrorMessage = ""
+                    };
+                }
+                
+                _logger.LogInformation("已恢复 {Count} 个文件到会话", session.Files.Count);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "恢复现有文件失败");
+            }
         }
 
         // 辅助方法: 获取客户端IP地址
