@@ -1,6 +1,7 @@
 // lib/providers/project_provider.dart
 import 'dart:convert';
 import 'dart:io';
+import 'dart:async';
 import 'package:camera_photo/config/upload_options.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http_parser/http_parser.dart';
@@ -835,7 +836,7 @@ class ProjectProvider with ChangeNotifier {
 
       status.addLog('找到 ${allFiles.length} 个文件待上传');
       status = status.copyWith(
-        status: '准备上传 ${allFiles.length} 张照片\n正在创建上传批次...',
+        status: '准备上传 ${allFiles.length} 张照片\n正在创建上传队列...',
       );
       _uploadStatuses[project.id] = status;
       notifyListeners();
@@ -844,6 +845,7 @@ class ProjectProvider with ChangeNotifier {
       final batches = _createUploadBatches(allFiles);
       final totalFiles = allFiles.length;
       int totalSuccess = 0;
+      int currentFileIndex = 0;
 
       // 上传批次
       final batchResults = await _uploadBatchesConcurrently(
@@ -854,12 +856,25 @@ class ProjectProvider with ChangeNotifier {
         value: value,
         onProgress: (completed, total) {
           final progress = completed / total;
+          
+          // 获取当前正在上传的文件名（如果还有未上传的文件）
+          String currentFileName = "未知文件";
+          if (completed < total && completed < batches.length) {
+            try {
+              var nextBatch = batches[completed];
+              var nextFile = nextBatch[0];
+              currentFileName = path.basename(nextFile['path'] as String);
+            } catch (e) {
+              // 忽略异常，保持默认文件名
+            }
+          }
+          
+          currentFileIndex = completed;
           status = status.copyWith(
             progress: progress,
-            status: '正在上传: $completed/$total 批次\n总进度: ${(progress * 100).toStringAsFixed(1)}%',
+            status: '已上传: $completed/$total 张图片 (${(progress * 100).toStringAsFixed(1)}%)\n当前处理: $currentFileName',
             logs: List.from(status.logs),
           );
-          status.addLog('已完成批次 $completed/$total');
           _uploadStatuses[project.id] = status;
           notifyListeners();
         }
@@ -873,20 +888,25 @@ class ProjectProvider with ChangeNotifier {
       }
 
       // 更新最终状态
-      final isSuccess = totalSuccess > 0 && (totalSuccess / totalFiles >= 0.8); // 如果80%以上的文件上传成功，认为整体上传成功
+      final isSuccess = totalSuccess > 0;
       final successRate = (totalSuccess / totalFiles * 100).toStringAsFixed(1);
+      final completionTime = DateTime.now().difference(status.uploadTime);
+      final timeStr = _formatUploadTime(completionTime);
+      
       status = status.copyWith(
         isComplete: true,
         isSuccess: isSuccess,
         status: isSuccess 
-          ? '上传完成！\n成功上传: $totalSuccess/$totalFiles 张照片 (${successRate}%)'
+          ? '上传完成！\n成功上传: $totalSuccess/$totalFiles 张照片 (${successRate}%)\n总耗时: $timeStr'
           : '上传部分完成\n成功上传: $totalSuccess/$totalFiles 张照片 (${successRate}%)\n请检查网络后重试',
         logs: List.from(status.logs),
       );
-      status.addLog(
-        isSuccess ? '上传成功完成' : '部分文件上传失败',
-        isError: !isSuccess,
-      );
+      
+      if (isSuccess) {
+        status.addLog('上传成功完成，总耗时: $timeStr');
+      } else {
+        status.addLog('部分文件上传失败，总耗时: $timeStr', isError: true);
+      }
 
     } catch (e) {
       print('上传过程错误: $e');
@@ -902,6 +922,17 @@ class ProjectProvider with ChangeNotifier {
       _uploadStatuses[project.id] = status;
       notifyListeners();
       await _saveUploadStatuses();
+    }
+  }
+  
+  // 格式化上传时间的辅助方法
+  String _formatUploadTime(Duration duration) {
+    if (duration.inHours > 0) {
+      return '${duration.inHours}小时${(duration.inMinutes % 60)}分钟';
+    } else if (duration.inMinutes > 0) {
+      return '${duration.inMinutes}分${(duration.inSeconds % 60)}秒';
+    } else {
+      return '${duration.inSeconds}秒';
     }
   }
 
@@ -1051,20 +1082,19 @@ class ProjectProvider with ChangeNotifier {
     return allFiles;
   }
 
-  // 创建上传批次
+  // 创建上传批次 - 改为每个文件一个批次
   List<List<Map<String, dynamic>>> _createUploadBatches(List<Map<String, dynamic>> files) {
-    const int batchSize = 5; // 每批5张照片
+    // 每个文件作为一个独立批次，避免批量上传导致的重复问题
     final List<List<Map<String, dynamic>>> batches = [];
 
-    for (var i = 0; i < files.length; i += batchSize) {
-      final end = (i + batchSize < files.length) ? i + batchSize : files.length;
-      batches.add(files.sublist(i, end));
+    for (var file in files) {
+      batches.add([file]);  // 每个文件单独一个批次
     }
 
     return batches;
   }
 
-  // 并发上传方法
+  // 并发上传方法 - 修改为顺序执行
   Future<List<BatchUploadResult>> _uploadBatchesConcurrently({
     required List<List<Map<String, dynamic>>> batches,
     required String apiUrl,
@@ -1077,39 +1107,47 @@ class ProjectProvider with ChangeNotifier {
     final total = batches.length;
     var completed = 0;
 
-    // 限制并发数为3
-    final pool = Pool(3);
-
-    try {
-      final futures = batches.asMap().entries.map((entry) {
-        final batchIndex = entry.key;
-        final batch = entry.value;
-
-        return pool.withResource(() async {
-          final result = await _uploadBatch(
-            batch: batch,
-            batchNumber: batchIndex + 1,
-            totalBatches: batches.length,
-            apiUrl: apiUrl,
-            project: project,
-            type: type,
-            value: value,
-          );
-
-          completed++;
-          onProgress(completed, total);
-          return result;
-        });
-      });
-
-      results.addAll(await Future.wait(futures));
-    } catch (e) {
-      print('并发上传错误: $e');
+    // 顺序上传每个批次（每个批次只有一个文件）
+    for (int i = 0; i < batches.length; i++) {
+      final batch = batches[i];
+      final batchNumber = i + 1;
+      
+      try {
+        final result = await _uploadBatch(
+          batch: batch,
+          batchNumber: batchNumber,
+          totalBatches: batches.length,
+          apiUrl: apiUrl,
+          project: project,
+          type: type,
+          value: value,
+        );
+        
+        completed++;
+        results.add(result);
+        
+        // 通知进度更新
+        onProgress(completed, total);
+        
+        final status = _uploadStatuses[project.id];
+        if (status != null) {
+          // 更新详细进度信息
+          status.addLog('${path.basename(batch[0]['path'] as String)} - 上传${result.success ? '成功' : '失败'}');
+          _uploadStatuses[project.id] = status;
+          notifyListeners();
+        }
+      } catch (e) {
+        print('上传批次 $batchNumber 错误: $e');
+        completed++;
+        results.add(BatchUploadResult(success: false, filesCount: 0));
+        onProgress(completed, total);
+      }
     }
 
     return results;
   }
-
+  
+  // 上传批次方法 - 改进错误处理和响应验证
   Future<BatchUploadResult> _uploadBatch({
     required List<Map<String, dynamic>> batch,
     required int batchNumber,
@@ -1121,47 +1159,46 @@ class ProjectProvider with ChangeNotifier {
   }) async {
     final status = _uploadStatuses[project.id];
     if (status != null) {
-      status.addLog('开始上传批次 $batchNumber/$totalBatches');
+      status.addLog('正在上传第 $batchNumber/$totalBatches 张图片');
       _uploadStatuses[project.id] = status;
       notifyListeners();
     }
 
-    // 添加批次上传最大重试次数
-    const int maxRetries = 2;
+    // 使用配置项
+    const int maxRetries = UploadOptions.maxRetries;
+    const Duration retryDelay = UploadOptions.retryDelay;
     int retryCount = 0;
     
     // 在上传前验证文件是否仍然存在且可读取
-    List<Map<String, dynamic>> validFiles = [];
-    for (var fileInfo in batch) {
-      final filePath = fileInfo['path'] as String;
-      final file = File(filePath);
-      if (await file.exists()) {
-        try {
-          // 尝试读取文件以确保文件可访问
-          await file.readAsBytes();
-          validFiles.add(fileInfo);
-        } catch (e) {
-          print('文件验证失败: $filePath, 错误: $e');
-          if (status != null) {
-            status.addLog('文件验证失败: ${path.basename(filePath)}, 将跳过此文件', isError: true);
-            _uploadStatuses[project.id] = status;
-            notifyListeners();
-          }
-        }
-      } else {
-        print('文件不存在: $filePath');
-        if (status != null) {
-          status.addLog('文件不存在: ${path.basename(filePath)}, 将跳过此文件', isError: true);
-          _uploadStatuses[project.id] = status;
-          notifyListeners();
-        }
-      }
+    if (batch.isEmpty) {
+      return BatchUploadResult(success: false, filesCount: 0);
     }
     
-    // 如果没有有效文件，返回失败结果
-    if (validFiles.isEmpty) {
+    final fileInfo = batch[0]; // 只处理每批次的第一个文件
+    final filePath = fileInfo['path'] as String;
+    final file = File(filePath);
+    final fileName = path.basename(filePath);
+    
+    if (!await file.exists()) {
       if (status != null) {
-        status.addLog('批次 $batchNumber 中没有有效文件可上传', isError: true);
+        status.addLog('文件不存在: $fileName, 将跳过此文件', isError: true);
+        _uploadStatuses[project.id] = status;
+        notifyListeners();
+      }
+      return BatchUploadResult(success: false, filesCount: 0);
+    }
+    
+    Uint8List? fileBytes;
+    try {
+      // 尝试读取文件以确保文件可访问
+      fileBytes = await file.readAsBytes();
+      if (fileBytes.isEmpty) {
+        throw Exception('文件内容为空');
+      }
+    } catch (e) {
+      print('文件验证失败: $filePath, 错误: $e');
+      if (status != null) {
+        status.addLog('文件验证失败: $fileName, 将跳过此文件', isError: true);
         _uploadStatuses[project.id] = status;
         notifyListeners();
       }
@@ -1170,6 +1207,16 @@ class ProjectProvider with ChangeNotifier {
 
     // 重试循环
     while (retryCount <= maxRetries) {
+      if (status != null) {
+        if (retryCount > 0) {
+          status.addLog('重试上传: $fileName (第 $retryCount 次重试)');
+        } else {
+          status.addLog('开始上传: $fileName');
+        }
+        _uploadStatuses[project.id] = status;
+        notifyListeners();
+      }
+      
       var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
 
       // 添加项目信息和上传类型
@@ -1181,40 +1228,35 @@ class ProjectProvider with ChangeNotifier {
         'total_batches': totalBatches.toString(),
       });
 
-      print('正在上传批次 ${batchNumber}/${totalBatches}${retryCount > 0 ? " (重试 $retryCount)" : ""}');
-      if (status != null && retryCount > 0) {
-        status.addLog('重试上传批次 $batchNumber (第 $retryCount 次重试)');
-        _uploadStatuses[project.id] = status;
-        notifyListeners();
-      }
+      // 添加单个文件
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'files[]',
+          fileBytes!,
+          filename: fileName,
+          contentType: MediaType('image', 'jpeg')
+        )
+      );
 
-      // 添加文件
-      for (int i = 0; i < validFiles.length; i++) {
-        final fileInfo = validFiles[i];
-        final bytes = fileInfo['bytes'] as Uint8List;
-        final fileName = path.basename(fileInfo['path'] as String);
-
-        request.files.add(
-          http.MultipartFile.fromBytes(
-            'files[]',
-            bytes,
-            filename: fileName,
-            contentType: MediaType('image', 'jpeg')
-          )
-        );
-
-        request.fields['file_info_$i'] = json.encode({
-          'type': fileInfo['type'],
-          'trackId': fileInfo['trackId'] ?? '',
-          'trackName': fileInfo['trackName'] ?? '',
-          'vehicleId': fileInfo['vehicleId'] ?? '',
-          'vehicleName': fileInfo['vehicleName'] ?? '',
-          'relativePath': fileInfo['relativePath']
-        });
-      }
+      request.fields['file_info_0'] = json.encode({
+        'type': fileInfo['type'],
+        'trackId': fileInfo['trackId'] ?? '',
+        'trackName': fileInfo['trackName'] ?? '',
+        'vehicleId': fileInfo['vehicleId'] ?? '',
+        'vehicleName': fileInfo['vehicleName'] ?? '',
+        'relativePath': fileInfo['relativePath']
+      });
 
       try {
-        final response = await request.send();
+        // 设置超时时间防止长时间阻塞
+        final responseStream = await request.send().timeout(
+          const Duration(seconds: 60),
+          onTimeout: () {
+            throw TimeoutException('上传超时，请检查网络连接');
+          },
+        );
+        
+        final response = responseStream;
         final responseData = await response.stream.bytesToString();
         
         if (response.statusCode == 200) {
@@ -1223,79 +1265,70 @@ class ProjectProvider with ChangeNotifier {
           try {
             responseJson = json.decode(responseData);
             int savedFiles = responseJson['saved_files'] ?? 0;
+            String successRate = responseJson['success_rate'] ?? '';
             
-            // 检查实际保存的文件数与期望值
-            if (savedFiles > 0 && savedFiles >= validFiles.length * 0.8) { // 如果至少80%的文件保存成功
+            // 验证上传成功
+            if (savedFiles > 0) {
               if (status != null) {
-                status.addLog('批次 $batchNumber 上传成功，服务器已保存 $savedFiles/${validFiles.length} 个文件');
+                String successMessage = '上传成功: $fileName';
+                if (successRate.isNotEmpty) {
+                  successMessage += ' ($successRate)';
+                }
+                status.addLog(successMessage);
                 _uploadStatuses[project.id] = status;
                 notifyListeners();
               }
-              return BatchUploadResult(success: true, filesCount: savedFiles);
-            } else if (savedFiles > 0) {
-              // 部分文件保存成功但低于80%，记录警告但仍视为成功
-              if (status != null) {
-                status.addLog('批次 $batchNumber 部分上传成功，服务器已保存 $savedFiles/${validFiles.length} 个文件', isError: false);
-                _uploadStatuses[project.id] = status;
-                notifyListeners();
-              }
-              return BatchUploadResult(success: true, filesCount: savedFiles);
+              return BatchUploadResult(success: true, filesCount: 1);
             } else if (retryCount < maxRetries) {
               // 如果服务器报告没有保存文件，且还有重试机会
               retryCount++;
-              await Future.delayed(Duration(seconds: 2)); // 延迟后重试
+              if (status != null) {
+                status.addLog('服务器未确认接收文件，准备重试: $fileName', isError: false);
+                _uploadStatuses[project.id] = status;
+                notifyListeners();
+              }
+              await Future.delayed(retryDelay); // 延迟后重试
               continue;
             } else {
               // 已达到最大重试次数，报告失败
               if (status != null) {
-                status.addLog('批次 $batchNumber 上传失败：服务器未保存任何文件', isError: true);
+                status.addLog('上传失败: $fileName - 服务器未保存文件', isError: true);
                 _uploadStatuses[project.id] = status;
                 notifyListeners();
               }
               return BatchUploadResult(success: false, filesCount: 0);
             }
           } catch (e) {
-            // 无法解析JSON响应但状态码为200，仍视为成功
+            // 无法解析JSON响应但状态码为200，保守地视为成功
             if (status != null) {
-              status.addLog('批次 $batchNumber 上传可能成功，但无法解析响应内容');
+              status.addLog('上传可能成功: $fileName (响应格式异常: $e)');
               _uploadStatuses[project.id] = status;
               notifyListeners();
             }
-            return BatchUploadResult(success: true, filesCount: validFiles.length);
+            return BatchUploadResult(success: true, filesCount: 1);
           }
         } else {
-          // 特殊处理：对于404和某些其它状态码，可能是服务器端尚未正确记录但文件已上传
-          final isLikelyServerIssue = 
-              response.statusCode == 404 || 
-              response.statusCode == 500 || 
-              (response.statusCode >= 502 && response.statusCode <= 504);
-              
-          // 如果是服务器问题且仍有重试机会
-          if (isLikelyServerIssue && retryCount < maxRetries) {
+          // 服务器返回非200状态码
+          if (retryCount < maxRetries) {
             retryCount++;
             if (status != null) {
-              status.addLog('批次 $batchNumber 返回状态码 ${response.statusCode}，准备重试...', isError: false);
+              status.addLog('服务器返回 ${response.statusCode}，准备重试: $fileName', isError: false);
               _uploadStatuses[project.id] = status;
               notifyListeners();
             }
-            await Future.delayed(Duration(seconds: 2)); // 延迟后重试
+            await Future.delayed(retryDelay); // 延迟后重试
             continue;
           }
               
-          final message = isLikelyServerIssue
-              ? '批次 $batchNumber 状态码异常(${response.statusCode})：服务器可能未记录但文件可能已上传'
-              : '批次 $batchNumber 上传失败: ${response.statusCode}';
-              
           if (status != null) {
-            status.addLog(message, isError: !isLikelyServerIssue);
+            status.addLog('上传失败: $fileName - 状态码: ${response.statusCode}', isError: true);
             _uploadStatuses[project.id] = status;
             notifyListeners();
           }
           
-          // 返回特殊状态码时认为可能成功
           return BatchUploadResult(
-            success: isLikelyServerIssue, 
-            filesCount: validFiles.length,
+            success: false, 
+            filesCount: 0,
             statusCode: response.statusCode
           );
         }
@@ -1304,16 +1337,16 @@ class ProjectProvider with ChangeNotifier {
         if (retryCount < maxRetries) {
           retryCount++;
           if (status != null) {
-            status.addLog('批次 $batchNumber 上传出错: $e，准备重试...', isError: false);
+            status.addLog('上传出错: $fileName - $e，准备重试...', isError: false);
             _uploadStatuses[project.id] = status;
             notifyListeners();
           }
-          await Future.delayed(Duration(seconds: 2)); // 延迟后重试
+          await Future.delayed(retryDelay); // 延迟后重试
           continue;
         }
         
         if (status != null) {
-          status.addLog('批次 $batchNumber 上传错误: $e (已重试 $retryCount 次)', isError: true);
+          status.addLog('上传失败: $fileName - $e (已重试 $retryCount 次)', isError: true);
           _uploadStatuses[project.id] = status;
           notifyListeners();
         }

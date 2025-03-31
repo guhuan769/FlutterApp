@@ -1,342 +1,486 @@
 // lib/widgets/upload_status_widget.dart
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import '../models/project.dart';
 import '../providers/project_provider.dart';
 
-class UploadStatusWidget extends StatefulWidget {
-  final ScrollController scrollController;
+class UploadStatus {
+  final String projectId;
+  final String projectName;
+  double progress;
+  String status;
+  bool isComplete;
+  bool isSuccess;
+  bool hasPlyFiles;
+  String? error;
+  DateTime uploadTime;
+  int uploadCount;
+  List<UploadLog> logs;
+
+  UploadStatus({
+    required this.projectId,
+    required this.projectName,
+    this.progress = 0.0,
+    this.status = '准备上传...',
+    this.isComplete = false,
+    this.isSuccess = false,
+    this.hasPlyFiles = false,
+    this.error,
+    DateTime? uploadTime,
+    this.uploadCount = 0,
+    List<UploadLog>? logs,
+  }) : uploadTime = uploadTime ?? DateTime.now(),
+       logs = logs ?? [];
+
+  // 复制构造方法和其他已有方法...
+  UploadStatus copyWith({
+    String? projectId,
+    String? projectName,
+    double? progress,
+    String? status,
+    bool? isComplete,
+    bool? isSuccess,
+    bool? hasPlyFiles,
+    String? error,
+    DateTime? uploadTime,
+    int? uploadCount,
+    List<UploadLog>? logs,
+  }) {
+    return UploadStatus(
+      projectId: projectId ?? this.projectId,
+      projectName: projectName ?? this.projectName,
+      progress: progress ?? this.progress,
+      status: status ?? this.status,
+      isComplete: isComplete ?? this.isComplete,
+      isSuccess: isSuccess ?? this.isSuccess,
+      hasPlyFiles: hasPlyFiles ?? this.hasPlyFiles,
+      error: error ?? this.error,
+      uploadTime: uploadTime ?? this.uploadTime,
+      uploadCount: uploadCount ?? this.uploadCount,
+      logs: logs ?? this.logs,
+    );
+  }
+
+  void addLog(String message, {bool isError = false}) {
+    logs.add(UploadLog(
+      message: message,
+      timestamp: DateTime.now(),
+      isError: isError,
+    ));
+  }
+}
+
+class UploadLog {
+  final String message;
+  final DateTime timestamp;
+  final bool isError;
+
+  UploadLog({
+    required this.message,
+    required this.timestamp,
+    this.isError = false,
+  });
+}
+
+class UploadStatusWidget extends StatelessWidget {
   final UploadStatus status;
-  final VoidCallback? onDismiss;
+  final Function? onDismiss;
+  final ScrollController scrollController;
 
   const UploadStatusWidget({
     Key? key,
-    required this.scrollController,
     required this.status,
+    required this.scrollController,
     this.onDismiss,
   }) : super(key: key);
 
   @override
-  State<UploadStatusWidget> createState() => _UploadStatusWidgetState();
-}
-
-class _UploadStatusWidgetState extends State<UploadStatusWidget> 
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _progressAnimation;
-  late bool _actualUploadStatus;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-    _progressAnimation = Tween<double>(
-      begin: 0,
-      end: widget.status.progress,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeInOut,
-    ));
-    _controller.forward();
-    
-    // 对上传状态进行初始化判断
-    _determineActualUploadStatus();
-  }
-
-  @override
-  void didUpdateWidget(UploadStatusWidget oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.status.progress != widget.status.progress) {
-      // 只在新进度大于旧进度时才动画更新，避免回退
-      if (widget.status.progress >= oldWidget.status.progress) {
-        _progressAnimation = Tween<double>(
-          begin: oldWidget.status.progress,
-          end: widget.status.progress,
-        ).animate(CurvedAnimation(
-          parent: _controller,
-          curve: Curves.easeInOut,
-        ));
-        _controller.forward(from: 0);
-      } else {
-        // 如果新进度小于旧进度，记录日志，但保持当前进度显示
-        print('警告：进度回退 - 从 ${oldWidget.status.progress * 100}% 到 ${widget.status.progress * 100}%');
-      }
-    }
-    
-    // 当组件更新时重新判断状态
-    _determineActualUploadStatus();
-  }
-
-  // 判断实际上传状态的方法
-  void _determineActualUploadStatus() {
-    // 默认使用传入的状态
-    _actualUploadStatus = widget.status.isSuccess;
-    
-    // 如果状态标记为完成但显示失败，检查日志或状态消息来判断真实情况
-    if (widget.status.isComplete && !widget.status.isSuccess) {
-      // 检查状态消息中是否包含成功上传的关键词和百分比信息
-      final statusText = widget.status.status.toLowerCase();
-      
-      // 1. 检查是否存在上传成功的百分比信息
-      if (statusText.contains('成功上传') && 
-          statusText.contains('%') &&
-          !statusText.contains('0%')) {
-        
-        // 尝试解析百分比值
-        try {
-          // 解析百分比字符串，格式如"成功上传: 20/25 张照片 (80.0%)"
-          RegExp percentRegex = RegExp(r'\(([\d\.]+)%\)');
-          final match = percentRegex.firstMatch(statusText);
-          if (match != null) {
-            final percentString = match.group(1);
-            if (percentString != null) {
-              final percent = double.tryParse(percentString);
-              // 如果上传成功率大于等于50%，认为是基本成功
-              if (percent != null && percent >= 50.0) {
-                _actualUploadStatus = true;
-              }
-            }
-          }
-        } catch (e) {
-          print('解析上传百分比失败: $e');
-          // 解析失败时，如果包含"成功上传"字样，默认认为基本成功
-          if (statusText.contains('成功上传')) {
-            _actualUploadStatus = true;
-          }
-        }
-      }
-      
-      // 2. 检查日志中的成功和失败记录
-      bool hasSuccessLog = false;
-      bool hasCriticalErrorLog = false;
-      int successBatchCount = 0;
-      int failedBatchCount = 0;
-      int serverIssueCount = 0;
-      
-      for (var log in widget.status.logs) {
-        // 统计批次上传成功和失败数
-        if (log.message.contains('批次') && log.message.contains('上传成功')) {
-          hasSuccessLog = true;
-          successBatchCount++;
-        } else if (log.isError && log.message.contains('批次') && log.message.contains('上传失败')) {
-          failedBatchCount++;
-        } else if (log.message.contains('状态码异常') || log.message.contains('服务器可能未记录')) {
-          serverIssueCount++;
-        }
-        
-        // 检查是否有严重错误
-        if (log.isError && (
-            log.message.contains('网络连接失败') || 
-            log.message.contains('没有可上传的文件') ||
-            log.message.contains('服务器地址') ||
-            log.message.contains('配置错误'))) {
-          hasCriticalErrorLog = true;
-        }
-      }
-      
-      // 如果有成功记录且失败不超过总数的一半
-      if (hasSuccessLog && !hasCriticalErrorLog && 
-          ((successBatchCount > 0 && failedBatchCount <= successBatchCount) || 
-           (serverIssueCount > 0 && failedBatchCount == 0))) {
-        _actualUploadStatus = true;
-      }
-      
-      // 3. 处理特殊情况：服务器返回问题但文件可能已上传
-      if (statusText.contains('状态码异常') || statusText.contains('服务器可能未记录')) {
-        // 如果状态中提到服务器异常但文件可能已上传，设置为"部分成功"状态
-        _actualUploadStatus = true;
-      }
-    }
-  }
-
-  // 格式化精确的百分比显示
-  String _formatProgress(double progress) {
-    // 确保百分比在0.0到100.0之间，并保留一位小数
-    return '${(progress * 100).clamp(0.0, 100.0).toStringAsFixed(1)}%';
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    // 确定状态颜色
-    final Color statusColor = widget.status.isComplete
-        ? (_actualUploadStatus ? Colors.green : Colors.red)
+    // 格式化上传开始时间
+    final timeString = _formatUploadTime(status.uploadTime);
+    
+    // 上传状态的颜色
+    final Color statusColor = status.isComplete
+        ? (status.isSuccess ? Colors.green : Colors.red)
         : Colors.blue;
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: statusColor.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+    // 上传状态图标
+    final IconData statusIcon = status.isComplete
+        ? (status.isSuccess ? Icons.check_circle : Icons.error)
+        : Icons.cloud_upload;
+
+    return Dismissible(
+      key: Key('upload-${status.projectId}-${status.uploadTime.millisecondsSinceEpoch}'),
+      direction: onDismiss != null ? DismissDirection.horizontal : DismissDirection.none,
+      onDismissed: (_) => onDismiss?.call(),
+      background: Container(
+        color: Colors.red,
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 16),
+        child: const Icon(Icons.delete, color: Colors.white),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // 进度指示器（在顶部，全宽）
-            if (!widget.status.isComplete)
-              AnimatedBuilder(
-                animation: _progressAnimation,
-                builder: (context, child) {
-                  return Container(
-                    height: 4,
-                    width: double.infinity,
-                    child: LinearProgressIndicator(
-                      value: _progressAnimation.value,
-                      backgroundColor: Colors.grey[200],
-                      valueColor: AlwaysStoppedAnimation<Color>(statusColor),
-                      minHeight: 4,
-                    ),
-                  );
-                },
-              ),
-            
-            // 主内容
-            ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              leading: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  widget.status.isComplete
-                      ? (_actualUploadStatus ? Icons.check_circle : Icons.error)
-                      : Icons.cloud_upload,
-                  color: statusColor,
-                ),
-              ),
-              title: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      widget.status.projectName,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: status.isComplete
+                ? (status.isSuccess ? Colors.green.shade100 : Colors.red.shade100)
+                : Colors.blue.shade100,
+            width: 1,
+          ),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            // 显示详细日志
+            _showUploadDetails(context);
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: statusColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
                       ),
+                      child: Icon(statusIcon, color: statusColor, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            status.projectName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            timeString,
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (onDismiss != null && status.isComplete)
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 16),
+                        onPressed: () => onDismiss?.call(),
+                        tooltip: '关闭',
+                        visualDensity: VisualDensity.compact,
+                        constraints: const BoxConstraints(),
+                        padding: const EdgeInsets.all(4),
+                        color: Colors.grey[400],
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                if (!status.isComplete) ...[
+                  LinearProgressIndicator(
+                    value: status.progress,
+                    backgroundColor: Colors.grey[200],
+                    valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                  const SizedBox(height: 8),
+                  // 显示百分比和详细进度
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          status.status.split('\n').first,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[700],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Text(
+                        '${(status.progress * 100).toStringAsFixed(1)}%',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: statusColor,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                  // 显示当前处理的文件名（如果状态中包含）
+                  if (status.status.contains('\n')) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      status.status.split('\n').last,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  if (widget.status.uploadCount > 0)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '第${widget.status.uploadCount}次',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey[700],
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 4),
-
-                  // 进度百分比（在正在上传时显示）
-                  if (!widget.status.isComplete)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 4.0),
-                      child: AnimatedBuilder(
-                        animation: _progressAnimation,
-                        builder: (context, child) {
-                          return Row(
-                            children: [
-                              Text(
-                                _formatProgress(_progressAnimation.value),
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  color: statusColor,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '(${widget.status.status.contains('正在上传:') ? widget.status.status.split('\n').first.replaceAll('正在上传: ', '') : ''})',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
-                    ),
-
-                  // 状态信息
+                  ],
+                ] else ...[
+                  // 已完成上传的状态显示
                   Text(
-                    // 如果实际上传成功但标记为失败，提供修正的状态信息
-                    _actualUploadStatus && !widget.status.isSuccess
-                      ? "上传完成！文件已成功上传到服务器"
-                      : (widget.status.isComplete 
-                          ? (widget.status.status.contains('\n') ? widget.status.status.split('\n').first : widget.status.status)
-                          : (widget.status.status.contains('\n') ? widget.status.status.split('\n').last : '')),
+                    status.status,
                     style: TextStyle(
-                      fontSize: 12,
-                      color: widget.status.isComplete
-                          ? (_actualUploadStatus ? Colors.green[700] : Colors.red[700])
-                          : Colors.grey[700],
+                      color: statusColor,
+                      fontSize: 13,
                     ),
                   ),
-                  
-                  // 错误信息
-                  if (widget.status.error != null && !_actualUploadStatus)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        widget.status.error!,
-                        style: const TextStyle(
-                          color: Colors.red,
-                          fontSize: 12,
+                  if (status.isSuccess && status.hasPlyFiles) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.green, size: 16),
+                        const SizedBox(width: 4),
+                        Text(
+                          'PLY文件已生成',
+                          style: TextStyle(
+                            color: Colors.green,
+                            fontSize: 12,
+                          ),
                         ),
-                      ),
+                      ],
                     ),
+                  ],
                 ],
-              ),
-              trailing: widget.status.isComplete
-                  ? IconButton(
-                      icon: const Icon(Icons.close, size: 20),
-                      color: Colors.grey,
-                      onPressed: widget.onDismiss,
-                    )
-                  : Container(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(statusColor),
-                      ),
-                    ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
+  }
+
+  // 显示详细日志
+  void _showUploadDetails(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.3,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (context, scrollController) => UploadLogDetail(
+          status: status,
+          scrollController: scrollController,
+        ),
+      ),
+    );
+  }
+
+  // 格式化上传时间
+  String _formatUploadTime(DateTime time) {
+    final now = DateTime.now();
+    final difference = now.difference(time);
+    
+    if (difference.inDays > 0) {
+      return '${difference.inDays}天前';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours}小时前';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes}分钟前';
+    } else {
+      return '刚刚';
+    }
+  }
+}
+
+// 上传日志详情组件
+class UploadLogDetail extends StatelessWidget {
+  final UploadStatus status;
+  final ScrollController scrollController;
+
+  const UploadLogDetail({
+    Key? key,
+    required this.status,
+    required this.scrollController,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final logs = status.logs.reversed.toList(); // 最新的日志显示在顶部
+    
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 拖动条
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 8, bottom: 16),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          // 标题和基本信息
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.folder, color: Colors.blue),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        status.projectName,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '上传日志 (${logs.length})',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  status.isComplete 
+                    ? (status.isSuccess ? '上传已完成' : '上传失败') 
+                    : '上传中...',
+                  style: TextStyle(
+                    color: status.isComplete
+                        ? (status.isSuccess ? Colors.green : Colors.red)
+                        : Colors.blue,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                if (!status.isComplete) ...[
+                  const SizedBox(height: 8),
+                  LinearProgressIndicator(
+                    value: status.progress,
+                    backgroundColor: Colors.grey[200],
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '进度: ${(status.progress * 100).toStringAsFixed(1)}%',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                const Divider(height: 1),
+              ],
+            ),
+          ),
+          // 日志列表
+          Expanded(
+            child: logs.isEmpty
+                ? Center(
+                    child: Text(
+                      '暂无日志',
+                      style: TextStyle(color: Colors.grey[500]),
+                    ),
+                  )
+                : ListView.builder(
+                    controller: scrollController,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    itemCount: logs.length,
+                    itemBuilder: (context, index) {
+                      final log = logs[index];
+                      return LogItem(log: log);
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// 日志项组件
+class LogItem extends StatelessWidget {
+  final UploadLog log;
+
+  const LogItem({Key? key, required this.log}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final timeString = _formatLogTime(log.timestamp);
+    
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: 3),
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: log.isError ? Colors.red : Colors.blue,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  log.message,
+                  style: TextStyle(
+                    color: log.isError ? Colors.red : Colors.black87,
+                    fontWeight: log.isError ? FontWeight.w500 : FontWeight.normal,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  timeString,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey[500],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 格式化日志时间
+  String _formatLogTime(DateTime time) {
+    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:${time.second.toString().padLeft(2, '0')}';
   }
 }

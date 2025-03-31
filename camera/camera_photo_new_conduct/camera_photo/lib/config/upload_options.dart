@@ -10,9 +10,13 @@ enum UploadType {
 
 class UploadOptions {
   static const String defaultApiUrl = 'http://localhost:5000';
-  static const int maxConcurrentUploads = 3;
-  static const int batchSize = 5;
+  static const int maxConcurrentUploads = 1;
+  static const int batchSize = 1;
   static const Duration uploadTimeout = Duration(minutes: 5);
+  static const Duration retryDelay = Duration(seconds: 2);
+  static const int maxRetries = 2;
+  
+  static const bool sequentialUpload = true;
   
   static const List<String> models = [
     '模型A',
