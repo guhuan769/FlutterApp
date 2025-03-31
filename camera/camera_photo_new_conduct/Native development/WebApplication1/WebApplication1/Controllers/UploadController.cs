@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace PlyFileProcessor.Controllers
 {
@@ -219,15 +220,61 @@ namespace PlyFileProcessor.Controllers
                         files.Count, fileInfoList.Count);
                 }
 
-                // 第二步：从11开始重命名文件并创建清单
-                var imageListPath = Path.Combine(unifiedImagesDir, "image_list.txt");
-                var imageListEntries = new List<string>
+                // 获取现有图片的最大索引号
+                int fileIndex = 11; // 默认从11开始命名
+                if (batchNumber > 1)
                 {
-                    "# 图片清单文件",
-                    "# 格式: 序号\t原文件名\t新文件名"
-                };
+                    // 如果不是第一批次，获取当前所有图片的最大索引
+                    try
+                    {
+                        var existingImages = Directory.GetFiles(unifiedImagesDir, "*.jpg")
+                            .Select(f => Path.GetFileNameWithoutExtension(f))
+                            .Where(f => int.TryParse(f, out _))
+                            .Select(f => int.Parse(f))
+                            .ToList();
+                        
+                        if (existingImages.Count > 0)
+                        {
+                            fileIndex = existingImages.Max() + 1;
+                        }
+                        _logger.LogInformation("当前批次文件索引从 {FileIndex} 开始", fileIndex);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "获取现有图片索引失败，使用默认值 11");
+                    }
+                }
 
-                int fileIndex = 11; // 从11开始命名
+                // 更新或创建图片清单
+                var imageListPath = Path.Combine(unifiedImagesDir, "image_list.txt");
+                List<string> imageListEntries;
+                
+                if (System.IO.File.Exists(imageListPath) && batchNumber > 1)
+                {
+                    // 如果不是第一批次且清单文件存在，则读取现有内容
+                    try
+                    {
+                        imageListEntries = System.IO.File.ReadAllLines(imageListPath).ToList();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "读取现有图片清单失败，创建新清单");
+                        imageListEntries = new List<string>
+                        {
+                            "# 图片清单文件",
+                            "# 格式: 序号\t原文件名\t新文件名"
+                        };
+                    }
+                }
+                else
+                {
+                    // 创建新清单
+                    imageListEntries = new List<string>
+                    {
+                        "# 图片清单文件",
+                        "# 格式: 序号\t原文件名\t新文件名"
+                    };
+                }
                 
                 foreach (var (tempPath, originalName, fileType, fileInfo) in fileInfoList)
                 {
@@ -324,6 +371,45 @@ namespace PlyFileProcessor.Controllers
                 });
             }
         }
+
+
+        /// <summary>
+        /// 获取服务器状态
+        /// </summary>
+        /// <remarks>
+        /// 获取服务器当前运行状态，包括MQTT连接状态、系统信息等。
+        /// 
+        /// 示例请求:
+        /// 
+        ///     GET /status
+        ///     
+        /// </remarks>
+        /// <returns>服务器状态信息</returns>
+        /// <response code="200">成功获取状态</response>
+        [HttpGet("/status")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public IActionResult GetStatus()
+        {
+            var status = new
+            {
+                status = "running",
+                timestamp = DateTime.Now.ToString("O"),
+                mqtt_connected = _mqttClientService.IsConnected,
+                worker_threads = Environment.ProcessorCount * 2,
+                ply_watch_dir = _plyFileService.GetPlyCheckPath(),
+                // 添加更多状态信息
+                server_ip = string.Join(", ", Dns.GetHostAddresses(Dns.GetHostName())
+                    .Where(i => i.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                    .Select(i => i.ToString())),
+                upload_folder = Path.GetFullPath(_uploadFolder),
+                dotnet_version = Environment.Version.ToString(),
+                os_version = Environment.OSVersion.ToString()
+            };
+
+            _logger.LogInformation("状态请求: {@Status}", status);
+            return Ok(status);
+        }
+
 
         // 确保目录存在
         private void EnsureDirectoriesExist(string projectDir, string unifiedImagesDir)
