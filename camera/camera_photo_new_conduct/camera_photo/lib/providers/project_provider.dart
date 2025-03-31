@@ -818,6 +818,9 @@ class ProjectProvider with ChangeNotifier {
     _uploadStatuses[project.id] = status;
     notifyListeners();
 
+    // 用于跟踪最终上传成功数量
+    int finalSuccessCount = 0;
+
     try {
       // 验证服务器目录结构
       final bool directoriesValid = await ensureServerDirectories(project, type, value);
@@ -921,7 +924,7 @@ class ProjectProvider with ChangeNotifier {
       
       // 使用服务器确认的数量作为最终成功数
       // 如果服务器确认数大于0，则使用服务器数据，否则使用本地计数
-      final finalSuccessCount = serverConfirmedSuccess > 0 ? serverConfirmedSuccess : totalSuccess;
+      finalSuccessCount = serverConfirmedSuccess > 0 ? serverConfirmedSuccess : totalSuccess;
 
       // 更新最终状态
       final isAllSuccess = finalSuccessCount == totalFiles;
@@ -968,8 +971,8 @@ class ProjectProvider with ChangeNotifier {
       _uploadStatuses[project.id] = status;
       notifyListeners();
       await _saveUploadStatuses();
+      return finalSuccessCount > 0;
     }
-    return finalSuccessCount > 0;
   }
   
   // 格式化上传时间的辅助方法
@@ -1586,6 +1589,8 @@ class ProjectProvider with ChangeNotifier {
   }
 
   Future<bool> ensureServerDirectories(Project project, UploadType? type, String? value) async {
+    final status = _uploadStatuses[project.id];
+    
     try {
       final prefs = await SharedPreferences.getInstance();
       final apiUrl = prefs.getString('api_url');
@@ -1597,7 +1602,6 @@ class ProjectProvider with ChangeNotifier {
       final uploadType = type?.name ?? 'unknown';
       final uploadValue = value ?? 'unknown';
       
-      final status = _uploadStatuses[project.id];
       if (status != null) {
         status.addLog('检查服务器目录结构...');
         _uploadStatuses[project.id] = status;
