@@ -49,14 +49,20 @@ class _UploadStatusWidgetState extends State<UploadStatusWidget>
   void didUpdateWidget(UploadStatusWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.status.progress != widget.status.progress) {
-      _progressAnimation = Tween<double>(
-        begin: oldWidget.status.progress,
-        end: widget.status.progress,
-      ).animate(CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeInOut,
-      ));
-      _controller.forward(from: 0);
+      // 只在新进度大于旧进度时才动画更新，避免回退
+      if (widget.status.progress >= oldWidget.status.progress) {
+        _progressAnimation = Tween<double>(
+          begin: oldWidget.status.progress,
+          end: widget.status.progress,
+        ).animate(CurvedAnimation(
+          parent: _controller,
+          curve: Curves.easeInOut,
+        ));
+        _controller.forward(from: 0);
+      } else {
+        // 如果新进度小于旧进度，记录日志，但保持当前进度显示
+        print('警告：进度回退 - 从 ${oldWidget.status.progress * 100}% 到 ${widget.status.progress * 100}%');
+      }
     }
     
     // 当组件更新时重新判断状态
