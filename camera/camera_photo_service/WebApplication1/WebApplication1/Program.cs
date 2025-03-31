@@ -30,7 +30,7 @@ namespace PlyFileProcessor
     {
         public static void Main(string[] args)
         {
-            // ÅäÖÃSerilog
+            // åˆå§‹åŒ–Serilog
             Log.Logger = new LoggerConfiguration()
                 .MinimumLevel.Information()
                 .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
@@ -51,19 +51,19 @@ namespace PlyFileProcessor
 
             try
             {
-                Log.Information("Æô¶¯Ó¦ÓÃ³ÌĞò");
+                Log.Information("å¯åŠ¨åº”ç”¨ç¨‹åº...");
                 var builder = WebApplication.CreateBuilder(args);
 
-                // ½«SerilogÌí¼ÓÎªÈÕÖ¾Ìá¹©³ÌĞò
+                // ä½¿ç”¨Serilogä½œä¸ºæ—¥å¿—æä¾›ç¨‹åº
                 builder.Host.UseSerilog();
 
-                // ÅäÖÃKestrel·şÎñÆ÷À´¼àÌıËùÓĞÍøÂç½Ó¿Ú
+                // é…ç½®KestrelæœåŠ¡å™¨ä»¥ä¾¦å¬ä¼ å…¥çš„è¿æ¥
                 builder.WebHost.ConfigureKestrel(serverOptions =>
                 {
                     serverOptions.Listen(IPAddress.Any, 5000);
                 });
 
-                // Ìí¼Ó¿çÓòÖ§³Ö
+                // æ·»åŠ CORSæ”¯æŒ
                 builder.Services.AddCors(options =>
                 {
                     options.AddPolicy("AllowAll", policy =>
@@ -74,7 +74,7 @@ namespace PlyFileProcessor
                     });
                 });
 
-                // Ôö¼ÓÎÄ¼şÉÏ´«´óĞ¡ÏŞÖÆ
+                // é…ç½®IISæœåŠ¡å™¨ä»¥é™åˆ¶è¯·æ±‚ä½“å¤§å°
                 builder.Services.Configure<IISServerOptions>(options =>
                 {
                     options.MaxRequestBodySize = 100 * 1024 * 1024; // 100MB
@@ -85,25 +85,25 @@ namespace PlyFileProcessor
                     options.MultipartBodyLengthLimit = 100 * 1024 * 1024; // 100MB
                 });
 
-                // Ìí¼Ó¿ØÖÆÆ÷
+                // æ·»åŠ æ§åˆ¶å™¨
                 builder.Services.AddControllers();
                 builder.Services.AddEndpointsApiExplorer();
 
-                // Ìí¼ÓSwagger·şÎñ
+                // é…ç½®Swagger
                 builder.Services.AddSwaggerGen(c =>
                 {
                     c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
                     {
                         Title = "PLY File Processor API",
                         Version = "v1",
-                        Description = "ÓÃÓÚÍ¼Æ¬ÉÏ´«ºÍPLYÎÄ¼ş´¦ÀíµÄAPI",
+                        Description = "ä¸Šä¼ PLYæ–‡ä»¶å¹¶å¤„ç†API",
                         Contact = new Microsoft.OpenApi.Models.OpenApiContact
                         {
-                            Name = "¿ª·¢ÍÅ¶Ó"
+                            Name = "ä½œè€…"
                         }
                     });
 
-                    // ÆôÓÃXMLÎÄµµ×¢ÊÍ
+                    // åŒ…å«XMLæ³¨é‡Š
                     var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
                     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
                     if (File.Exists(xmlPath))
@@ -111,25 +111,28 @@ namespace PlyFileProcessor
                         c.IncludeXmlComments(xmlPath);
                     }
 
-                    // ÆôÓÃSwagger×¢½â
+                    // å¯ç”¨Swaggeræ³¨é‡Š
                     c.EnableAnnotations();
                 });
 
-                // ×¢²áMQTT¿Í»§¶Ë·şÎñ
+                // æ³¨å†ŒMQTTå®¢æˆ·ç«¯æœåŠ¡
                 builder.Services.AddSingleton<IMqttClientService, MqttClientService>();
 
-                // ×¢²áÎÄ¼ş´¦Àí·şÎñ
+                // æ³¨å†Œæ–‡ä»¶å¤„ç†æœåŠ¡
                 builder.Services.AddSingleton<IPlyFileService, PlyFileService>();
+
+                // æ³¨å†Œç›®å½•ç›‘æ§æœåŠ¡
+                builder.Services.AddHostedService<DirectoryMonitorService>();
 
                 var app = builder.Build();
 
-                // ÔÚÉú²ú»·¾³ÖĞÉèÖÃÈ«¾ÖÒì³£´¦Àí
+                // é…ç½®åº”ç”¨ç¨‹åºä»¥å¤„ç†æ‰€æœ‰å¼‚å¸¸
                 if (!app.Environment.IsDevelopment())
                 {
                     app.UseExceptionHandler("/error");
                 }
 
-                // ÆôÓÃSwagger
+                // é…ç½®Swagger
                 app.UseSwagger();
                 app.UseSwaggerUI(c =>
                 {
@@ -137,49 +140,49 @@ namespace PlyFileProcessor
                     c.RoutePrefix = "swagger";
                 });
 
-                // ÆôÓÃCORS
+                // é…ç½®CORS
                 app.UseCors("AllowAll");
 
-                // ½ûÓÃHTTPSÖØ¶¨ÏòÒÔÔÊĞíHTTP·ÃÎÊ
+                // é…ç½®HTTPSä»¥é‡å®šå‘HTTPè¯·æ±‚
                 // app.UseHttpsRedirection();
 
                 app.UseAuthorization();
 
-                // ÈÕÖ¾ÖĞ¼ä¼ş
+                // åœ¨æ—¥å¿—ä¸­é—´ä»¶ä¸­è®°å½•è¯·æ±‚
                 app.Use(async (context, next) =>
                 {
-                    Log.Information("½ÓÊÕµ½ÇëÇó: {Method} {Path}", context.Request.Method, context.Request.Path);
+                    Log.Information("æ”¶åˆ°è¯·æ±‚: {Method} {Path}", context.Request.Method, context.Request.Path);
 
-                    // ¼ÇÂ¼¿Í»§¶ËIP
+                    // è®°å½•å®¢æˆ·ç«¯IP
                     var ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-                    Log.Information("¿Í»§¶ËIP: {IpAddress}", ipAddress);
+                    Log.Information("å®¢æˆ·ç«¯IP: {IpAddress}", ipAddress);
 
                     await next();
                 });
 
                 app.MapControllers();
 
-                // Æô¶¯MQTT¿Í»§¶Ë
-                Log.Information("ÕıÔÚÆô¶¯Ó¦ÓÃ³ÌĞò...");
+                // å¯åŠ¨MQTTå®¢æˆ·ç«¯
+                Log.Information("å¯åŠ¨åº”ç”¨ç¨‹åº...");
 
                 try
                 {
                     var mqttClientService = app.Services.GetRequiredService<IMqttClientService>();
                     mqttClientService.StartAsync().GetAwaiter().GetResult();
-                    Log.Information("MQTT¿Í»§¶ËÆô¶¯³É¹¦");
+                    Log.Information("MQTTå®¢æˆ·ç«¯å¯åŠ¨æˆåŠŸ");
                 }
                 catch (Exception ex)
                 {
-                    Log.Error(ex, "MQTT¿Í»§¶ËÆô¶¯Ê§°Ü");
+                    Log.Error(ex, "MQTTå®¢æˆ·ç«¯å¯åŠ¨å¤±è´¥");
                 }
 
-                // ÔËĞĞÓ¦ÓÃ³ÌĞò£¬°ó¶¨µ½ËùÓĞÍøÂç½Ó¿ÚÉÏµÄ5000¶Ë¿Ú
-                Log.Information("Web·şÎñÆô¶¯ÓÚ http://0.0.0.0:5000");
+                // å¯åŠ¨åº”ç”¨ç¨‹åºï¼Œç›‘å¬ä¼ å…¥çš„è¿æ¥ï¼Œé»˜è®¤æƒ…å†µä¸‹ç›‘å¬æ‰€æœ‰IPv4åœ°å€çš„5000ç«¯å£
+                Log.Information("Webåº”ç”¨ç¨‹åº http://0.0.0.0:5000");
                 app.Run("http://0.0.0.0:5000");
             }
             catch (Exception ex)
             {
-                Log.Fatal(ex, "Ó¦ÓÃ³ÌĞòÆô¶¯Ê§°Ü");
+                Log.Fatal(ex, "åº”ç”¨ç¨‹åºå¯åŠ¨å¤±è´¥");
             }
             finally
             {

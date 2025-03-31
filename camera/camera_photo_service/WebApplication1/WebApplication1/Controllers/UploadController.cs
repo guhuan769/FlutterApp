@@ -4,6 +4,7 @@ using System.Net;
 using System.Text.Json;
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
+using Microsoft.Extensions.Configuration;
 
 namespace PlyFileProcessor.Controllers
 {
@@ -14,7 +15,7 @@ namespace PlyFileProcessor.Controllers
         private readonly ILogger<UploadController> _logger;
         private readonly IPlyFileService _plyFileService;
         private readonly IMqttClientService _mqttClientService;
-        private readonly string _uploadFolder = "uploaded_images";
+        private readonly string _uploadFolder;
         private readonly HashSet<string> _allowedExtensions = new HashSet<string> { ".jpg", ".jpeg" };
 
         // 添加会话管理
@@ -24,14 +25,43 @@ namespace PlyFileProcessor.Controllers
         public UploadController(
             ILogger<UploadController> logger,
             IPlyFileService plyFileService,
-            IMqttClientService mqttClientService)
+            IMqttClientService mqttClientService,
+            IConfiguration configuration)
         {
             _logger = logger;
             _plyFileService = plyFileService;
             _mqttClientService = mqttClientService;
+            _uploadFolder = configuration.GetValue<string>("UploadFolder") ?? "uploaded_images";
 
-            // 确保上传目录存在
-            Directory.CreateDirectory(_uploadFolder);
+            // 确保上传目录存在且有正确的访问权限
+            EnsureUploadFolderAccess();
+        }
+
+        // 验证并确保上传文件夹的访问权限
+        private void EnsureUploadFolderAccess()
+        {
+            try
+            {
+                // 如果目录不存在，创建它
+                if (!Directory.Exists(_uploadFolder))
+                {
+                    _logger.LogInformation("上传目录不存在，正在创建: {UploadFolder}", _uploadFolder);
+                    Directory.CreateDirectory(_uploadFolder);
+                    _logger.LogInformation("已创建上传根目录: {UploadFolder}", _uploadFolder);
+                }
+
+                // 测试目录访问权限
+                var testFile = Path.Combine(_uploadFolder, "test_access.txt");
+                System.IO.File.WriteAllText(testFile, "权限测试文件，可以删除");
+                System.IO.File.Delete(testFile);
+                
+                _logger.LogInformation("上传目录访问权限验证成功: {UploadFolder}", _uploadFolder);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "上传目录访问权限验证失败: {UploadFolder}", _uploadFolder);
+                throw new InvalidOperationException($"上传目录 {_uploadFolder} 访问权限验证失败，请检查目录权限设置", ex);
+            }
         }
 
         [HttpPost("/upload")]
@@ -151,8 +181,28 @@ namespace PlyFileProcessor.Controllers
                 var projectName = projectInfo.ContainsKey("name") ?
                     projectInfo["name"].ToString() : "unknown_project";
                 var projectDir = Path.Combine(baseSavePath, projectName);
+                var unifiedImagesDir = Path.Combine(projectDir, "all_images");
 
-                // 在你已经有的目录检查代码后面添加
+                // 使用异步方法创建目录结构并验证权限
+                try
+                {
+                    await EnsureDirectoryStructureAsync(new[] {
+                        baseSavePath,
+                        projectDir,
+                        unifiedImagesDir
+                    });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "创建目录结构失败，无法继续上传");
+                    return StatusCode(500, new Dictionary<string, object> {
+                        { "code", 500 },
+                        { "error", "DIRECTORY_ACCESS_ERROR" },
+                        { "message", $"无法创建或访问必要的目录: {ex.Message}" }
+                    });
+                }
+
+                // 在创建目录后再次检查目录存在性
                 if (!Directory.Exists(projectDir))
                 {
                     _logger.LogWarning("会话目录不存在: {ProjectDir}，需要重置会话", projectDir);
@@ -161,22 +211,14 @@ namespace PlyFileProcessor.Controllers
                     _activeSessions.TryRemove(sessionId, out _);
 
                     // 返回错误响应
-                    return BadRequest(new
-                    {
-                        code = 410,  // 使用特殊错误码
-                        error = "SESSION_DIRECTORY_NOT_FOUND",
-                        message = "上传目录已被删除，需要重新开始上传",
-                        action = "RESET_SESSION",
-                        session_id = sessionId
+                    return BadRequest(new Dictionary<string, object> {
+                        { "code", 410 },  // 使用特殊错误码
+                        { "error", "SESSION_DIRECTORY_NOT_FOUND" },
+                        { "message", "上传目录已被删除，需要重新开始上传" },
+                        { "action", "RESET_SESSION" },
+                        { "session_id", sessionId }
                     });
                 }
-
-                Directory.CreateDirectory(baseSavePath);
-                Directory.CreateDirectory(projectDir);
-
-                // 创建统一存放图片的目录
-                var unifiedImagesDir = Path.Combine(projectDir, "all_images");
-                Directory.CreateDirectory(unifiedImagesDir);
 
                 // 创建/更新图片清单文件
                 var imageListPath = Path.Combine(unifiedImagesDir, "image_list.txt");
@@ -215,11 +257,10 @@ namespace PlyFileProcessor.Controllers
                 if (files.Count == 0)
                 {
                     _logger.LogWarning("没有接收到文件");
-                    return BadRequest(new
-                    {
-                        code = 400,
-                        message = "没有接收到文件",
-                        session_id = sessionId
+                    return BadRequest(new Dictionary<string, object> {
+                        { "code", 400 },
+                        { "message", "没有接收到文件" },
+                        { "session_id", sessionId }
                     });
                 }
 
@@ -904,6 +945,92 @@ namespace PlyFileProcessor.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "清理目录时发生错误");
+            }
+        }
+
+        // 异步方法，确保目录结构存在并可访问
+        private async Task EnsureDirectoryStructureAsync(string[] directories)
+        {
+            try
+            {
+                // 创建信号量限制并发
+                using var semaphore = new SemaphoreSlim(1);
+                await semaphore.WaitAsync();
+
+                try
+                {
+                    foreach (var dir in directories)
+                    {
+                        if (!Directory.Exists(dir))
+                        {
+                            try
+                            {
+                                _logger.LogInformation("正在创建目录: {Directory}", dir);
+                                Directory.CreateDirectory(dir);
+                                
+                                // 验证目录是否真的创建成功
+                                if (!Directory.Exists(dir))
+                                {
+                                    throw new DirectoryNotFoundException($"目录创建后验证失败: {dir}");
+                                }
+                                
+                                _logger.LogInformation("已创建目录: {Directory}", dir);
+                                
+                                // 验证目录权限
+                                var testFile = Path.Combine(dir, "test_permission.txt");
+                                await System.IO.File.WriteAllTextAsync(testFile, "权限测试文件，可以删除");
+                                await Task.Delay(100); // 短暂等待确保文件完全写入
+                                if (System.IO.File.Exists(testFile))
+                                {
+                                    System.IO.File.Delete(testFile);
+                                    _logger.LogInformation("目录权限验证成功: {Directory}", dir);
+                                }
+                                else
+                                {
+                                    throw new IOException($"无法验证目录写入权限: {dir}");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "创建或验证目录失败: {Directory}", dir);
+                                throw new InvalidOperationException($"目录 {dir} 创建或访问失败", ex);
+                            }
+                        }
+                        else
+                        {
+                            // 对已存在的目录验证权限
+                            try
+                            {
+                                var testFile = Path.Combine(dir, "test_existing_dir.txt");
+                                await System.IO.File.WriteAllTextAsync(testFile, "权限测试文件，可以删除");
+                                await Task.Delay(100); // 短暂等待确保文件完全写入
+                                if (System.IO.File.Exists(testFile))
+                                {
+                                    System.IO.File.Delete(testFile);
+                                    _logger.LogInformation("现有目录权限验证成功: {Directory}", dir);
+                                }
+                                else
+                                {
+                                    throw new IOException($"无法验证已存在目录的写入权限: {dir}");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "验证现有目录权限失败: {Directory}", dir);
+                                throw new InvalidOperationException($"无法访问已存在的目录 {dir}", ex);
+                            }
+                        }
+                    }
+                }
+                finally
+                {
+                    semaphore.Release();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "确保目录结构时发生错误");
+                throw new InvalidOperationException("创建上传目录结构失败，请检查目录权限和磁盘空间", ex);
             }
         }
     }

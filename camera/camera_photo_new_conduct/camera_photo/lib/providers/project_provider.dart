@@ -1147,10 +1147,11 @@ class ProjectProvider with ChangeNotifier {
     final results = <BatchUploadResult>[];
     final total = batches.length;
     var completed = 0;
-    // 新增：成功上传计数（服务器确认的）
     var serverConfirmedFiles = 0;
+    var sessionResetAttempts = 0; // 添加会话重置计数器
+    const maxSessionResets = 3; // 最大会话重置次数
 
-    // 顺序上传每个批次（每个批次只有一个文件）
+    // 顺序上传每个批次
     for (int i = 0; i < batches.length; i++) {
       final batch = batches[i];
       final batchNumber = i + 1;
@@ -1166,21 +1167,37 @@ class ProjectProvider with ChangeNotifier {
           value: value,
         );
         
+        // 检查是否需要重置会话
+        if (result.errorType == 'session_reset_required' && sessionResetAttempts < maxSessionResets) {
+          sessionResetAttempts++;
+          
+          // 重置会话状态
+          _uploadSessions.remove(project.id);
+          
+          final status = _uploadStatuses[project.id];
+          if (status != null) {
+            status.addLog('服务器目录不存在，重置会话并重试 (第 $sessionResetAttempts 次)', isError: true);
+            _uploadStatuses[project.id] = status;
+            notifyListeners();
+          }
+          
+          // 等待一段时间后重试当前批次
+          await Future.delayed(const Duration(seconds: 2));
+          i--; // 重试当前批次
+          continue;
+        }
+        
         completed++;
         results.add(result);
         
-        // 新增：更新服务器确认的文件数
         if (result.success && result.serverConfirmedCount != null && result.serverConfirmedCount! > 0) {
           serverConfirmedFiles += result.serverConfirmedCount!;
         }
         
-        // 更新进度时带上服务器确认数量
         final status = _uploadStatuses[project.id];
         if (status != null) {
-          // 更新详细进度信息
           status.addLog('${path.basename(batch[0]['path'] as String)} - 上传${result.success ? '成功' : '失败'}${result.success ? " (服务器已确认)" : ""}');
           
-          // 添加服务器确认上传成功数量的信息
           if (completed % 5 == 0 || completed == total) {
             status.addLog('当前进度: $completed/$total 个文件, 服务器已确认: $serverConfirmedFiles 个文件');
           }
@@ -1189,22 +1206,8 @@ class ProjectProvider with ChangeNotifier {
           notifyListeners();
         }
         
-        // 通知进度更新 - 传递成功数、总数和服务器确认数
         onProgress(completed, total, serverConfirmedFiles);
 
-        // 在上传批次循环中检测特殊错误
-        if (result.errorType == 'session_reset_required') {
-          // 重置会话状态
-          _uploadSessions.remove(project.id);
-          
-          // 记录日志
-          if (status != null) {
-            status.addLog('重置会话状态并重新开始上传');
-          }
-          
-          // 重启上传流程（可选，取决于你希望如何处理）
-          // 可以在这里递归调用uploadProject，但要防止无限循环
-        }
       } catch (e) {
         print('上传批次 $batchNumber 错误: $e');
         completed++;
@@ -1524,24 +1527,28 @@ class ProjectProvider with ChangeNotifier {
                 _uploadSessions.remove(project.id);
                 
                 if (status != null) {
-                  status.addLog('服务器目录已被删除，重置会话ID', isError: true);
+                  status.addLog('服务器目录已被删除，需要重置会话', isError: true);
+                  if (errorData.containsKey('message')) {
+                    status.addLog('服务器消息: ${errorData['message']}', isError: true);
+                  }
                   _uploadStatuses[project.id] = status;
                   notifyListeners();
                 }
                 
-                // 返回特殊错误类型
+                // 返回特殊错误类型，触发重试逻辑
                 return BatchUploadResult(
                   success: false,
                   filesCount: 0,
                   statusCode: 410,
                   errorType: 'session_reset_required',
-                  errorMessage: '服务器目录不存在，需要重新上传'
+                  errorMessage: errorData['message'] ?? '服务器目录不存在，需要重新上传'
                 );
               }
             } catch (e) {
-              // 解析错误，继续正常流程
+              // 解析错误，记录日志
               if (status != null) {
-                status.addLog('解析错误响应失败: $e', isError: true);
+                status.addLog('解析410错误响应失败: $e', isError: true);
+                status.addLog('原始响应: $responseData', isError: true);
                 _uploadStatuses[project.id] = status;
                 notifyListeners();
               }
