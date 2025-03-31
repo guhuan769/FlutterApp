@@ -29,7 +29,7 @@ class _UploadStatusWidgetState extends State<UploadStatusWidget>
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 500),
+      duration: const Duration(milliseconds: 800),
       vsync: this,
     );
     _progressAnimation = Tween<double>(
@@ -145,6 +145,12 @@ class _UploadStatusWidgetState extends State<UploadStatusWidget>
     }
   }
 
+  // 格式化精确的百分比显示
+  String _formatProgress(double progress) {
+    // 确保百分比在0.0到100.0之间，并保留一位小数
+    return '${(progress * 100).clamp(0.0, 100.0).toStringAsFixed(1)}%';
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -153,123 +159,177 @@ class _UploadStatusWidgetState extends State<UploadStatusWidget>
 
   @override
   Widget build(BuildContext context) {
+    // 确定状态颜色
+    final Color statusColor = widget.status.isComplete
+        ? (_actualUploadStatus ? Colors.green : Colors.red)
+        : Colors.blue;
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: widget.status.isComplete
-            ? (_actualUploadStatus ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1))
-            : Colors.blue.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: statusColor.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        title: Row(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              widget.status.projectName,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(width: 8),
-            if (widget.status.uploadCount > 0)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  '第${widget.status.uploadCount}次',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.grey[700],
-                  ),
-                ),
-              ),
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (!widget.status.isComplete) ...[
-              const SizedBox(height: 8),
+            // 进度指示器（在顶部，全宽）
+            if (!widget.status.isComplete)
               AnimatedBuilder(
                 animation: _progressAnimation,
                 builder: (context, child) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(2),
-                        child: LinearProgressIndicator(
-                          value: _progressAnimation.value,
-                          backgroundColor: Colors.grey[200],
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.blue,
-                          ),
-                          minHeight: 6,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${(_progressAnimation.value * 100).toInt()}%',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+                  return Container(
+                    height: 4,
+                    width: double.infinity,
+                    child: LinearProgressIndicator(
+                      value: _progressAnimation.value,
+                      backgroundColor: Colors.grey[200],
+                      valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+                      minHeight: 4,
+                    ),
                   );
                 },
               ),
-            ],
-            const SizedBox(height: 4),
-            Text(
-              // 如果实际上传成功但标记为失败，提供修正的状态信息
-              _actualUploadStatus && !widget.status.isSuccess
-                ? "上传完成！文件已成功上传到服务器"
-                : widget.status.status,
-              style: TextStyle(
-                fontSize: 12,
-                color: widget.status.isComplete
-                    ? (_actualUploadStatus ? Colors.green[700] : Colors.red[700])
-                    : Colors.grey[700],
-              ),
-            ),
-            if (widget.status.error != null && !_actualUploadStatus)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  widget.status.error!,
-                  style: const TextStyle(
-                    color: Colors.red,
-                    fontSize: 12,
-                  ),
+            
+            // 主内容
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  widget.status.isComplete
+                      ? (_actualUploadStatus ? Icons.check_circle : Icons.error)
+                      : Icons.cloud_upload,
+                  color: statusColor,
                 ),
               ),
+              title: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.status.projectName,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (widget.status.uploadCount > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '第${widget.status.uploadCount}次',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 4),
+
+                  // 进度百分比（在正在上传时显示）
+                  if (!widget.status.isComplete)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4.0),
+                      child: AnimatedBuilder(
+                        animation: _progressAnimation,
+                        builder: (context, child) {
+                          return Row(
+                            children: [
+                              Text(
+                                _formatProgress(_progressAnimation.value),
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: statusColor,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '(${widget.status.status.contains('正在上传:') ? widget.status.status.split('\n').first.replaceAll('正在上传: ', '') : ''})',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+
+                  // 状态信息
+                  Text(
+                    // 如果实际上传成功但标记为失败，提供修正的状态信息
+                    _actualUploadStatus && !widget.status.isSuccess
+                      ? "上传完成！文件已成功上传到服务器"
+                      : (widget.status.isComplete 
+                          ? (widget.status.status.contains('\n') ? widget.status.status.split('\n').first : widget.status.status)
+                          : (widget.status.status.contains('\n') ? widget.status.status.split('\n').last : '')),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: widget.status.isComplete
+                          ? (_actualUploadStatus ? Colors.green[700] : Colors.red[700])
+                          : Colors.grey[700],
+                    ),
+                  ),
+                  
+                  // 错误信息
+                  if (widget.status.error != null && !_actualUploadStatus)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        widget.status.error!,
+                        style: const TextStyle(
+                          color: Colors.red,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              trailing: widget.status.isComplete
+                  ? IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      color: Colors.grey,
+                      onPressed: widget.onDismiss,
+                    )
+                  : Container(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+                      ),
+                    ),
+            ),
           ],
         ),
-        trailing: widget.status.isComplete
-            ? IconButton(
-                icon: Icon(
-                  _actualUploadStatus ? Icons.check_circle : Icons.error,
-                  color: _actualUploadStatus ? Colors.green : Colors.red,
-                ),
-                onPressed: widget.onDismiss,
-              )
-            : SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    Theme.of(context).primaryColor,
-                  ),
-                ),
-              ),
       ),
     );
   }

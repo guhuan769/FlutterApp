@@ -290,37 +290,69 @@ class _HomeScreenState extends State<HomeScreen> {
       ..sort((a, b) => b.uploadTime.compareTo(a.uploadTime));
 
     return Container(
-      constraints: const BoxConstraints(maxHeight: 200),
-      color: Colors.grey[100],
+      constraints: const BoxConstraints(maxHeight: 250),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(16),
+          topRight: Radius.circular(16),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // 顶部句柄指示器
+          Container(
+            margin: const EdgeInsets.only(top: 8, bottom: 4),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          // 标题栏
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
-                const Icon(Icons.upload_file, size: 20),
+                Icon(Icons.cloud_upload, size: 20, color: Theme.of(context).primaryColor),
                 const SizedBox(width: 8),
                 Text(
                   '上传状态 (${provider.uploadStatuses.length})',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    fontSize: 16,
                   ),
                 ),
                 const Spacer(),
-                TextButton(
+                TextButton.icon(
+                  icon: const Icon(Icons.cleaning_services_outlined, size: 16),
+                  label: const Text('清除已完成'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.grey[700],
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
                   onPressed: () => provider.clearCompletedUploads(),
-                  child: const Text('清除已完成'),
                 ),
               ],
             ),
           ),
           const Divider(height: 1),
+          // 上传状态列表
           Flexible(
             child: ListView.builder(
               controller: _statusScrollController,
               padding: const EdgeInsets.symmetric(vertical: 4),
+              physics: const BouncingScrollPhysics(),
               itemCount: statuses.length,
               itemBuilder: (context, index) {
                 final status = statuses[index];
