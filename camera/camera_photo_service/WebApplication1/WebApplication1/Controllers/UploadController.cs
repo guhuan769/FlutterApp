@@ -152,6 +152,25 @@ namespace PlyFileProcessor.Controllers
                     projectInfo["name"].ToString() : "unknown_project";
                 var projectDir = Path.Combine(baseSavePath, projectName);
 
+                // 在你已经有的目录检查代码后面添加
+                if (!Directory.Exists(projectDir))
+                {
+                    _logger.LogWarning("会话目录不存在: {ProjectDir}，需要重置会话", projectDir);
+
+                    // 从活动会话中移除
+                    _activeSessions.TryRemove(sessionId, out _);
+
+                    // 返回错误响应
+                    return BadRequest(new
+                    {
+                        code = 410,  // 使用特殊错误码
+                        error = "SESSION_DIRECTORY_NOT_FOUND",
+                        message = "上传目录已被删除，需要重新开始上传",
+                        action = "RESET_SESSION",
+                        session_id = sessionId
+                    });
+                }
+
                 Directory.CreateDirectory(baseSavePath);
                 Directory.CreateDirectory(projectDir);
 

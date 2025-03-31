@@ -1191,6 +1191,18 @@ class ProjectProvider with ChangeNotifier {
         
         // 通知进度更新 - 传递成功数、总数和服务器确认数
         onProgress(completed, total, serverConfirmedFiles);
+
+        // 在上传批次循环中检测特殊错误
+        if (result.errorType == 'session_reset_required') {
+          // 重置会话状态
+          _uploadSessions.remove(project.id);
+          
+          // 记录日志
+          status.addLog('重置会话状态并重新开始上传');
+          
+          // 重启上传流程（可选，取决于你希望如何处理）
+          // 可以在这里递归调用uploadProject，但要防止无限循环
+        }
       } catch (e) {
         print('上传批次 $batchNumber 错误: $e');
         completed++;
