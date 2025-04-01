@@ -9,18 +9,24 @@ import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -36,6 +42,8 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.Executor
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -53,9 +61,26 @@ fun CameraScreen(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val coroutineScope = rememberCoroutineScope()
     
     var imageCapture: ImageCapture? by remember { mutableStateOf(null) }
     var selectedPhotoType by remember { mutableStateOf(getDefaultPhotoType(moduleType)) }
+    
+    // 拍照成功提示状态
+    var showCaptureSuccess by remember { mutableStateOf(false) }
+    val successAlpha by animateFloatAsState(
+        targetValue = if (showCaptureSuccess) 1f else 0f,
+        animationSpec = tween(durationMillis = 300),
+        label = "successAlpha"
+    )
+    val successScale by animateFloatAsState(
+        targetValue = if (showCaptureSuccess) 1f else 0.3f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "successScale"
+    )
     
     Scaffold(
         topBar = {
@@ -148,7 +173,19 @@ fun CameraScreen(
                                 imageCapture = imageCapture,
                                 context = context,
                                 photoType = selectedPhotoType,
-                                onPhotoTaken = onPhotoTaken
+                                onSuccess = { filePath, fileName ->
+                                    // 显示成功提示
+                                    coroutineScope.launch {
+                                        showCaptureSuccess = true
+                                        
+                                        // 调用回调
+                                        onPhotoTaken(filePath, fileName, selectedPhotoType)
+                                        
+                                        // 延迟后隐藏提示
+                                        delay(1500)
+                                        showCaptureSuccess = false
+                                    }
+                                }
                             )
                         },
                         modifier = Modifier
@@ -158,6 +195,52 @@ fun CameraScreen(
                             containerColor = MaterialTheme.colorScheme.primary
                         )
                     ) {}
+                }
+            }
+            
+            // 拍照成功提示
+            AnimatedVisibility(
+                visible = showCaptureSuccess,
+                enter = fadeIn() + scaleIn(),
+                exit = fadeOut() + scaleOut(),
+                modifier = Modifier.align(Alignment.Center)
+            ) {
+                Card(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .scale(successScale)
+                        .alpha(successAlpha),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f)
+                    ),
+                    elevation = CardDefaults.cardElevation(
+                        defaultElevation = 8.dp
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "拍照成功",
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "拍照成功",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = getPhotoTypeDisplayName(selectedPhotoType),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                        )
+                    }
                 }
             }
         }
@@ -325,7 +408,7 @@ private fun takePhoto(
     imageCapture: ImageCapture?,
     context: Context,
     photoType: PhotoType,
-    onPhotoTaken: (filePath: String, fileName: String, photoType: PhotoType) -> Unit
+    onSuccess: (filePath: String, fileName: String) -> Unit
 ) {
     imageCapture ?: return
     
@@ -345,7 +428,7 @@ private fun takePhoto(
             ContextCompat.getMainExecutor(context),
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                    onPhotoTaken(photoFile.absolutePath, photoFile.name, photoType)
+                    onSuccess(photoFile.absolutePath, photoFile.name)
                 }
                 
                 override fun onError(exception: ImageCaptureException) {
@@ -386,6 +469,18 @@ private fun getDefaultPhotoType(moduleType: ModuleType): PhotoType {
         ModuleType.PROJECT -> PhotoType.MODEL_POINT
         ModuleType.VEHICLE -> PhotoType.MODEL_POINT
         ModuleType.TRACK -> PhotoType.START_POINT
+    }
+}
+
+/**
+ * 获取照片类型显示名称
+ */
+private fun getPhotoTypeDisplayName(photoType: PhotoType): String {
+    return when (photoType) {
+        PhotoType.START_POINT -> "起始点照片"
+        PhotoType.MIDDLE_POINT -> "中间点照片"
+        PhotoType.MODEL_POINT -> "模型点照片" 
+        PhotoType.END_POINT -> "结束点照片"
     }
 }
 
