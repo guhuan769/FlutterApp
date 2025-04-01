@@ -140,7 +140,7 @@ fun PhotoCard(
                         .clickable(onClick = onClick)
                 )
                 
-                // 删除按钮
+                // 删除按钮11
                 IconButton(
                     onClick = onDelete,
                     modifier = Modifier
