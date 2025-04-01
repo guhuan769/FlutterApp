@@ -16,4 +16,14 @@ interface ProjectRepository {
      * 获取所有项目
      */
     suspend fun getProjects(): List<Project>
+    
+    /**
+     * 通过ID获取项目
+     */
+    suspend fun getProjectById(projectId: Long): Project?
+    
+    /**
+     * 更新项目
+     */
+    suspend fun updateProject(project: Project)
 } 

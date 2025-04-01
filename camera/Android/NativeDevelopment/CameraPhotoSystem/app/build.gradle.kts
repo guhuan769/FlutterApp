@@ -72,6 +72,8 @@ dependencies {
     val lifecycleVersion = "2.7.0"
     val cameraxVersion = "1.3.1"
     val accompanistVersion = "0.34.0"
+    val retrofitVersion = "2.9.0"
+    val okHttpVersion = "4.12.0"
 
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
     
@@ -101,6 +103,12 @@ dependencies {
     implementation("androidx.room:room-ktx:$roomVersion")
     kapt("androidx.room:room-compiler:$roomVersion")
     implementation("androidx.sqlite:sqlite:2.4.0")
+    
+    // Retrofit for network requests
+    implementation("com.squareup.retrofit2:retrofit:$retrofitVersion")
+    implementation("com.squareup.retrofit2:converter-gson:$retrofitVersion")
+    implementation("com.squareup.okhttp3:okhttp:$okHttpVersion")
+    implementation("com.squareup.okhttp3:logging-interceptor:$okHttpVersion")
     
     // CameraX
     implementation("androidx.camera:camera-core:$cameraxVersion")
@@ -132,4 +140,13 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("com.google.code.gson:gson:2.10.1")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
+    implementation("androidx.datastore:datastore-core:1.0.0")
 }

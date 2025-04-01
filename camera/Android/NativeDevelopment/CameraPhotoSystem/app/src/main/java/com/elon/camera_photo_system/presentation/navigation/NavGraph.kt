@@ -14,21 +14,24 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.elon.camera_photo_system.domain.model.ModuleType
+import com.elon.camera_photo_system.domain.model.PhotoType
 import com.elon.camera_photo_system.presentation.camera.CameraScreen
 import com.elon.camera_photo_system.presentation.camera.CameraViewModel
 import com.elon.camera_photo_system.presentation.gallery.GalleryScreen
 import com.elon.camera_photo_system.presentation.gallery.GalleryViewModel
+import com.elon.camera_photo_system.presentation.home.AddProjectDialog
 import com.elon.camera_photo_system.presentation.home.HomeScreen
 import com.elon.camera_photo_system.presentation.home.HomeScreenState
 import com.elon.camera_photo_system.presentation.project.ProjectDetailScreen
 import com.elon.camera_photo_system.presentation.project.ProjectViewModel
+import com.elon.camera_photo_system.presentation.settings.SettingsScreen
+import com.elon.camera_photo_system.presentation.settings.SettingsViewModel
 import com.elon.camera_photo_system.presentation.track.TrackDetailScreen
 import com.elon.camera_photo_system.presentation.track.TrackListScreen
 import com.elon.camera_photo_system.presentation.track.TrackViewModel
 import com.elon.camera_photo_system.presentation.vehicle.VehicleDetailScreen
 import com.elon.camera_photo_system.presentation.vehicle.VehicleListScreen
 import com.elon.camera_photo_system.presentation.vehicle.VehicleViewModel
-import com.elon.camera_photo_system.presentation.home.AddProjectDialog
 
 /**
  * 导航路由
@@ -88,6 +91,9 @@ sealed class NavRoute(val route: String) {
         fun createRoute(projectId: Long, vehicleId: Long, trackId: Long): String = 
             "gallery/project/$projectId/vehicle/$vehicleId/track/$trackId"
     }
+    
+    // 设置
+    object Settings : NavRoute("settings")
 }
 
 /**
@@ -101,6 +107,7 @@ fun NavGraph(
     trackViewModel: TrackViewModel,
     cameraViewModel: CameraViewModel,
     galleryViewModel: GalleryViewModel,
+    settingsViewModel: SettingsViewModel,
     onBackPressed: () -> Unit
 ) {
     // 动画持续时间
@@ -137,6 +144,7 @@ fun NavGraph(
         // 首页
         composable(NavRoute.Home.route) {
             val projectsState by projectViewModel.projectsState.collectAsState()
+            val uploadState by projectViewModel.uploadState.collectAsState()
             var showAddProjectDialog by remember { mutableStateOf(false) }
             
             HomeScreen(
@@ -145,6 +153,7 @@ fun NavGraph(
                     isLoading = projectsState.isLoading,
                     error = projectsState.error
                 ),
+                uploadState = uploadState,
                 onProjectClick = { project ->
                     navController.navigate(NavRoute.ProjectDetail.createRoute(project.id))
                 },
@@ -170,6 +179,11 @@ fun NavGraph(
                 },
                 onUploadProject = { project ->
                     // 上传项目功能
+                    projectViewModel.uploadProjectPhotos(project)
+                },
+                onNavigateToSettings = {
+                    // 跳转到设置界面
+                    navController.navigate(NavRoute.Settings.route)
                 }
             )
             
@@ -374,7 +388,6 @@ fun NavGraph(
             )
         ) { backStackEntry ->
             val projectId = backStackEntry.arguments?.getLong("projectId") ?: 0L
-            val cameraUiState by cameraViewModel.cameraUIState.collectAsState()
             
             CameraScreen(
                 moduleType = ModuleType.PROJECT,
@@ -392,7 +405,8 @@ fun NavGraph(
                         filePath = filePath,
                         fileName = fileName
                     )
-                }
+                },
+                viewModel = cameraViewModel
             )
         }
         
@@ -406,7 +420,6 @@ fun NavGraph(
         ) { backStackEntry ->
             val projectId = backStackEntry.arguments?.getLong("projectId") ?: 0L
             val vehicleId = backStackEntry.arguments?.getLong("vehicleId") ?: 0L
-            val cameraUiState by cameraViewModel.cameraUIState.collectAsState()
             
             CameraScreen(
                 moduleType = ModuleType.VEHICLE,
@@ -424,7 +437,8 @@ fun NavGraph(
                         filePath = filePath,
                         fileName = fileName
                     )
-                }
+                },
+                viewModel = cameraViewModel
             )
         }
         
@@ -440,7 +454,6 @@ fun NavGraph(
             val projectId = backStackEntry.arguments?.getLong("projectId") ?: 0L
             val vehicleId = backStackEntry.arguments?.getLong("vehicleId") ?: 0L
             val trackId = backStackEntry.arguments?.getLong("trackId") ?: 0L
-            val cameraUiState by cameraViewModel.cameraUIState.collectAsState()
             
             CameraScreen(
                 moduleType = ModuleType.TRACK,
@@ -458,7 +471,8 @@ fun NavGraph(
                         filePath = filePath,
                         fileName = fileName
                     )
-                }
+                },
+                viewModel = cameraViewModel
             )
         }
         
@@ -531,6 +545,14 @@ fun NavGraph(
                 isLoading = galleryUiState.isLoading,
                 error = galleryUiState.error,
                 onRefresh = { galleryViewModel.loadModulePhotos(trackId, ModuleType.TRACK) }
+            )
+        }
+        
+        // 设置界面
+        composable(NavRoute.Settings.route) {
+            SettingsScreen(
+                viewModel = settingsViewModel,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }

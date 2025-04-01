@@ -19,6 +19,7 @@ import com.elon.camera_photo_system.presentation.camera.CameraViewModel
 import com.elon.camera_photo_system.presentation.gallery.GalleryViewModel
 import com.elon.camera_photo_system.presentation.navigation.NavGraph
 import com.elon.camera_photo_system.presentation.project.ProjectViewModel
+import com.elon.camera_photo_system.presentation.settings.SettingsViewModel
 import com.elon.camera_photo_system.presentation.track.TrackViewModel
 import com.elon.camera_photo_system.presentation.vehicle.VehicleViewModel
 import com.elon.camera_photo_system.ui.theme.CameraPhotoSystemTheme
@@ -32,6 +33,7 @@ class MainActivity : ComponentActivity() {
     private val projectViewModel: ProjectViewModel by viewModels()
     private val vehicleViewModel: VehicleViewModel by viewModels()
     private val trackViewModel: TrackViewModel by viewModels()
+    private val settingsViewModel: SettingsViewModel by viewModels()
     
     // 权限请求
     private val requestPermissionLauncher = registerForActivityResult(
@@ -71,6 +73,7 @@ class MainActivity : ComponentActivity() {
                         trackViewModel = trackViewModel,
                         cameraViewModel = cameraViewModel,
                         galleryViewModel = galleryViewModel,
+                        settingsViewModel = settingsViewModel,
                         onBackPressed = { finish() }
                     )
                 }

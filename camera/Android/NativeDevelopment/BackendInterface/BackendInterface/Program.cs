@@ -1,25 +1,58 @@
+using Microsoft.OpenApi.Models;
+using Microsoft.Extensions.FileProviders;
+using System.IO;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
+// 添加控制器和API Explorer
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+
+// 简化的Swagger配置
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "照片上传API", Version = "v1" });
+});
+
+// 跨域配置
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+// 始终启用Swagger
+app.UseSwagger();
+app.UseSwaggerUI();
+
+// 启用跨域
+app.UseCors("AllowAll");
+
+// 配置静态文件
+app.UseStaticFiles();
+
+// 配置上传目录
+var uploadPath = Path.Combine(app.Environment.ContentRootPath, "Uploads");
+if (!Directory.Exists(uploadPath))
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    Directory.CreateDirectory(uploadPath);
 }
 
-app.UseHttpsRedirection();
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadPath),
+    RequestPath = "/uploads"
+});
 
+// 基本中间件
 app.UseAuthorization();
-
 app.MapControllers();
 
-app.Run();
+// 启动应用(指定使用端口5000)
+app.Run("http://0.0.0.0:5000");

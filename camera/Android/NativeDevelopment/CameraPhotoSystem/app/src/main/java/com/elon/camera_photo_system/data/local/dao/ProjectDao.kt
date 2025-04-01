@@ -1,20 +1,40 @@
 package com.elon.camera_photo_system.data.local.dao
 
-import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.Query
+import androidx.room.*
 import com.elon.camera_photo_system.data.local.entity.ProjectEntity
 
 /**
- * 项目DAO
+ * 项目数据访问对象接口
  */
 @Dao
 interface ProjectDao {
-    @Insert
-    suspend fun insertProject(project: ProjectEntity): Long
-    
+    /**
+     * 获取所有项目
+     */
     @Query("SELECT * FROM projects ORDER BY creationDate DESC")
     suspend fun getAllProjects(): List<ProjectEntity>
     
-    // 其他必要的查询方法
+    /**
+     * 根据ID获取项目
+     */
+    @Query("SELECT * FROM projects WHERE id = :projectId")
+    suspend fun getProjectById(projectId: Long): ProjectEntity?
+    
+    /**
+     * 插入项目
+     */
+    @Insert
+    suspend fun insertProject(project: ProjectEntity): Long
+    
+    /**
+     * 更新项目
+     */
+    @Update
+    suspend fun updateProject(project: ProjectEntity)
+    
+    /**
+     * 删除项目
+     */
+    @Delete
+    suspend fun deleteProject(project: ProjectEntity)
 } 

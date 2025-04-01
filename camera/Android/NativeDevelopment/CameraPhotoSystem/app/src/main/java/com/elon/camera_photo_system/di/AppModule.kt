@@ -6,12 +6,15 @@ import com.elon.camera_photo_system.data.local.AppDatabase
 import com.elon.camera_photo_system.data.local.dao.PhotoDao
 import com.elon.camera_photo_system.data.local.dao.ProjectDao
 import com.elon.camera_photo_system.data.local.dao.VehicleDao
+import com.elon.camera_photo_system.data.remote.ApiConfig
+import com.elon.camera_photo_system.data.remote.PhotoRemoteDataSource
 import com.elon.camera_photo_system.data.repository.PhotoRepositoryImpl
 import com.elon.camera_photo_system.data.repository.ProjectRepositoryImpl
 import com.elon.camera_photo_system.data.repository.VehicleRepositoryImpl
 import com.elon.camera_photo_system.domain.repository.PhotoRepository
 import com.elon.camera_photo_system.domain.repository.ProjectRepository
 import com.elon.camera_photo_system.domain.repository.VehicleRepository
+import com.elon.camera_photo_system.domain.repository.SettingsRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -49,14 +52,27 @@ object AppModule {
     
     @Provides
     @Singleton
-    fun providePhotoRepository(photoDao: PhotoDao): PhotoRepository {
-        return PhotoRepositoryImpl(photoDao)
+    fun provideSettingsRepository(@ApplicationContext context: Context): SettingsRepository {
+        return SettingsRepository(context)
     }
     
     @Provides
     @Singleton
-    fun provideProjectRepository(projectDao: ProjectDao): ProjectRepository {
-        return ProjectRepositoryImpl(projectDao)
+    fun providePhotoRepository(
+        photoDao: PhotoDao,
+        photoRemoteDataSource: PhotoRemoteDataSource,
+        apiConfig: ApiConfig
+    ): PhotoRepository {
+        return PhotoRepositoryImpl(photoDao, photoRemoteDataSource, apiConfig)
+    }
+    
+    @Provides
+    @Singleton
+    fun provideProjectRepository(
+        projectDao: ProjectDao,
+        photoRepository: PhotoRepository
+    ): ProjectRepository {
+        return ProjectRepositoryImpl(projectDao, photoRepository)
     }
     
     @Provides

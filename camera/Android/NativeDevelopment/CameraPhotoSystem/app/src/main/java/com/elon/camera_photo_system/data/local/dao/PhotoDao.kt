@@ -1,8 +1,10 @@
 package com.elon.camera_photo_system.data.local.dao
 
 import androidx.room.*
+import androidx.sqlite.db.SupportSQLiteQuery
 import com.elon.camera_photo_system.data.local.entity.PhotoEntity
 import kotlinx.coroutines.flow.Flow
+import android.database.Cursor
 
 /**
  * 照片数据访问对象
@@ -36,4 +38,16 @@ interface PhotoDao {
     
     @Query("SELECT * FROM photos WHERE isUploaded = 0")
     fun getNotUploadedPhotos(): Flow<List<PhotoEntity>>
+    
+    /**
+     * 获取项目名称
+     */
+    @Query("SELECT name FROM projects WHERE id = :projectId")
+    suspend fun getProjectName(projectId: Long): String?
+    
+    /**
+     * 执行原生SQL查询
+     */
+    @RawQuery
+    fun rawQuery(query: SupportSQLiteQuery): Cursor
 } 

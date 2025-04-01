@@ -35,12 +35,14 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun HomeScreen(
     state: HomeScreenState,
+    uploadState: UploadState,
     onAddProject: () -> Unit,
     onProjectClick: (Project) -> Unit,
     onTakeModelPhoto: (Project) -> Unit,
     onOpenGallery: (Project) -> Unit,
     onAddVehicle: (Project) -> Unit,
     onUploadProject: (Project) -> Unit,
+    onNavigateToSettings: () -> Unit,
     onRefresh: () -> Unit
 ) {
     val swipeRefreshState = rememberSwipeRefreshState(state.isLoading)
@@ -54,6 +56,12 @@ fun HomeScreen(
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = "新建项目"
+                        )
+                    }
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "设置"
                         )
                     }
                 }
@@ -74,6 +82,7 @@ fun HomeScreen(
                 } else {
                     ProjectList(
                         projects = state.projects,
+                        uploadState = uploadState,
                         onProjectClick = onProjectClick,
                         onTakeModelPhoto = onTakeModelPhoto,
                         onOpenGallery = onOpenGallery,
@@ -97,6 +106,22 @@ fun HomeScreen(
                     action = {
                         TextButton(onClick = onRefresh) {
                             Text("重试")
+                        }
+                    }
+                ) {
+                    Text(errorMessage)
+                }
+            }
+            
+            // 显示上传错误信息
+            uploadState.error?.let { errorMessage ->
+                Snackbar(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .align(Alignment.BottomCenter),
+                    action = {
+                        TextButton(onClick = onRefresh) {
+                            Text("关闭")
                         }
                     }
                 ) {
@@ -173,6 +198,7 @@ private fun EmptyProjectsView(onAddProject: () -> Unit) {
 @Composable
 private fun ProjectList(
     projects: List<Project>,
+    uploadState: UploadState,
     onProjectClick: (Project) -> Unit,
     onTakeModelPhoto: (Project) -> Unit,
     onOpenGallery: (Project) -> Unit,
@@ -185,13 +211,19 @@ private fun ProjectList(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         items(projects) { project ->
+            // 确定当前项目是否正在上传或上传成功
+            val isCurrentProjectUploading = uploadState.isUploading && uploadState.currentProject?.id == project.id
+            val isCurrentProjectUploadSuccess = uploadState.isSuccess && uploadState.currentProject?.id == project.id
+            
             ProjectItem(
                 project = project,
                 onProjectClick = { onProjectClick(project) },
                 onTakeModelPhoto = { onTakeModelPhoto(project) },
                 onOpenGallery = { onOpenGallery(project) },
                 onAddVehicle = { onAddVehicle(project) },
-                onUploadProject = { onUploadProject(project) }
+                onUploadProject = { onUploadProject(project) },
+                isUploading = isCurrentProjectUploading,
+                uploadSuccess = isCurrentProjectUploadSuccess
             )
         }
     }
@@ -207,7 +239,9 @@ private fun ProjectItem(
     onTakeModelPhoto: () -> Unit,
     onOpenGallery: () -> Unit,
     onAddVehicle: () -> Unit,
-    onUploadProject: () -> Unit
+    onUploadProject: () -> Unit,
+    isUploading: Boolean = false,
+    uploadSuccess: Boolean = false
 ) {
     val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
     
@@ -286,6 +320,49 @@ private fun ProjectItem(
             
             Spacer(modifier = Modifier.height(12.dp))
             
+            // 添加上传状态显示
+            if (isUploading) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "正在上传...",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            } else if (uploadSuccess) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "上传成功",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            
             // 项目操作按钮
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -312,7 +389,8 @@ private fun ProjectItem(
                 ProjectActionButton(
                     icon = Icons.Default.Upload,
                     label = "上传",
-                    onClick = onUploadProject
+                    onClick = onUploadProject,
+                    enabled = !isUploading // 上传中禁用按钮
                 )
             }
         }
@@ -353,11 +431,13 @@ private fun ProjectInfoChip(
 private fun ProjectActionButton(
     icon: ImageVector,
     label: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    enabled: Boolean = true
 ) {
     IconButton(
         onClick = onClick,
-        modifier = Modifier.size(48.dp)
+        modifier = Modifier.size(48.dp),
+        enabled = enabled
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -366,12 +446,14 @@ private fun ProjectActionButton(
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = MaterialTheme.colorScheme.primary
+                tint = if (enabled) MaterialTheme.colorScheme.primary 
+                       else MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
             )
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant 
+                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

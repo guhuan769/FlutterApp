@@ -54,4 +54,24 @@ interface PhotoRepository {
      * 获取未上传的照片
      */
     fun getNotUploadedPhotos(): Flow<List<Photo>>
+    
+    /**
+     * 上传照片
+     */
+    suspend fun uploadPhoto(photo: Photo): Boolean
+    
+    /**
+     * 删除后端服务器上指定项目的所有照片
+     */
+    suspend fun deleteProjectPhotosOnServer(moduleId: Long, moduleType: ModuleType): Boolean
+    
+    /**
+     * 重置照片上传状态
+     */
+    suspend fun resetUploadStatus(moduleId: Long, moduleType: ModuleType): Int
+    
+    /**
+     * 设置API基础URL
+     */
+    fun setApiBaseUrl(url: String)
 } 
