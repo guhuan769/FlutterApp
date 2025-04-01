@@ -26,7 +26,7 @@ import com.elon.camera_photo_system.data.local.util.Converters
         VehicleEntity::class,
         TrackEntity::class
     ],
-    version = 4,
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -176,6 +176,20 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
         
+        private val MIGRATION_4_6 = object : Migration(4, 6) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // 从版本4升级到版本6的迁移逻辑
+                // 可以添加后续的迁移逻辑
+            }
+        }
+        
+        private val MIGRATION_6_4 = object : Migration(6, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // 从版本6降级到版本4的迁移逻辑
+                // 通常降级是危险的，但如果需要支持，这里提供框架
+            }
+        }
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
         
@@ -187,7 +201,7 @@ abstract class AppDatabase : RoomDatabase() {
                         AppDatabase::class.java,
                         DATABASE_NAME
                     )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)  // 添加迁移策略
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_6, MIGRATION_6_4)  // 添加迁移策略
                     .build()
                     INSTANCE = instance
                     instance
