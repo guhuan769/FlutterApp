@@ -24,7 +24,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
@@ -228,7 +230,7 @@ fun PhotoTypeSelector(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 12.dp),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
         // 根据模块类型确定每个按钮是否可用
@@ -288,7 +290,11 @@ fun PhotoTypeButton(
 ) {
     Button(
         onClick = onClick,
-        modifier = Modifier.padding(horizontal = 4.dp),
+        modifier = Modifier
+            .height(36.dp)
+            .widthIn(min = 60.dp)
+            .padding(horizontal = 2.dp),
+        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = when {
                 !enabled -> MaterialTheme.colorScheme.surfaceVariant
@@ -302,7 +308,13 @@ fun PhotoTypeButton(
         ),
         enabled = enabled
     ) {
-        Text(text, style = MaterialTheme.typography.bodySmall)
+        Text(
+            text = text, 
+            style = MaterialTheme.typography.labelSmall,
+            fontSize = 11.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Visible
+        )
     }
 }
 
