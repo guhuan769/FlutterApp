@@ -1,7 +1,9 @@
 package com.elon.camera_photo_system.presentation.settings
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -41,7 +43,7 @@ fun SettingsScreen(
     LaunchedEffect(settingsUiState.testResult) {
         settingsUiState.testResult?.let { result ->
             val message = if (result.success) {
-                "连接测试成功"
+                "连接测试成功：${result.message}"
             } else {
                 "连接测试失败: ${result.message}"
             }
@@ -79,7 +81,8 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp),
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
@@ -88,6 +91,7 @@ fun SettingsScreen(
                 modifier = Modifier.padding(bottom = 16.dp)
             )
             
+            // URL输入字段
             OutlinedTextField(
                 value = settingsUiState.apiUrl,
                 onValueChange = { viewModel.updateApiUrl(it) },
@@ -95,12 +99,60 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                 singleLine = true,
+                isError = settingsUiState.hasUrlError,
                 supportingText = {
-                    Text(
-                        text = "提示：模拟器使用10.0.2.2，真机使用实际IP地址",
-                        style = MaterialTheme.typography.bodySmall
-                    )
+                    if (settingsUiState.hasUrlError) {
+                        Text(
+                            text = settingsUiState.urlErrorMessage ?: "URL格式不正确",
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    } else {
+                        Text(
+                            text = "提示：模拟器使用10.0.2.2，真机使用实际IP地址",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                },
+                trailingIcon = {
+                    if (settingsUiState.apiUrl.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.clearApiUrl() }) {
+                            Icon(
+                                imageVector = Icons.Default.Clear,
+                                contentDescription = "清除"
+                            )
+                        }
+                    }
                 }
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // 快速选择常用URL
+            Text(
+                text = "常用URL选择",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.align(Alignment.Start)
+            )
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // 常用URL选项
+            UrlOptionButton(
+                text = "模拟器地址 (10.0.2.2:5000)",
+                url = "http://10.0.2.2:5000/",
+                onClick = { viewModel.updateApiUrl(it) }
+            )
+            
+            UrlOptionButton(
+                text = "本机地址 (127.0.0.1:5000)",
+                url = "http://127.0.0.1:5000/",
+                onClick = { viewModel.updateApiUrl(it) }
+            )
+            
+            UrlOptionButton(
+                text = "默认开发地址 (192.168.101.21:5000)",
+                url = "http://192.168.101.21:5000/",
+                onClick = { viewModel.updateApiUrl(it) }
             )
             
             Spacer(modifier = Modifier.height(16.dp))
@@ -109,7 +161,7 @@ fun SettingsScreen(
             Button(
                 onClick = { viewModel.testConnection() },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = true
+                enabled = !settingsUiState.hasUrlError && settingsUiState.apiUrl.isNotEmpty()
             ) {
                 if (settingsUiState.isTesting) {
                     CircularProgressIndicator(
@@ -134,37 +186,93 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(16.dp))
             
             // 显示当前保存的API URL
-            Text(
-                text = "当前API URL: ${settingsUiState.savedApiUrl}",
-                style = MaterialTheme.typography.bodyMedium
-            )
-            
-            // 显示测试结果
-            settingsUiState.testResult?.let { result ->
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
                 ) {
-                    Icon(
-                        imageVector = if (result.success) Icons.Default.CheckCircle else Icons.Default.Error,
-                        contentDescription = null,
-                        tint = if (result.success) 
-                            MaterialTheme.colorScheme.primary 
-                        else 
-                            MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(end = 8.dp)
-                    )
                     Text(
-                        text = if (result.success) "连接成功" else "连接失败: ${result.message}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = if (result.success) 
-                            MaterialTheme.colorScheme.primary 
-                        else 
-                            MaterialTheme.colorScheme.error
+                        text = "当前设置信息",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Text(
+                        text = "API URL: ${settingsUiState.savedApiUrl}",
+                        style = MaterialTheme.typography.bodyMedium
                     )
                 }
             }
+            
+            // 显示测试结果
+            settingsUiState.testResult?.let { result ->
+                Spacer(modifier = Modifier.height(16.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (result.success) 
+                            MaterialTheme.colorScheme.primaryContainer
+                        else 
+                            MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = if (result.success) Icons.Default.CheckCircle else Icons.Default.Error,
+                            contentDescription = null,
+                            tint = if (result.success) 
+                                MaterialTheme.colorScheme.primary 
+                            else 
+                                MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(end = 16.dp)
+                        )
+                        Column {
+                            Text(
+                                text = if (result.success) "连接成功" else "连接失败",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = if (result.success) 
+                                    MaterialTheme.colorScheme.primary 
+                                else 
+                                    MaterialTheme.colorScheme.error
+                            )
+                            Text(
+                                text = result.message,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                }
+            }
         }
+    }
+}
+
+@Composable
+fun UrlOptionButton(
+    text: String,
+    url: String,
+    onClick: (String) -> Unit
+) {
+    OutlinedButton(
+        onClick = { onClick(url) },
+        modifier = Modifier.fillMaxWidth(),
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = MaterialTheme.colorScheme.primary
+        )
+    ) {
+        Icon(
+            imageVector = Icons.Default.Link,
+            contentDescription = null,
+            modifier = Modifier.padding(end = 8.dp)
+        )
+        Text(text = text)
     }
 } 
