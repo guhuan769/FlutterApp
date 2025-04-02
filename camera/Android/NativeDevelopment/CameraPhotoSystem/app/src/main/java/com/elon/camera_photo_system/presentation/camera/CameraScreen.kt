@@ -277,21 +277,21 @@ fun CameraScreen(
                             defaultElevation = 4.dp
                         )
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Text(
-                                text = "正在上传照片...",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
+//                        Row(
+//                            modifier = Modifier
+//                                .padding(horizontal = 16.dp, vertical = 8.dp),
+//                            verticalAlignment = Alignment.CenterVertically
+//                        ) {
+//                            CircularProgressIndicator(
+//                                modifier = Modifier.size(24.dp),
+//                                strokeWidth = 2.dp
+//                            )
+//                            Spacer(modifier = Modifier.width(16.dp))
+//                            Text(
+//                                text = "正在上传照片...",
+//                                style = MaterialTheme.typography.bodyMedium
+//                            )
+//                        }
                     }
                 }
             } else if (cameraUiState.isUploadSuccess) {
