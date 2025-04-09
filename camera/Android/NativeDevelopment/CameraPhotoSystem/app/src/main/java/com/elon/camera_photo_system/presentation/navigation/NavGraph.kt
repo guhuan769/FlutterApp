@@ -26,6 +26,7 @@ import com.elon.camera_photo_system.presentation.project.ProjectDetailScreen
 import com.elon.camera_photo_system.presentation.project.ProjectViewModel
 import com.elon.camera_photo_system.presentation.settings.SettingsScreen
 import com.elon.camera_photo_system.presentation.settings.SettingsViewModel
+import com.elon.camera_photo_system.presentation.track.AddTrackField
 import com.elon.camera_photo_system.presentation.track.TrackDetailScreen
 import com.elon.camera_photo_system.presentation.track.TrackListScreen
 import com.elon.camera_photo_system.presentation.track.TrackViewModel
@@ -317,6 +318,7 @@ fun NavGraph(
             val projectId = backStackEntry.arguments?.getLong("projectId") ?: 0L
             val vehicleId = backStackEntry.arguments?.getLong("vehicleId") ?: 0L
             val tracksState by trackViewModel.tracksState.collectAsState()
+            val addTrackState by trackViewModel.addTrackState.collectAsState()
             
             // 加载该车辆下的轨迹
             trackViewModel.loadTracksByVehicle(vehicleId)
@@ -333,6 +335,19 @@ fun NavGraph(
                 },
                 onRefresh = {
                     trackViewModel.loadTracksByVehicle(vehicleId)
+                },
+                addTrackState = addTrackState,
+                onAddTrackClick = {
+                    trackViewModel.resetAddTrackState()
+                },
+                onAddTrackNameChanged = { name ->
+                    trackViewModel.updateAddTrackField(AddTrackField.NAME, name)
+                },
+                onAddTrackSubmit = {
+                    trackViewModel.createTrack(addTrackState.name, vehicleId)
+                },
+                onAddTrackDismiss = {
+                    trackViewModel.resetAddTrackState()
                 }
             )
         }

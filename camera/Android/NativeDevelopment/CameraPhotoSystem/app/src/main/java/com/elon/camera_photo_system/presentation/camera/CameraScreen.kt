@@ -406,48 +406,41 @@ fun PhotoTypeSelector(
         // 根据模块类型确定每个按钮是否可用
         val startPointEnabled = moduleType == ModuleType.TRACK
         val middlePointEnabled = moduleType == ModuleType.TRACK
-        val modelPointEnabled = true // 所有模块都可用
+        val modelPointEnabled = moduleType != ModuleType.TRACK // 当moduleType为TRACK时禁用模型点
         val endPointEnabled = moduleType == ModuleType.TRACK
         
-        PhotoTypeButton(
-            text = "起始点",
-            isSelected = selectedPhotoType == PhotoType.START_POINT && startPointEnabled,
-            enabled = startPointEnabled,
-            onClick = { 
-                if (startPointEnabled) {
-                    onPhotoTypeSelected(PhotoType.START_POINT)
-                }
-            }
-        )
-        
-        PhotoTypeButton(
-            text = "中间点",
-            isSelected = selectedPhotoType == PhotoType.MIDDLE_POINT && middlePointEnabled,
-            enabled = middlePointEnabled,
-            onClick = { 
-                if (middlePointEnabled) {
-                    onPhotoTypeSelected(PhotoType.MIDDLE_POINT)
-                }
-            }
-        )
-        
-        PhotoTypeButton(
-            text = "模型点",
-            isSelected = selectedPhotoType == PhotoType.MODEL_POINT,
-            enabled = modelPointEnabled,
-            onClick = { onPhotoTypeSelected(PhotoType.MODEL_POINT) }
-        )
-        
-        PhotoTypeButton(
-            text = "结束点",
-            isSelected = selectedPhotoType == PhotoType.END_POINT && endPointEnabled,
-            enabled = endPointEnabled,
-            onClick = { 
-                if (endPointEnabled) {
-                    onPhotoTypeSelected(PhotoType.END_POINT)
-                }
-            }
-        )
+        // 只显示当前模块类型可用的按钮
+        if (moduleType == ModuleType.TRACK) {
+            // 轨迹模式下只显示轨迹相关按钮
+            PhotoTypeButton(
+                text = "起始点",
+                isSelected = selectedPhotoType == PhotoType.START_POINT,
+                enabled = startPointEnabled,
+                onClick = { onPhotoTypeSelected(PhotoType.START_POINT) }
+            )
+            
+            PhotoTypeButton(
+                text = "中间点",
+                isSelected = selectedPhotoType == PhotoType.MIDDLE_POINT,
+                enabled = middlePointEnabled,
+                onClick = { onPhotoTypeSelected(PhotoType.MIDDLE_POINT) }
+            )
+            
+            PhotoTypeButton(
+                text = "结束点",
+                isSelected = selectedPhotoType == PhotoType.END_POINT,
+                enabled = endPointEnabled,
+                onClick = { onPhotoTypeSelected(PhotoType.END_POINT) }
+            )
+        } else {
+            // 非轨迹模式下只显示模型点按钮
+            PhotoTypeButton(
+                text = "模型点",
+                isSelected = selectedPhotoType == PhotoType.MODEL_POINT,
+                enabled = true,
+                onClick = { onPhotoTypeSelected(PhotoType.MODEL_POINT) }
+            )
+        }
     }
 }
 

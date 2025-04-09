@@ -7,7 +7,8 @@ import com.elon.camera_photo_system.domain.model.Project
  */
 data class UploadState(
     val isUploading: Boolean = false,
-    val currentProject: Project? = null,
     val isSuccess: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val currentProject: Project? = null,
+    val progress: Float = 0f // 上传进度 (0-1)
 ) 

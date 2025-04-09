@@ -425,7 +425,7 @@ private fun ProjectInfoChip(
 }
 
 /**
- * 项目操作按钮1
+ * 项目操作按钮
  */
 @Composable
 private fun ProjectActionButton(

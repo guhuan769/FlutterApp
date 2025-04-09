@@ -9,6 +9,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.elon.camera_photo_system.data.local.dao.PhotoDao
 import com.elon.camera_photo_system.data.local.dao.ProjectDao
+import com.elon.camera_photo_system.data.local.dao.TrackDao
 import com.elon.camera_photo_system.data.local.dao.VehicleDao
 import com.elon.camera_photo_system.data.local.entity.PhotoEntity
 import com.elon.camera_photo_system.data.local.entity.ProjectEntity
@@ -26,7 +27,7 @@ import com.elon.camera_photo_system.data.local.util.Converters
         VehicleEntity::class,
         TrackEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -37,6 +38,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun projectDao(): ProjectDao
     
     abstract fun vehicleDao(): VehicleDao
+    
+    abstract fun trackDao(): TrackDao
     
     companion object {
         const val DATABASE_NAME = "camera_photo_system.db"
@@ -190,6 +193,63 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // 添加从版本6迁移到版本7的迁移策略
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // 使用重建表的方式确保所有列都存在并且类型正确
+                try {
+                    // 1. 创建临时表
+                    database.execSQL("""
+                        CREATE TABLE IF NOT EXISTS tracks_new (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                            vehicleId INTEGER NOT NULL,
+                            name TEXT NOT NULL,
+                            startTime TEXT NOT NULL,
+                            endTime TEXT,
+                            length REAL NOT NULL DEFAULT 0.0,
+                            isStarted INTEGER NOT NULL DEFAULT 1,
+                            isEnded INTEGER NOT NULL DEFAULT 0,
+                            photoCount INTEGER NOT NULL DEFAULT 0,
+                            startPointPhotoCount INTEGER NOT NULL DEFAULT 0,
+                            middlePointPhotoCount INTEGER NOT NULL DEFAULT 0,
+                            modelPointPhotoCount INTEGER NOT NULL DEFAULT 0,
+                            endPointPhotoCount INTEGER NOT NULL DEFAULT 0,
+                            FOREIGN KEY (vehicleId) REFERENCES vehicles(id) ON DELETE CASCADE
+                        )
+                    """)
+                    
+                    // 2. 复制现有数据到新表，不存在的列使用默认值
+                    database.execSQL("""
+                        INSERT OR IGNORE INTO tracks_new (id, vehicleId, name, startTime, endTime, length)
+                        SELECT id, vehicleId, name, startTime, endTime, COALESCE(length, 0.0) 
+                        FROM tracks
+                    """)
+                    
+                    // 3. 删除旧表
+                    database.execSQL("DROP TABLE IF EXISTS tracks")
+                    
+                    // 4. 重命名新表为正确的表名
+                    database.execSQL("ALTER TABLE tracks_new RENAME TO tracks")
+                    
+                    // 5. 重建索引
+                    database.execSQL("CREATE INDEX IF NOT EXISTS index_tracks_vehicleId ON tracks(vehicleId)")
+                } catch (e: Exception) {
+                    // 如果重建表失败，尝试单独添加列
+                    try {
+                        database.execSQL("ALTER TABLE tracks ADD COLUMN isStarted INTEGER NOT NULL DEFAULT 1")
+                        database.execSQL("ALTER TABLE tracks ADD COLUMN isEnded INTEGER NOT NULL DEFAULT 0")
+                        database.execSQL("ALTER TABLE tracks ADD COLUMN photoCount INTEGER NOT NULL DEFAULT 0")
+                        database.execSQL("ALTER TABLE tracks ADD COLUMN startPointPhotoCount INTEGER NOT NULL DEFAULT 0")
+                        database.execSQL("ALTER TABLE tracks ADD COLUMN middlePointPhotoCount INTEGER NOT NULL DEFAULT 0")
+                        database.execSQL("ALTER TABLE tracks ADD COLUMN modelPointPhotoCount INTEGER NOT NULL DEFAULT 0")
+                        database.execSQL("ALTER TABLE tracks ADD COLUMN endPointPhotoCount INTEGER NOT NULL DEFAULT 0")
+                    } catch (e: Exception) {
+                        // 忽略列已存在的错误
+                    }
+                }
+            }
+        }
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
         
@@ -201,19 +261,21 @@ abstract class AppDatabase : RoomDatabase() {
                         AppDatabase::class.java,
                         DATABASE_NAME
                     )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_6, MIGRATION_6_4)  // 添加迁移策略
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_6, MIGRATION_6_4, MIGRATION_6_7)  // 添加迁移策略
                     .build()
                     INSTANCE = instance
                     instance
                 } catch (e: Exception) {
                     // 迁移失败，回退到重建数据库
-                    Room.databaseBuilder(
+                    val instance = Room.databaseBuilder(
                         context.applicationContext,
                         AppDatabase::class.java,
                         DATABASE_NAME
                     )
-                    .fallbackToDestructiveMigration()
+                    .fallbackToDestructiveMigration() // 如果迁移失败，允许重建数据库（会丢失数据）
                     .build()
+                    INSTANCE = instance
+                    instance
                 }
             }
         }

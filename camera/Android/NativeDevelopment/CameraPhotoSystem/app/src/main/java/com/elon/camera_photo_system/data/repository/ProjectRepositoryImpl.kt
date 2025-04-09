@@ -7,6 +7,7 @@ import com.elon.camera_photo_system.domain.model.ModuleType
 import com.elon.camera_photo_system.domain.model.Project
 import com.elon.camera_photo_system.domain.repository.ProjectRepository
 import com.elon.camera_photo_system.domain.repository.PhotoRepository
+import com.elon.camera_photo_system.domain.repository.VehicleRepository
 import kotlinx.coroutines.flow.first
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -17,7 +18,8 @@ import javax.inject.Inject
  */
 class ProjectRepositoryImpl @Inject constructor(
     private val projectDao: ProjectDao,
-    private val photoRepository: PhotoRepository
+    private val photoRepository: PhotoRepository,
+    private val vehicleRepository: VehicleRepository
 ) : ProjectRepository {
     
     override suspend fun addProject(project: Project): Long {
@@ -90,10 +92,11 @@ class ProjectRepositoryImpl @Inject constructor(
             
             val photoCount = photos.size
             
-            // 获取车辆数量 (暂未实现)
-            val vehicleCount = 0 // 需要实现车辆数量查询
+            // 获取车辆数量 - 读取当前车辆数量
+            val vehicles = vehicleRepository.getVehiclesByProject(project.id).first()
+            val vehicleCount = vehicles.size
             
-            Log.d("ProjectRepository", "项目 ${project.name} (ID: ${project.id}) 照片数: $photoCount")
+            Log.d("ProjectRepository", "项目 ${project.name} (ID: ${project.id}) 照片数: $photoCount, 车辆数: $vehicleCount")
             
             return project.copy(
                 photoCount = photoCount,
