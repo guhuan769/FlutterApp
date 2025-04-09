@@ -79,6 +79,17 @@ class ProjectRepositoryImpl @Inject constructor(
         projectDao.updateProject(entity)
     }
     
+    override suspend fun deleteProject(project: Project) {
+        val entity = ProjectEntity(
+            id = project.id,
+            name = project.name,
+            description = project.description,
+            creationDate = project.creationDate.toEpochSecond(ZoneOffset.UTC)
+        )
+        
+        projectDao.deleteProject(entity)
+    }
+    
     /**
      * 更新项目的照片和车辆计数
      */

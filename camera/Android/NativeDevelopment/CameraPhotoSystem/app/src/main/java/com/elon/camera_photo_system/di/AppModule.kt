@@ -93,7 +93,10 @@ object AppModule {
     
     @Provides
     @Singleton
-    fun provideTrackRepository(trackDao: TrackDao): TrackRepository {
-        return TrackRepositoryImpl(trackDao)
+    fun provideTrackRepository(
+        trackDao: TrackDao,
+        photoRepository: PhotoRepository
+    ): TrackRepository {
+        return TrackRepositoryImpl(trackDao, photoRepository)
     }
 } 

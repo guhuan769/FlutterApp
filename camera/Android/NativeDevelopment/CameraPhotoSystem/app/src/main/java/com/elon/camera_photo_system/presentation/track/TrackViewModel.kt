@@ -218,8 +218,22 @@ class TrackViewModel @Inject constructor(
     }
     
     /**
-     * 拍照完成后更新照片计数
+     * 删除轨迹
      */
+    fun deleteTrack(track: Track) {
+        viewModelScope.launch {
+            try {
+                trackRepository.deleteTrack(track)
+                // 刷新轨迹列表
+                loadTracksByVehicle(track.vehicleId)
+            } catch (e: Exception) {
+                _tracksState.update { 
+                    it.copy(error = "删除轨迹失败: ${e.message}") 
+                }
+            }
+        }
+    }
+
     fun updatePhotoCount(photoType: PhotoType) {
         viewModelScope.launch {
             val currentTrack = _trackState.value.track ?: return@launch

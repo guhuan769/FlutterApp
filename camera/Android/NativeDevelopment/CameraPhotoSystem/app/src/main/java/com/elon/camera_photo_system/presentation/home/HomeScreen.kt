@@ -21,6 +21,8 @@ import com.elon.camera_photo_system.domain.model.Project
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import java.time.format.DateTimeFormatter
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 
 /**
  * 项目模块主界面 - 项目列表
@@ -42,10 +44,12 @@ fun HomeScreen(
     onOpenGallery: (Project) -> Unit,
     onAddVehicle: (Project) -> Unit,
     onUploadProject: (Project) -> Unit,
+    onDeleteProject: (Project) -> Unit,
     onNavigateToSettings: () -> Unit,
     onRefresh: () -> Unit
 ) {
     val swipeRefreshState = rememberSwipeRefreshState(state.isLoading)
+    var showDeleteDialog by remember { mutableStateOf<Project?>(null) }
     
     Scaffold(
         topBar = {
@@ -87,7 +91,8 @@ fun HomeScreen(
                         onTakeModelPhoto = onTakeModelPhoto,
                         onOpenGallery = onOpenGallery,
                         onAddVehicle = onAddVehicle,
-                        onUploadProject = onUploadProject
+                        onUploadProject = onUploadProject,
+                        onDeleteProject = { project -> showDeleteDialog = project }
                     )
                 }
             }
@@ -129,6 +134,93 @@ fun HomeScreen(
                 }
             }
         }
+    }
+    
+    // 删除确认对话框
+    showDeleteDialog?.let { project ->
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = null },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.DeleteForever,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = {
+                Text(
+                    text = "确认删除项目",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "您确定要删除项目\"${project.name}\"吗？",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "此操作将同时删除：",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    BulletText("所有关联的车辆信息")
+                    BulletText("所有关联的轨迹数据")
+                    BulletText("所有关联的照片数据")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "此操作不可撤销！",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onDeleteProject(project)
+                        showDeleteDialog = null
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("确认删除")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showDeleteDialog = null }) {
+                    Text("取消")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun BulletText(text: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(vertical = 2.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(4.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    shape = CircleShape
+                )
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -203,7 +295,8 @@ private fun ProjectList(
     onTakeModelPhoto: (Project) -> Unit,
     onOpenGallery: (Project) -> Unit,
     onAddVehicle: (Project) -> Unit,
-    onUploadProject: (Project) -> Unit
+    onUploadProject: (Project) -> Unit,
+    onDeleteProject: (Project) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -222,6 +315,7 @@ private fun ProjectList(
                 onOpenGallery = { onOpenGallery(project) },
                 onAddVehicle = { onAddVehicle(project) },
                 onUploadProject = { onUploadProject(project) },
+                onDeleteProject = { onDeleteProject(project) },
                 isUploading = isCurrentProjectUploading,
                 uploadSuccess = isCurrentProjectUploadSuccess
             )
@@ -240,6 +334,7 @@ private fun ProjectItem(
     onOpenGallery: () -> Unit,
     onAddVehicle: () -> Unit,
     onUploadProject: () -> Unit,
+    onDeleteProject: () -> Unit,
     isUploading: Boolean = false,
     uploadSuccess: Boolean = false
 ) {
@@ -258,7 +353,8 @@ private fun ProjectItem(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 // 项目图标
                 Icon(
@@ -292,6 +388,19 @@ private fun ProjectItem(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
+                }
+                
+                // 添加删除按钮
+                IconButton(
+                    onClick = onDeleteProject,
+                    colors = IconButtonDefaults.iconButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "删除项目"
+                    )
                 }
             }
             

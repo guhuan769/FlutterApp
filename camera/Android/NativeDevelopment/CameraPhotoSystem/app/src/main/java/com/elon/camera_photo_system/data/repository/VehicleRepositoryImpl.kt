@@ -6,6 +6,7 @@ import com.elon.camera_photo_system.data.mapper.VehicleMapper.toEntity
 import com.elon.camera_photo_system.domain.model.Vehicle
 import com.elon.camera_photo_system.domain.repository.VehicleRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
@@ -36,5 +37,10 @@ class VehicleRepositoryImpl @Inject constructor(
     
     override suspend fun deleteVehicle(vehicle: Vehicle) {
         vehicleDao.delete(vehicle.toEntity())
+    }
+    
+    override suspend fun deleteVehicle(vehicleId: Long) {
+        val vehicle = getVehicleById(vehicleId).first()
+        vehicle?.let { deleteVehicle(it) }
     }
 } 

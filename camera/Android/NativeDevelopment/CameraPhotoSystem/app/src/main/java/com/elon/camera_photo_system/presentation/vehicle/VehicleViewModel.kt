@@ -1,5 +1,6 @@
 package com.elon.camera_photo_system.presentation.vehicle
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.elon.camera_photo_system.domain.model.Vehicle
@@ -19,7 +20,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class VehicleViewModel @Inject constructor(
-    private val vehicleRepository: VehicleRepository
+    private val vehicleRepository: VehicleRepository,
+    private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     private val _vehiclesState = MutableStateFlow(VehiclesState())
     val vehiclesState: StateFlow<VehiclesState> = _vehiclesState.asStateFlow()
@@ -29,6 +31,12 @@ class VehicleViewModel @Inject constructor(
     
     private val _addVehicleState = MutableStateFlow(AddVehicleState())
     val addVehicleState: StateFlow<AddVehicleState> = _addVehicleState.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading = _isLoading.asStateFlow()
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error = _error.asStateFlow()
 
     fun loadVehiclesByProject(projectId: Long) {
         vehicleRepository.getVehiclesByProject(projectId)
@@ -141,6 +149,21 @@ class VehicleViewModel @Inject constructor(
     
     fun resetAddVehicleState() {
         _addVehicleState.update { AddVehicleState() }
+    }
+
+    fun deleteVehicle(vehicle: Vehicle) {
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                vehicleRepository.deleteVehicle(vehicle.id)
+                // 删除成功后刷新列表
+                loadVehiclesByProject(vehicle.projectId)
+            } catch (e: Exception) {
+                _error.value = "删除车辆失败：${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
     }
 }
 

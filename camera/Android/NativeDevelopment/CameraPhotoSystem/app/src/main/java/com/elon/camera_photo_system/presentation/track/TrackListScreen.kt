@@ -38,7 +38,8 @@ fun TrackListScreen(
     onAddTrackClick: () -> Unit,
     onAddTrackNameChanged: (String) -> Unit,
     onAddTrackSubmit: () -> Unit,
-    onAddTrackDismiss: () -> Unit
+    onAddTrackDismiss: () -> Unit,
+    onDeleteTrack: (Track) -> Unit
 ) {
     val swipeRefreshState = rememberSwipeRefreshState(isLoading)
     var showAddTrackDialog by remember { mutableStateOf(false) }
@@ -128,7 +129,8 @@ fun TrackListScreen(
                             items(tracks) { track ->
                                 TrackItem(
                                     track = track,
-                                    onClick = { onTrackClick(track) }
+                                    onClick = { onTrackClick(track) },
+                                    onDelete = onDeleteTrack
                                 )
                             }
                         }
@@ -170,8 +172,11 @@ fun TrackListScreen(
 @Composable
 private fun TrackItem(
     track: Track,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onDelete: (Track) -> Unit
 ) {
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -222,32 +227,72 @@ private fun TrackItem(
                 )
             }
             
-            // 右侧：照片数量
-            if (track.totalPhotoCount > 0) {
-                Surface(
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+            // 右侧：照片数量和删除按钮
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (track.totalPhotoCount > 0) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        shape = RoundedCornerShape(16.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.PhotoCamera,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "${track.totalPhotoCount}",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PhotoCamera,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "${track.totalPhotoCount}",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
                     }
+                }
+                
+                // 删除按钮
+                IconButton(
+                    onClick = { showDeleteDialog = true }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "删除轨迹",
+                        tint = MaterialTheme.colorScheme.error
+                    )
                 }
             }
         }
+    }
+    
+    // 删除确认对话框
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("确认删除") },
+            text = { Text("确定要删除轨迹${track.name}吗？此操作不可恢复。") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDelete(track)
+                        showDeleteDialog = false
+                    }
+                ) {
+                    Text("删除", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("取消")
+                }
+            }
+        )
     }
 }
 

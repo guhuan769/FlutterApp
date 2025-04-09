@@ -3,14 +3,17 @@ package com.elon.camera_photo_system.presentation.vehicle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
@@ -43,11 +46,13 @@ fun VehicleListScreen(
     onAddVehicleClick: () -> Unit,
     onAddVehicleDismiss: () -> Unit,
     onAddVehicleFieldChanged: (AddVehicleField, String) -> Unit,
-    onAddVehicleSubmit: () -> Unit
+    onAddVehicleSubmit: () -> Unit,
+    onDeleteVehicle: (Vehicle) -> Unit
 ) {
     val swipeRefreshState = rememberSwipeRefreshState(isLoading)
     
     var showAddVehicleDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf<Vehicle?>(null) }
     
     LaunchedEffect(addVehicleState.isSuccess) {
         if (addVehicleState.isSuccess) {
@@ -148,7 +153,8 @@ fun VehicleListScreen(
                         items(vehicles) { vehicle ->
                             VehicleItem(
                                 vehicle = vehicle,
-                                onClick = { onVehicleClick(vehicle) }
+                                onClick = { onVehicleClick(vehicle) },
+                                onDelete = { showDeleteDialog = vehicle }
                             )
                         }
                     }
@@ -209,6 +215,69 @@ fun VehicleListScreen(
                     onAddClick = onAddVehicleSubmit
                 )
             }
+            
+            // 删除确认对话框
+            showDeleteDialog?.let { vehicle ->
+                AlertDialog(
+                    onDismissRequest = { showDeleteDialog = null },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    },
+                    title = {
+                        Text(
+                            text = "确认删除车辆",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    text = {
+                        Column {
+                            Text(
+                                text = "您确定要删除车辆\"${vehicle.plateNumber}\"吗？",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "此操作将同时删除：",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            BulletText("所有关联的轨迹数据")
+                            BulletText("所有关联的照片数据")
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "此操作不可撤销！",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.error,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                onDeleteVehicle(vehicle)
+                                showDeleteDialog = null
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Text("确认删除")
+                        }
+                    },
+                    dismissButton = {
+                        OutlinedButton(onClick = { showDeleteDialog = null }) {
+                            Text("取消")
+                        }
+                    }
+                )
+            }
         }
     }
 }
@@ -240,13 +309,37 @@ private fun NavigationPathBar(modifier: Modifier = Modifier) {
     }
 }
 
+@Composable
+private fun BulletText(text: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(vertical = 2.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(4.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    shape = CircleShape
+                )
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
 /**
  * 车辆列表项
  */
 @Composable
 fun VehicleItem(
     vehicle: Vehicle,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onDelete: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -258,80 +351,92 @@ fun VehicleItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // 车辆图标
-            Card(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(RoundedCornerShape(8.dp)),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer
-                )
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.DirectionsCar,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
-            }
-            
-            Spacer(modifier = Modifier.width(16.dp))
-            
-            // 车辆信息
-            Column(
+            // 左侧：车辆信息
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f)
             ) {
-                Text(
-                    text = vehicle.plateNumber,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                // 车辆图标
+                Card(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    )
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DirectionsCar,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                }
                 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.width(16.dp))
                 
-                Text(
-                    text = "${vehicle.brand} ${vehicle.model}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                
-                Spacer(modifier = Modifier.height(4.dp))
-                
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                // 车辆信息
+                Column(
+                    modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = "轨迹: ${vehicle.trackCount}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = vehicle.plateNumber,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
                     Text(
-                        text = "照片: ${vehicle.photoCount}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = "${vehicle.brand} ${vehicle.model}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
+                    
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Text(
+                            text = "轨迹: ${vehicle.trackCount}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        
+                        Text(
+                            text = "照片: ${vehicle.photoCount}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
             
-            // 右侧箭头
-            Icon(
-                imageVector = Icons.Default.ArrowBack,
-                contentDescription = null,
-                modifier = Modifier.rotate(180f),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            // 右侧：删除按钮
+            IconButton(
+                onClick = onDelete,
+                colors = IconButtonDefaults.iconButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "删除车辆"
+                )
+            }
         }
     }
 } 

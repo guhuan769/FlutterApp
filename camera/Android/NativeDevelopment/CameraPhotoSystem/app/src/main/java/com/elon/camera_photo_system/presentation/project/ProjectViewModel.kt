@@ -243,6 +243,21 @@ class ProjectViewModel @Inject constructor(
     fun clearUploadState() {
         _uploadState.update { UploadState() }
     }
+
+    fun deleteProject(project: Project) {
+        viewModelScope.launch {
+            try {
+                projectRepository.deleteProject(project)
+                loadProjects()
+                Log.d("ProjectViewModel", "项目删除成功: ${project.name}")
+            } catch (e: Exception) {
+                Log.e("ProjectViewModel", "删除项目失败", e)
+                _projectsState.update { 
+                    it.copy(error = "删除项目失败: ${e.message}") 
+                }
+            }
+        }
+    }
 }
 
 data class ProjectsState(

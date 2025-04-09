@@ -182,6 +182,9 @@ fun NavGraph(
                     // 上传项目功能
                     projectViewModel.uploadProjectPhotos(project)
                 },
+                onDeleteProject = { project ->
+                    projectViewModel.deleteProject(project)
+                },
                 onNavigateToSettings = {
                     // 跳转到设置界面
                     navController.navigate(NavRoute.Settings.route)
@@ -269,6 +272,9 @@ fun NavGraph(
                 },
                 onAddVehicleSubmit = {
                     vehicleViewModel.addVehicle(projectId)
+                },
+                onDeleteVehicle = { vehicle ->
+                    vehicleViewModel.deleteVehicle(vehicle)
                 }
             )
         }
@@ -348,6 +354,9 @@ fun NavGraph(
                 },
                 onAddTrackDismiss = {
                     trackViewModel.resetAddTrackState()
+                },
+                onDeleteTrack = { track ->
+                    trackViewModel.deleteTrack(track)
                 }
             )
         }

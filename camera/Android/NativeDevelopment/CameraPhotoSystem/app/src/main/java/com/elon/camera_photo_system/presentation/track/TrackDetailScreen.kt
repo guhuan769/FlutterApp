@@ -341,7 +341,6 @@ private fun PhotoStatisticsSection(track: Track) {
             
             PhotoTypeRow("起始点照片", track.startPointPhotoCount)
             PhotoTypeRow("中间点照片", track.middlePointPhotoCount)
-            PhotoTypeRow("模型点照片", track.modelPointPhotoCount)
             PhotoTypeRow("结束点照片", track.endPointPhotoCount)
             
             Divider(

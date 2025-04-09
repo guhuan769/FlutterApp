@@ -26,4 +26,9 @@ interface ProjectRepository {
      * 更新项目
      */
     suspend fun updateProject(project: Project)
+    
+    /**
+     * 删除项目
+     */
+    suspend fun deleteProject(project: Project)
 } 

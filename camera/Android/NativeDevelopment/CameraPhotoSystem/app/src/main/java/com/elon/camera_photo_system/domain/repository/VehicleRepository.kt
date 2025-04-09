@@ -31,4 +31,6 @@ interface VehicleRepository {
      * 删除车辆
      */
     suspend fun deleteVehicle(vehicle: Vehicle)
+
+    suspend fun deleteVehicle(vehicleId: Long)
 } 
