@@ -75,12 +75,24 @@ class VehicleViewModel @Inject constructor(
     }
     
     fun updateAddVehicleField(field: AddVehicleField, value: String) {
-        _addVehicleState.update { state ->
-            when (field) {
-                AddVehicleField.NAME -> state.copy(name = value)
-                AddVehicleField.PLATE_NUMBER -> state.copy(plateNumber = value)
-                AddVehicleField.BRAND -> state.copy(brand = value)
-                AddVehicleField.MODEL -> state.copy(model = value)
+        when (field) {
+            AddVehicleField.NAME -> {
+                _addVehicleState.update {
+                    it.copy(
+                        name = value,
+                        nameError = if (value.isBlank()) "车辆名称不能为空" else null
+                    )
+                }
+            }
+            AddVehicleField.BRAND -> {
+                _addVehicleState.update {
+                    it.copy(brand = value)
+                }
+            }
+            AddVehicleField.MODEL -> {
+                _addVehicleState.update {
+                    it.copy(model = value)
+                }
             }
         }
     }
@@ -90,47 +102,57 @@ class VehicleViewModel @Inject constructor(
         
         // 验证表单
         val nameValid = state.name.isNotBlank()
-        val plateNumberValid = state.plateNumber.isNotBlank()
         
         // 更新字段错误状态
         _addVehicleState.update {
             it.copy(
-                nameError = if (nameValid) null else "请输入车辆名称",
-                plateNumberError = if (plateNumberValid) null else "请输入车牌号"
+                nameError = if (nameValid) null else "请输入车辆名称"
             )
         }
         
-        return nameValid && plateNumberValid
+        return nameValid
     }
     
     fun addVehicle(projectId: Long) {
-        if (!validateAddVehicleForm()) {
+        val currentState = _addVehicleState.value
+        
+        // 验证
+        if (currentState.name.isBlank()) {
+            _addVehicleState.update {
+                it.copy(nameError = "车辆名称不能为空")
+            }
             return
         }
         
-        val state = _addVehicleState.value
-        
-        _addVehicleState.update { it.copy(isSubmitting = true) }
+        _addVehicleState.update {
+            it.copy(
+                isSubmitting = true,
+                error = null
+            )
+        }
         
         viewModelScope.launch {
             try {
+                // 创建车辆对象
                 val vehicle = Vehicle(
                     id = 0,
                     projectId = projectId,
-                    name = state.name,
-                    plateNumber = state.plateNumber,
-                    brand = state.brand,
-                    model = state.model,
+                    name = currentState.name,
+                    plateNumber = "", // 车牌号字段设为空
+                    brand = currentState.brand,
+                    model = currentState.model,
                     createdAt = LocalDateTime.now()
                 )
                 
-                val id = vehicleRepository.addVehicle(vehicle)
+                // 调用仓库添加车辆
+                val vehicleId = vehicleRepository.addVehicle(vehicle)
                 
-                // 重置表单状态
+                // 更新状态为成功
                 _addVehicleState.update {
-                    AddVehicleState(
+                    it.copy(
                         isSubmitting = false,
-                        isSuccess = true
+                        isSuccess = true,
+                        createdVehicleId = vehicleId
                     )
                 }
                 
@@ -140,7 +162,7 @@ class VehicleViewModel @Inject constructor(
                 _addVehicleState.update {
                     it.copy(
                         isSubmitting = false,
-                        error = e.message ?: "添加车辆失败"
+                        error = "添加车辆失败: ${e.message}"
                     )
                 }
             }
@@ -148,7 +170,9 @@ class VehicleViewModel @Inject constructor(
     }
     
     fun resetAddVehicleState() {
-        _addVehicleState.update { AddVehicleState() }
+        _addVehicleState.update {
+            AddVehicleState()
+        }
     }
 
     fun deleteVehicle(vehicle: Vehicle) {
@@ -182,15 +206,14 @@ data class VehicleState(
 data class AddVehicleState(
     val name: String = "",
     val nameError: String? = null,
-    val plateNumber: String = "",
-    val plateNumberError: String? = null,
     val brand: String = "",
     val model: String = "",
     val isSubmitting: Boolean = false,
     val isSuccess: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val createdVehicleId: Long = -1L
 )
 
 enum class AddVehicleField {
-    NAME, PLATE_NUMBER, BRAND, MODEL
+    NAME, BRAND, MODEL
 } 

@@ -25,12 +25,9 @@ fun AddVehicleDialog(
     error: String?,
     nameValue: String,
     nameError: String?,
-    plateNumberValue: String,
-    plateNumberError: String?,
     brandValue: String,
     modelValue: String,
     onNameChanged: (String) -> Unit,
-    onPlateNumberChanged: (String) -> Unit,
     onBrandChanged: (String) -> Unit,
     onModelChanged: (String) -> Unit,
     onDismissRequest: () -> Unit,
@@ -70,22 +67,6 @@ fun AddVehicleDialog(
                     enabled = !isSubmitting,
                     keyboardOptions = KeyboardOptions(
                         capitalization = KeyboardCapitalization.Words,
-                        keyboardType = KeyboardType.Text,
-                        imeAction = ImeAction.Next
-                    )
-                )
-
-                // 车牌号
-                OutlinedTextField(
-                    value = plateNumberValue,
-                    onValueChange = onPlateNumberChanged,
-                    label = { Text("车牌号 *") },
-                    isError = plateNumberError != null,
-                    supportingText = plateNumberError?.let { { Text(it) } },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !isSubmitting,
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Characters,
                         keyboardType = KeyboardType.Text,
                         imeAction = ImeAction.Next
                     )

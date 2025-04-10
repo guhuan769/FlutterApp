@@ -222,13 +222,13 @@ private fun ProjectContent(
                 onClick = { onNavigateToVehicleList(project.id) }
             )
             
-            FunctionCard(
-                title = "轨迹",
-                description = "查看轨迹 (${project.trackCount})",
-                icon = Icons.Outlined.Timeline,
-                color = MaterialTheme.colorScheme.secondary,
-                onClick = { onNavigateToTrackList(project.id) }
-            )
+//            FunctionCard(
+//                title = "轨迹",
+//                description = "查看轨迹 (${project.trackCount})",
+//                icon = Icons.Outlined.Timeline,
+//                color = MaterialTheme.colorScheme.secondary,
+//                onClick = { onNavigateToTrackList(project.id) }
+//            )
             
             FunctionCard(
                 title = "统计",

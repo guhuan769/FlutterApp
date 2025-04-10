@@ -282,7 +282,7 @@ private fun VehicleContent(
  * 导航路径指示器
  */
 @Composable
-private fun NavigationPathIndicator(projectId: Long, vehiclePlateNumber: String) {
+private fun NavigationPathIndicator(projectId: Long, vehicleName: String) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -305,7 +305,7 @@ private fun NavigationPathIndicator(projectId: Long, vehiclePlateNumber: String)
                 )
                 
                 Text(
-                    text = vehiclePlateNumber,
+                    text = vehicleName,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -366,7 +366,7 @@ private fun VehicleOverviewCard(vehicle: Vehicle, onEditClick: () -> Unit) {
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = vehicle.plateNumber,
+                        text = vehicle.name,
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold
                     )
@@ -376,6 +376,14 @@ private fun VehicleOverviewCard(vehicle: Vehicle, onEditClick: () -> Unit) {
                     Text(
                         text = "${vehicle.brand} ${vehicle.model}",
                         style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
+                    Text(
+                        text = "车牌号: ${vehicle.plateNumber}",
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }

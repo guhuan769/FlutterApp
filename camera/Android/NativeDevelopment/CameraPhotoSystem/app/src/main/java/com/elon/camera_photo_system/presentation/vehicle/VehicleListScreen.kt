@@ -200,12 +200,9 @@ fun VehicleListScreen(
                     error = addVehicleState.error,
                     nameValue = addVehicleState.name,
                     nameError = addVehicleState.nameError,
-                    plateNumberValue = addVehicleState.plateNumber,
-                    plateNumberError = addVehicleState.plateNumberError,
                     brandValue = addVehicleState.brand,
                     modelValue = addVehicleState.model,
                     onNameChanged = { onAddVehicleFieldChanged(AddVehicleField.NAME, it) },
-                    onPlateNumberChanged = { onAddVehicleFieldChanged(AddVehicleField.PLATE_NUMBER, it) },
                     onBrandChanged = { onAddVehicleFieldChanged(AddVehicleField.BRAND, it) },
                     onModelChanged = { onAddVehicleFieldChanged(AddVehicleField.MODEL, it) },
                     onDismissRequest = {
@@ -237,7 +234,7 @@ fun VehicleListScreen(
                     text = {
                         Column {
                             Text(
-                                text = "您确定要删除车辆\"${vehicle.plateNumber}\"吗？",
+                                text = "您确定要删除车辆\"${vehicle.name}\"吗？",
                                 style = MaterialTheme.typography.bodyLarge
                             )
                             Spacer(modifier = Modifier.height(8.dp))
@@ -388,7 +385,7 @@ fun VehicleItem(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = vehicle.plateNumber,
+                        text = vehicle.name,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
