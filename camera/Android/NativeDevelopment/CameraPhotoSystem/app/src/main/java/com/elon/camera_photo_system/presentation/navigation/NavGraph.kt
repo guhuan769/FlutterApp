@@ -362,31 +362,25 @@ fun NavGraph(
             val trackId = backStackEntry.arguments?.getLong("trackId") ?: 0L
             val trackState by trackViewModel.trackState.collectAsState()
             
-            // 加载轨迹详情
-            trackViewModel.loadTrack(trackId)
-            
             TrackDetailScreen(
                 projectId = projectId,
                 vehicleId = vehicleId,
-                track = trackState.track,
-                isLoading = trackState.isLoading,
-                error = trackState.error,
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToCamera = { photoType ->
-                    // 跳转到拍照界面，并传递照片类型
-                    navController.navigate(NavRoute.TrackCamera.createRoute(projectId, vehicleId, trackId))
+                trackState = trackState,
+                trackId = trackId,
+                onLoadTrack = { id -> 
+                    trackViewModel.loadTrack(id)
                 },
-                onNavigateToGallery = {
-                    galleryViewModel.loadModulePhotos(trackId, ModuleType.TRACK)
-                    navController.navigate(NavRoute.TrackGallery.createRoute(projectId, vehicleId, trackId))
+                onNavigateBack = { 
+                    navController.popBackStack() 
                 },
-                onStartTrack = {
-                    // 开始轨迹记录
-                    trackViewModel.startTrack(trackId)
+                onStartTrack = { id -> 
+                    trackViewModel.startTrack(id)
                 },
-                onEndTrack = {
-                    // 结束轨迹记录
-                    trackViewModel.endTrack(trackId)
+                onEndTrack = { id -> 
+                    trackViewModel.endTrack(id)
+                },
+                onNavigateToCamera = { id ->
+                    navController.navigate(NavRoute.TrackCamera.createRoute(projectId, vehicleId, id))
                 }
             )
         }
