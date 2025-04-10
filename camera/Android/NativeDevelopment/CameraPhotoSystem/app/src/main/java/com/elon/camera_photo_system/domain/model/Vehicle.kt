@@ -12,7 +12,8 @@ data class Vehicle(
     val plateNumber: String,
     val brand: String = "",
     val model: String = "",
-    val creationDate: LocalDateTime = LocalDateTime.now(),
+    val createdAt: LocalDateTime = LocalDateTime.now(),
     val trackCount: Int = 0,
-    val photoCount: Int = 0
+    val photoCount: Int = 0,
+    val projectCount: Int = 0
 ) 

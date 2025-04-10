@@ -1,8 +1,11 @@
 package com.elon.camera_photo_system.presentation.track
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -13,7 +16,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.elon.camera_photo_system.domain.model.PhotoType
@@ -37,6 +42,18 @@ fun TrackDetailScreen(
     onStartTrack: () -> Unit,
     onEndTrack: () -> Unit
 ) {
+    // 缓存UI常量
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val onSurfaceColor = MaterialTheme.colorScheme.onSurface
+    
+    // 添加进入动画效果
+    val contentAlpha by animateFloatAsState(
+        targetValue = if (isLoading) 0f else 1f,
+        animationSpec = tween(durationMillis = 300),
+        label = "Content Alpha Animation"
+    )
+    
     Scaffold(
         topBar = {
             TopAppBar(
@@ -52,13 +69,13 @@ fun TrackDetailScreen(
                         Icon(
                             imageVector = Icons.Default.ArrowBack, 
                             contentDescription = "返回",
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = primaryColor
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
+                    containerColor = surfaceColor,
+                    titleContentColor = onSurfaceColor
                 )
             )
         },
@@ -69,24 +86,47 @@ fun TrackDetailScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            if (isLoading) {
-                // 加载状态
-                LoadingState()
-            } else if (track == null) {
-                // 轨迹不存在
-                EmptyTrackState(onNavigateBack)
-            } else {
-                // 轨迹详情内容
-                TrackDetailContent(
-                    track = track,
-                    onNavigateToCamera = onNavigateToCamera,
-                    onNavigateToGallery = onNavigateToGallery
-                )
+            // 使用key强制稳定内容区域
+            key(track?.id) {
+                when {
+                    isLoading -> {
+                        // 加载状态
+                        LoadingState()
+                    }
+                    track == null -> {
+                        // 轨迹不存在
+                        AnimatedVisibility(
+                            visible = true,
+                            enter = fadeIn(tween(300)),
+                            exit = fadeOut(tween(300))
+                        ) {
+                            EmptyTrackState(onNavigateBack)
+                        }
+                    }
+                    else -> {
+                        // 轨迹详情内容
+                        TrackDetailContent(
+                            track = track,
+                            onNavigateToCamera = onNavigateToCamera,
+                            onNavigateToGallery = onNavigateToGallery,
+                            modifier = Modifier.graphicsLayer(alpha = contentAlpha)
+                        )
+                    }
+                }
             }
             
             // 错误提示
-            if (error != null) {
-                ErrorSnackbar(error = error)
+            AnimatedVisibility(
+                visible = error != null,
+                enter = fadeIn(tween(300)) + expandVertically(tween(300)),
+                exit = fadeOut(tween(300)) + shrinkVertically(tween(300)),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(16.dp)
+            ) {
+                error?.let {
+                    ErrorSnackbar(error = it)
+                }
             }
         }
     }
@@ -102,7 +142,9 @@ private fun LoadingState() {
         contentAlignment = Alignment.Center
     ) {
         CircularProgressIndicator(
-            modifier = Modifier.size(48.dp),
+            modifier = Modifier
+                .size(48.dp)
+                .shadow(4.dp, CircleShape),
             color = MaterialTheme.colorScheme.primary,
             strokeWidth = 4.dp
         )
@@ -181,16 +223,23 @@ private fun EmptyTrackState(onNavigateBack: () -> Unit) {
 private fun TrackDetailContent(
     track: Track,
     onNavigateToCamera: (PhotoType) -> Unit,
-    onNavigateToGallery: () -> Unit
+    onNavigateToGallery: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Box(
-        modifier = Modifier.fillMaxSize()
+        modifier = modifier.fillMaxSize()
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
+                .animateContentSize(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    )
+                )
         ) {
             // 轨迹信息卡片
             TrackInfoCard(track = track)
@@ -258,42 +307,36 @@ private fun TrackDetailContent(
  */
 @Composable
 private fun ErrorSnackbar(error: String) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        contentAlignment = Alignment.BottomCenter
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 4.dp
+        ),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Card(
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer
-            ),
-            elevation = CardDefaults.cardElevation(
-                defaultElevation = 4.dp
-            )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Error,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onErrorContainer
-                )
-                
-                Spacer(modifier = Modifier.width(12.dp))
-                
-                Text(
-                    text = error,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            Icon(
+                imageVector = Icons.Default.Error,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onErrorContainer
+            )
+            
+            Spacer(modifier = Modifier.width(12.dp))
+            
+            Text(
+                text = error,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier.weight(1f)
+            )
         }
     }
 }
@@ -390,6 +433,18 @@ private fun PhotoTypeRow(
     label: String,
     count: Int
 ) {
+    // 计算颜色并使用记忆化避免重组
+    val hasPhotos = count > 0
+    val backgroundColor = if (hasPhotos) 
+        MaterialTheme.colorScheme.primaryContainer
+    else 
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+    
+    val textColor = if (hasPhotos) 
+        MaterialTheme.colorScheme.onPrimaryContainer
+    else 
+        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+    
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -404,26 +459,17 @@ private fun PhotoTypeRow(
         )
         
         // 照片数量标签
-        val hasPhotos = count > 0
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(12.dp))
-                .background(
-                    if (hasPhotos) 
-                        MaterialTheme.colorScheme.primaryContainer
-                    else 
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                )
+                .background(backgroundColor)
                 .padding(horizontal = 12.dp, vertical = 6.dp)
         ) {
             Text(
                 text = "${count}张",
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = if (hasPhotos) FontWeight.Medium else FontWeight.Normal,
-                color = if (hasPhotos) 
-                          MaterialTheme.colorScheme.onPrimaryContainer
-                        else 
-                          MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                color = textColor
             )
         }
     }

@@ -121,7 +121,7 @@ class VehicleViewModel @Inject constructor(
                     plateNumber = state.plateNumber,
                     brand = state.brand,
                     model = state.model,
-                    creationDate = LocalDateTime.now()
+                    createdAt = LocalDateTime.now()
                 )
                 
                 val id = vehicleRepository.addVehicle(vehicle)

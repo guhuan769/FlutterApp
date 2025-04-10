@@ -27,7 +27,7 @@ class ProjectRepositoryImpl @Inject constructor(
         val entity = ProjectEntity(
             name = project.name,
             description = project.description,
-            creationDate = project.creationDate.toEpochSecond(ZoneOffset.UTC)
+            creationDate = project.createdAt.toEpochSecond(ZoneOffset.UTC)
         )
         
         // 存储并返回ID
@@ -41,7 +41,7 @@ class ProjectRepositoryImpl @Inject constructor(
                 id = entity.id,
                 name = entity.name,
                 description = entity.description,
-                creationDate = LocalDateTime.ofEpochSecond(entity.creationDate, 0, ZoneOffset.UTC),
+                createdAt = LocalDateTime.ofEpochSecond(entity.creationDate, 0, ZoneOffset.UTC),
                 vehicleCount = 0, // 后续更新
                 photoCount = 0  // 后续更新
             )
@@ -60,7 +60,7 @@ class ProjectRepositoryImpl @Inject constructor(
             id = entity.id,
             name = entity.name,
             description = entity.description,
-            creationDate = LocalDateTime.ofEpochSecond(entity.creationDate, 0, ZoneOffset.UTC),
+            createdAt = LocalDateTime.ofEpochSecond(entity.creationDate, 0, ZoneOffset.UTC),
             vehicleCount = 0, // 后续更新
             photoCount = 0  // 后续更新
         )
@@ -73,7 +73,7 @@ class ProjectRepositoryImpl @Inject constructor(
             id = project.id,
             name = project.name,
             description = project.description,
-            creationDate = project.creationDate.toEpochSecond(ZoneOffset.UTC)
+            creationDate = project.createdAt.toEpochSecond(ZoneOffset.UTC)
         )
         
         projectDao.updateProject(entity)
@@ -84,7 +84,7 @@ class ProjectRepositoryImpl @Inject constructor(
             id = project.id,
             name = project.name,
             description = project.description,
-            creationDate = project.creationDate.toEpochSecond(ZoneOffset.UTC)
+            creationDate = project.createdAt.toEpochSecond(ZoneOffset.UTC)
         )
         
         projectDao.deleteProject(entity)

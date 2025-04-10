@@ -1,15 +1,20 @@
 package com.elon.camera_photo_system.presentation.project
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import android.content.Intent
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.BarChart
+import androidx.compose.material.icons.outlined.DirectionsCar
+import androidx.compose.material.icons.outlined.Timeline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,10 +22,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import com.elon.camera_photo_system.domain.model.Project
+import com.elon.camera_photo_system.presentation.project.ProjectStatus
 import java.time.format.DateTimeFormatter
 
 /**
@@ -29,41 +41,101 @@ import java.time.format.DateTimeFormatter
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProjectDetailScreen(
-    project: Project?,
-    isLoading: Boolean,
-    error: String?,
-    onNavigateBack: () -> Unit,
-    onNavigateToVehicles: () -> Unit,
-    onNavigateToCamera: () -> Unit,
-    onNavigateToGallery: () -> Unit
+    navController: NavController,
+    projectId: Long,
+    onNavigateToEditProject: (Long) -> Unit,
+    onNavigateToVehicleList: (Long) -> Unit,
+    onNavigateToTrackList: (Long) -> Unit
 ) {
+    val viewModel: ProjectViewModel = hiltViewModel()
+    val projectState by viewModel.projectState.collectAsState()
+    val context = LocalContext.current
+    
+    // 记住颜色和其他不变的值
+    val appBarColor = MaterialTheme.colorScheme.primaryContainer
+    val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+    val backgroundColor = MaterialTheme.colorScheme.background
+    
+    // 确保记住时使用key参数
+    LaunchedEffect(key1 = projectId) {
+        viewModel.loadProject(projectId)
+    }
+    
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(project?.name ?: "项目详情") },
+                title = { Text(text = "项目详情") },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = appBarColor,
+                    titleContentColor = contentColor
+                ),
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "返回",
+                            tint = contentColor
+                        )
+                    }
+                },
+                actions = {
+                    projectState.project?.let { project ->
+                        IconButton(
+                            onClick = {
+                                val sendIntent = Intent().apply {
+                                    action = Intent.ACTION_SEND
+                                    putExtra(Intent.EXTRA_TEXT, "项目：${project.name}\n描述：${project.description}\n位置：${project.location}")
+                                    type = "text/plain"
+                                }
+                                val shareIntent = Intent.createChooser(sendIntent, "分享项目信息")
+                                context.startActivity(shareIntent)
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "分享",
+                                tint = contentColor
+                            )
+                        }
+                    }
+                    
+                    IconButton(onClick = { onNavigateToEditProject(projectId) }) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "编辑",
+                            tint = contentColor
+                        )
                     }
                 }
             )
-        }
+        },
+        containerColor = backgroundColor
     ) { paddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            if (isLoading) {
-                // 加载状态
+            // 加载指示器
+            AnimatedVisibility(
+                visible = projectState.isLoading,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator()
                 }
-            } else if (project == null && error == null) {
-                // 项目不存在
+            }
+            
+            // 错误提示
+            AnimatedVisibility(
+                visible = projectState.error != null && !projectState.isLoading,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -73,108 +145,139 @@ fun ProjectDetailScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Error,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.error
+                            contentDescription = "错误",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(48.dp)
                         )
-                        
-                        Spacer(modifier = Modifier.height(16.dp))
-                        
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "项目不存在",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.error
+                            text = projectState.error ?: "未知错误",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyLarge
                         )
-                        
                         Spacer(modifier = Modifier.height(16.dp))
-                        
                         Button(
-                            onClick = onNavigateBack
+                            onClick = { viewModel.loadProject(projectId) },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            )
                         ) {
-                            Text("返回项目列表")
+                            Text("重试")
                         }
                     }
                 }
-            } else if (project != null) {
-                // 项目详情内容
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(16.dp)
-                ) {
-                    // 项目概览卡片
-                    ProjectOverviewCard(project = project)
-                    
-                    Spacer(modifier = Modifier.height(24.dp))
-                    
-                    // 功能入口
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        FunctionCard(
-                            icon = Icons.Default.DirectionsCar,
-                            title = "车辆管理",
-                            description = "${project.vehicleCount}辆车",
-                            onClick = onNavigateToVehicles,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        
-                        FunctionCard(
-                            icon = Icons.Default.PhotoCamera,
-                            title = "拍照",
-                            description = "项目照片",
-                            onClick = onNavigateToCamera,
-                            color = MaterialTheme.colorScheme.secondary
-                        )
-                        
-                        FunctionCard(
-                            icon = Icons.Default.Collections,
-                            title = "相册",
-                            description = "${project.photoCount}张照片",
-                            onClick = onNavigateToGallery,
-                            color = MaterialTheme.colorScheme.tertiary
-                        )
-                    }
-                    
-                    Spacer(modifier = Modifier.height(24.dp))
-                    
-                    // 导航路径提示
-                    NavigationPathIndicator(projectName = project.name)
-                }
             }
             
-            // 错误提示
+            // 项目内容
             AnimatedVisibility(
-                visible = error != null,
-                enter = fadeIn(),
-                exit = fadeOut(),
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(16.dp)
+                visible = projectState.project != null && !projectState.isLoading,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
             ) {
-                error?.let {
-                    Snackbar {
-                        Text(it)
-                    }
-                }
+                ProjectContent(
+                    project = projectState.project,
+                    onNavigateToVehicleList = onNavigateToVehicleList,
+                    onNavigateToTrackList = onNavigateToTrackList
+                )
             }
         }
     }
 }
 
-/**
- * 项目概览卡片
- */
 @Composable
-private fun ProjectOverviewCard(project: Project) {
-    val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+private fun ProjectContent(
+    project: Project?,
+    onNavigateToVehicleList: (Long) -> Unit,
+    onNavigateToTrackList: (Long) -> Unit
+) {
+    if (project == null) return
     
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // 项目基本信息
+        ProjectInfoCard(project)
+        
+        // 功能卡片
+        Text(
+            text = "功能",
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold
+        )
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            FunctionCard(
+                title = "车辆",
+                description = "查看车辆 (${project.vehicleCount})",
+                icon = Icons.Outlined.DirectionsCar,
+                color = MaterialTheme.colorScheme.primary,
+                onClick = { onNavigateToVehicleList(project.id) }
+            )
+            
+            FunctionCard(
+                title = "轨迹",
+                description = "查看轨迹 (${project.trackCount})",
+                icon = Icons.Outlined.Timeline,
+                color = MaterialTheme.colorScheme.secondary,
+                onClick = { onNavigateToTrackList(project.id) }
+            )
+            
+            FunctionCard(
+                title = "统计",
+                description = "统计数据",
+                icon = Icons.Outlined.BarChart,
+                color = MaterialTheme.colorScheme.tertiary,
+                onClick = { /* TODO: 实现统计功能 */ }
+            )
+        }
+        
+        // 项目详情
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "项目详情",
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold
+        )
+        
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Text(
+                    text = project.description.ifEmpty { "暂无项目描述" },
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProjectInfoCard(project: Project) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation =
-        4.dp)
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        )
     ) {
         Column(
             modifier = Modifier
@@ -183,86 +286,76 @@ private fun ProjectOverviewCard(project: Project) {
         ) {
             Text(
                 text = project.name,
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
                 fontWeight = FontWeight.Bold
             )
             
             Spacer(modifier = Modifier.height(8.dp))
             
-            Text(
-                text = project.description.ifEmpty { "暂无描述" },
-                style = MaterialTheme.typography.bodyLarge,
-                color = if (project.description.isEmpty()) 
-                    MaterialTheme.colorScheme.onSurfaceVariant 
-                else 
-                    MaterialTheme.colorScheme.onSurface
-            )
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Divider()
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                InfoItem(
-                    icon = Icons.Default.DirectionsCar,
-                    label = "车辆数量",
-                    value = "${project.vehicleCount}"
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = "位置",
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                    modifier = Modifier.size(16.dp)
                 )
-                
-                InfoItem(
-                    icon = Icons.Default.Photo,
-                    label = "照片数量",
-                    value = "${project.photoCount}"
-                )
-                
-                InfoItem(
-                    icon = Icons.Default.CalendarToday,
-                    label = "创建时间",
-                    value = project.creationDate.format(dateFormatter)
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = project.location.ifEmpty { "未设置位置" },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                 )
             }
+            
+            Spacer(modifier = Modifier.height(4.dp))
+            
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.DateRange,
+                    contentDescription = "创建日期",
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = project.createdAt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val statusColor = when (project.status) {
+                    ProjectStatus.ACTIVE -> MaterialTheme.colorScheme.primary
+                    ProjectStatus.COMPLETED -> MaterialTheme.colorScheme.tertiary
+                    ProjectStatus.ARCHIVED -> MaterialTheme.colorScheme.error
+                }
+                
+                Badge(
+                    containerColor = statusColor.copy(alpha = 0.2f),
+                    contentColor = statusColor
+                ) {
+                    Text(
+                        text = when (project.status) {
+                            ProjectStatus.ACTIVE -> "活跃"
+                            ProjectStatus.COMPLETED -> "已完成"
+                            ProjectStatus.ARCHIVED -> "已归档"
+                        },
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
+                }
+            }
         }
-    }
-}
-
-/**
- * 信息项
- */
-@Composable
-private fun InfoItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    value: String
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary
-        )
-        
-        Spacer(modifier = Modifier.height(4.dp))
-        
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        
-        Spacer(modifier = Modifier.height(2.dp))
-        
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium
-        )
     }
 }
 
@@ -271,21 +364,31 @@ private fun InfoItem(
  */
 @Composable
 private fun FunctionCard(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     description: String,
-    onClick: () -> Unit,
-    color: Color
+    icon: ImageVector,
+    color: Color,
+    onClick: () -> Unit
 ) {
+    val backgroundColor = remember(color) { color.copy(alpha = 0.1f) }
+    val iconBackgroundColor = remember(color) { color.copy(alpha = 0.2f) }
+    val elevation = remember { mutableStateOf(4.dp) }
+    
     Card(
         modifier = Modifier
-            .width(100.dp)
-            .height(120.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        onClick = onClick,
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            .width(110.dp)
+            .height(150.dp)
+            .padding(4.dp)
+            .clickable { onClick() }
+            .animateContentSize(
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                )
+            ),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = backgroundColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = elevation.value)
     ) {
         Column(
             modifier = Modifier
@@ -297,13 +400,16 @@ private fun FunctionCard(
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .clip(RoundedCornerShape(percent = 50))
-                    .background(color.copy(alpha = 0.15f)),
+                    .background(
+                        color = iconBackgroundColor,
+                        shape = CircleShape
+                    )
+                    .padding(8.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
-                    contentDescription = null,
+                    contentDescription = title,
                     tint = color,
                     modifier = Modifier.size(24.dp)
                 )
@@ -313,19 +419,29 @@ private fun FunctionCard(
             
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.titleMedium,
+                color = color,
                 fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            AnimatedVisibility(
+                visible = description.isNotBlank(),
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = color.copy(alpha = 0.8f),
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
         }
     }
 }

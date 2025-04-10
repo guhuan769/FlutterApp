@@ -55,8 +55,7 @@ class ProjectViewModel @Inject constructor(
             _projectState.update { it.copy(isLoading = true, error = null) }
             try {
                 // 从数据库加载单个项目
-                val projects = projectRepository.getProjects()
-                val project = projects.find { it.id == projectId }
+                val project = projectRepository.getProjectById(projectId)
                 _projectState.update { it.copy(isLoading = false, project = project) }
             } catch (e: Exception) {
                 _projectState.update { it.copy(isLoading = false, error = e.message) }
@@ -67,7 +66,7 @@ class ProjectViewModel @Inject constructor(
     /**
      * 创建新项目
      */
-    fun createProject(name: String, description: String = "") {
+    fun createProject(name: String, description: String = "", location: String = "") {
         viewModelScope.launch {
             _projectsState.update { it.copy(isLoading = true, error = null) }
             try {
@@ -76,9 +75,12 @@ class ProjectViewModel @Inject constructor(
                     id = 0, // 自动生成ID
                     name = name,
                     description = description,
+                    location = location,
                     vehicleCount = 0,
+                    trackCount = 0,
                     photoCount = 0,
-                    creationDate = LocalDateTime.now()
+                    createdAt = LocalDateTime.now(),
+                    status = ProjectStatus.ACTIVE
                 )
                 
                 // 保存到数据库

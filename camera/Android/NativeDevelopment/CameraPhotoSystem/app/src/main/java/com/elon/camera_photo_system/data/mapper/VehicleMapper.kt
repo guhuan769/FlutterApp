@@ -19,7 +19,8 @@ object VehicleMapper {
             plateNumber = plateNumber,
             brand = brand,
             model = model,
-            creationDate = creationDate
+            createdAt = creationDate,
+            projectCount = 0
         )
     }
     
@@ -34,7 +35,7 @@ object VehicleMapper {
             plateNumber = plateNumber,
             brand = brand,
             model = model,
-            creationDate = creationDate
+            creationDate = createdAt
         )
     }
     
@@ -49,9 +50,10 @@ object VehicleMapper {
             plateNumber = plateNumber,
             brand = brand,
             model = model,
-            creationDate = creationDate,
+            createdAt = creationDate,
             photoCount = photoCount,
-            trackCount = trackCount
+            trackCount = trackCount,
+            projectCount = 1  // 默认为1，表示属于一个项目
         )
     }
 } 

@@ -211,26 +211,15 @@ fun NavGraph(
             )
         ) { backStackEntry ->
             val projectId = backStackEntry.arguments?.getLong("projectId") ?: 0L
-            val projectState by projectViewModel.projectState.collectAsState()
-            
-            // 加载项目详情
-            projectViewModel.loadProject(projectId)
             
             ProjectDetailScreen(
-                project = projectState.project,
-                isLoading = projectState.isLoading,
-                error = projectState.error,
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToVehicles = {
+                navController = navController,
+                projectId = projectId,
+                onNavigateToEditProject = { /* TODO: 实现编辑项目 */ },
+                onNavigateToVehicleList = {
                     navController.navigate(NavRoute.VehicleList.createRoute(projectId))
                 },
-                onNavigateToCamera = {
-                    navController.navigate(NavRoute.ProjectCamera.createRoute(projectId))
-                },
-                onNavigateToGallery = {
-                    galleryViewModel.loadModulePhotos(projectId, ModuleType.PROJECT)
-                    navController.navigate(NavRoute.ProjectGallery.createRoute(projectId))
-                }
+                onNavigateToTrackList = { /* TODO: 实现轨迹列表 */ }
             )
         }
         
@@ -295,20 +284,18 @@ fun NavGraph(
             vehicleViewModel.loadVehicle(vehicleId)
             
             VehicleDetailScreen(
-                projectId = projectId,
-                vehicle = vehicleState.vehicle,
-                isLoading = vehicleState.isLoading,
-                error = vehicleState.error,
+                viewModel = vehicleViewModel,
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToTracks = {
+                onNavigateToEdit = { vehicleId ->
+                    // 编辑车辆尚未实现
+                    // navController.navigate(NavRoute.VehicleEdit.createRoute(projectId, vehicleId))
+                },
+                onNavigateToTrackList = { vehicleId ->
                     navController.navigate(NavRoute.TrackList.createRoute(projectId, vehicleId))
                 },
-                onNavigateToCamera = {
-                    navController.navigate(NavRoute.VehicleCamera.createRoute(projectId, vehicleId))
-                },
-                onNavigateToGallery = {
-                    galleryViewModel.loadModulePhotos(vehicleId, ModuleType.VEHICLE)
-                    navController.navigate(NavRoute.VehicleGallery.createRoute(projectId, vehicleId))
+                onNavigateToProjectList = { vehicleId ->
+                    // 目前没有项目列表功能，返回上一级
+                    navController.popBackStack()
                 }
             )
         }

@@ -1,11 +1,13 @@
 package com.elon.camera_photo_system.presentation.vehicle
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -15,7 +17,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -23,29 +27,109 @@ import com.elon.camera_photo_system.domain.model.Vehicle
 import java.time.format.DateTimeFormatter
 
 /**
+ * 加载状态组件
+ */
+@Composable
+private fun LoadingState(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator()
+    }
+}
+
+/**
+ * 错误状态组件
+ */
+@Composable
+private fun ErrorState(
+    message: String,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.error
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = onRetry) {
+            Text(text = "重试")
+        }
+    }
+}
+
+/**
+ * 空车辆状态组件
+ */
+@Composable
+private fun EmptyVehicleState(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "未找到车辆信息",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/**
  * 车辆详情界面
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VehicleDetailScreen(
-    projectId: Long,
-    vehicle: Vehicle?,
-    isLoading: Boolean,
-    error: String?,
+    viewModel: VehicleViewModel,
     onNavigateBack: () -> Unit,
-    onNavigateToTracks: () -> Unit,
-    onNavigateToCamera: () -> Unit,
-    onNavigateToGallery: () -> Unit
+    onNavigateToEdit: (Long) -> Unit,
+    onNavigateToTrackList: (Long) -> Unit,
+    onNavigateToProjectList: (Long) -> Unit,
+    modifier: Modifier = Modifier
 ) {
+    val vehicleState by viewModel.vehicleState.collectAsState()
+    val vehicle = vehicleState.vehicle
+    val isLoading = vehicleState.isLoading
+    val error = vehicleState.error
+    
+    // 缓存不变的颜色和样式以减少重组
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    val topAppBarContainerColor = MaterialTheme.colorScheme.primary
+    val topAppBarContentColor = MaterialTheme.colorScheme.onPrimary
+    
+    // 添加进入动画效果
+    val contentAlpha by animateFloatAsState(
+        targetValue = if (isLoading) 0f else 1f,
+        animationSpec = tween(durationMillis = 300)
+    )
+    
     Scaffold(
+        modifier = modifier.fillMaxSize(),
+        containerColor = surfaceColor,
         topBar = {
             TopAppBar(
-                title = { Text(vehicle?.plateNumber ?: "车辆详情") },
+                title = { Text(text = "车辆详情") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "返回"
+                        )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = topAppBarContainerColor,
+                    titleContentColor = topAppBarContentColor,
+                    navigationIconContentColor = topAppBarContentColor
+                )
             )
         }
     ) { paddingValues ->
@@ -54,111 +138,141 @@ fun VehicleDetailScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            if (isLoading) {
-                // 加载状态
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            } else if (vehicle == null && error == null) {
-                // 车辆不存在
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Error,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.error
+            // 使用key为整个内容区域提供一个稳定的身份，减少不必要的重组
+            key(vehicle?.id) {
+                when {
+                    isLoading -> {
+                        LoadingState(
+                            modifier = Modifier.fillMaxSize()
                         )
-                        
-                        Spacer(modifier = Modifier.height(16.dp))
-                        
-                        Text(
-                            text = "车辆不存在",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                        
-                        Spacer(modifier = Modifier.height(16.dp))
-                        
-                        Button(
-                            onClick = onNavigateBack
+                    }
+                    error != null -> {
+                        AnimatedVisibility(
+                            visible = true,
+                            enter = fadeIn(tween(300)),
+                            exit = fadeOut(tween(300))
                         ) {
-                            Text("返回车辆列表")
+                            ErrorState(
+                                message = error,
+                                onRetry = { viewModel.loadVehicle(vehicle?.id ?: 0L) },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
+                    vehicle != null -> {
+                        // 显示车辆详情
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                                .padding(16.dp)
+                                .graphicsLayer(alpha = contentAlpha)
+                        ) {
+                            // 车辆概览卡片
+                            VehicleOverviewCard(
+                                vehicle = vehicle,
+                                onEditClick = { onNavigateToEdit(vehicle.id) }
+                            )
+                            
+                            Spacer(modifier = Modifier.height(24.dp))
+                            
+                            // 功能区域
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                // 缓存颜色，减少重组
+                                val primaryColor = MaterialTheme.colorScheme.primary
+                                val secondaryColor = MaterialTheme.colorScheme.secondary
+                                
+                                FunctionCard(
+                                    icon = Icons.Default.Timeline,
+                                    title = "轨迹记录",
+                                    description = "${vehicle.trackCount}条轨迹",
+                                    color = primaryColor,
+                                    onClick = { onNavigateToTrackList(vehicle.id) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                
+                                FunctionCard(
+                                    icon = Icons.Default.Assignment,
+                                    title = "项目管理",
+                                    description = "${vehicle.projectCount}个项目",
+                                    color = secondaryColor,
+                                    onClick = { onNavigateToProjectList(vehicle.id) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                    }
+                    else -> {
+                        AnimatedVisibility(
+                            visible = true,
+                            enter = fadeIn(tween(300)),
+                            exit = fadeOut(tween(300))
+                        ) {
+                            EmptyVehicleState(
+                                modifier = Modifier.fillMaxSize()
+                            )
                         }
                     }
                 }
-            } else if (vehicle != null) {
-                // 车辆详情内容
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(16.dp)
-                ) {
-                    // 导航路径提示
-                    NavigationPathIndicator(projectId = projectId, vehiclePlateNumber = vehicle.plateNumber)
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    // 车辆概览卡片
-                    VehicleOverviewCard(vehicle = vehicle)
-                    
-                    Spacer(modifier = Modifier.height(24.dp))
-                    
-                    // 功能入口
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        FunctionCard(
-                            icon = Icons.Default.Timeline,
-                            title = "轨迹管理",
-                            description = "${vehicle.trackCount}条轨迹",
-                            onClick = onNavigateToTracks,
-                            color = MaterialTheme.colorScheme.secondary
-                        )
-                        
-                        FunctionCard(
-                            icon = Icons.Default.PhotoCamera,
-                            title = "拍照",
-                            description = "车辆照片",
-                            onClick = onNavigateToCamera,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        
-                        FunctionCard(
-                            icon = Icons.Default.Collections,
-                            title = "相册",
-                            description = "${vehicle.photoCount}张照片",
-                            onClick = onNavigateToGallery,
-                            color = MaterialTheme.colorScheme.tertiary
-                        )
-                    }
-                }
             }
-            
-            // 错误提示
-            AnimatedVisibility(
-                visible = error != null,
-                enter = fadeIn(),
-                exit = fadeOut(),
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(16.dp)
+        }
+    }
+}
+
+@Composable
+private fun VehicleContent(
+    vehicle: Vehicle,
+    onNavigateToEdit: (Long) -> Unit,
+    onNavigateToTrackList: (Long) -> Unit,
+    onNavigateToProjectList: (Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    LazyColumn(
+        modifier = modifier.animateContentSize(
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessMedium
+            )
+        ),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item(key = "overview") {
+            VehicleOverviewCard(
+                vehicle = vehicle,
+                onEditClick = { onNavigateToEdit(vehicle.id) }
+            )
+        }
+        
+        item(key = "functions") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                error?.let {
-                    Snackbar {
-                        Text(it)
-                    }
-                }
+                // 缓存颜色，减少重组
+                val primaryColor = MaterialTheme.colorScheme.primary
+                val secondaryColor = MaterialTheme.colorScheme.secondary
+                
+                FunctionCard(
+                    icon = Icons.Default.Timeline,
+                    title = "轨迹记录",
+                    description = "${vehicle.trackCount}条轨迹",
+                    color = primaryColor,
+                    onClick = { onNavigateToTrackList(vehicle.id) },
+                    modifier = Modifier.weight(1f)
+                )
+                
+                FunctionCard(
+                    icon = Icons.Default.Assignment,
+                    title = "项目管理",
+                    description = "${vehicle.projectCount}个项目",
+                    color = secondaryColor,
+                    onClick = { onNavigateToProjectList(vehicle.id) },
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
     }
@@ -212,7 +326,7 @@ private fun NavigationPathIndicator(projectId: Long, vehiclePlateNumber: String)
  * 车辆概览卡片
  */
 @Composable
-private fun VehicleOverviewCard(vehicle: Vehicle) {
+private fun VehicleOverviewCard(vehicle: Vehicle, onEditClick: () -> Unit) {
     val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
     
     Card(
@@ -293,8 +407,16 @@ private fun VehicleOverviewCard(vehicle: Vehicle) {
                 InfoItem(
                     icon = Icons.Default.CalendarToday,
                     label = "创建时间",
-                    value = vehicle.creationDate.format(dateFormatter)
+                    value = vehicle.createdAt.format(dateFormatter)
                 )
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Button(
+                onClick = onEditClick
+            ) {
+                Text("编辑车辆")
             }
         }
     }
@@ -345,30 +467,40 @@ private fun FunctionCard(
     title: String,
     description: String,
     onClick: () -> Unit,
-    color: Color
+    color: Color,
+    modifier: Modifier = Modifier
 ) {
+    // 缓存不变的值，减少重组
+    val cardElevation = 2.dp
+    val cardShape = RoundedCornerShape(12.dp)
+    val iconSize = 40.dp
+    val iconBackgroundAlpha = 0.2f
+    
     Card(
-        modifier = Modifier
-            .width(100.dp)
-            .height(120.dp),
+        onClick = onClick,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        onClick = onClick,
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = cardElevation
+        ),
+        shape = cardShape,
+        modifier = modifier
+            .height(120.dp)
+            .animateContentSize()
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(8.dp),
+                .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(percent = 50))
-                    .background(color.copy(alpha = 0.15f)),
+                    .size(iconSize)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(color.copy(alpha = iconBackgroundAlpha)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -384,18 +516,22 @@ private fun FunctionCard(
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Medium
             )
             
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            // 使用AnimatedVisibility为描述文本添加动画
+            AnimatedVisibility(
+                visible = description.isNotEmpty(),
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 } 

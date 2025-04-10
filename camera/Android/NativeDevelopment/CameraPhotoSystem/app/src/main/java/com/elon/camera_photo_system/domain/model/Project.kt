@@ -1,5 +1,6 @@
 package com.elon.camera_photo_system.domain.model
 
+import com.elon.camera_photo_system.presentation.project.ProjectStatus
 import java.time.LocalDateTime
 
 /**
@@ -9,7 +10,10 @@ data class Project(
     val id: Long,
     val name: String,
     val description: String = "",
-    val creationDate: LocalDateTime = LocalDateTime.now(),
+    val location: String = "",
+    val createdAt: LocalDateTime = LocalDateTime.now(),
     val vehicleCount: Int = 0,
-    val photoCount: Int = 0
+    val trackCount: Int = 0,
+    val photoCount: Int = 0,
+    val status: ProjectStatus = ProjectStatus.ACTIVE
 ) 

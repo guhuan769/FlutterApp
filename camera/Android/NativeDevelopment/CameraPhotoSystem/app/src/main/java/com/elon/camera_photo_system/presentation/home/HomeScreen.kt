@@ -423,7 +423,7 @@ private fun ProjectItem(
                 
                 ProjectInfoChip(
                     icon = Icons.Default.DateRange,
-                    label = project.creationDate.format(dateFormatter)
+                    label = project.createdAt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
                 )
             }
             
