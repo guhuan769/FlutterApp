@@ -51,6 +51,7 @@ import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import kotlinx.coroutines.launch
 import java.io.File
+import android.util.Log
 
 /**
  * 相册屏幕
@@ -167,6 +168,7 @@ fun GalleryScreen(
                         items(displayPhotos) { photo ->
                             PhotoCard(
                                 photo = photo,
+                                moduleType = moduleType,
                                 onClick = { 
                                     selectedPhoto = photo
                                     onPhotoClick(photo)
@@ -200,7 +202,8 @@ fun GalleryScreen(
             onDelete = { 
                 onDeletePhoto(selectedPhoto!!)
                 selectedPhoto = null
-            }
+            },
+            moduleType = moduleType
         )
     }
 }
@@ -208,12 +211,17 @@ fun GalleryScreen(
 @Composable
 fun PhotoCard(
     photo: Photo,
+    moduleType: ModuleType,
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
-    // 从文件名中提取序号
-    val photoNumber = remember(photo.fileName) {
-        extractPhotoNumber(photo.fileName)
+    // 直接使用Photo对象中的序号和角度，不再从文件名中提取
+    // 如果序号和角度为0，尝试从文件名中提取
+    val (photoNumber, angle) = if (photo.photoNumber > 0 && photo.angle > 0) {
+        Pair(photo.photoNumber, photo.angle)
+    } else {
+        // 尝试从文件名中提取作为备用方案
+        extractPhotoInfo(photo.fileName, moduleType)
     }
     
     Box(
@@ -262,7 +270,7 @@ fun PhotoCard(
                     )
                 }
                 
-                // 显示照片类型和序号
+                // 显示照片类型、序号和角度
                 Surface(
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                     shape = RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp),
@@ -271,7 +279,7 @@ fun PhotoCard(
                         .padding(bottom = 8.dp)
                 ) {
                     Text(
-                        text = "${photo.photoType.label}-$photoNumber",
+                        text = "${photo.photoType.label} #${photoNumber} ${angle}°",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -287,7 +295,8 @@ fun PhotoCard(
 fun PhotoDetailDialog(
     photo: Photo,
     onDismiss: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    moduleType: ModuleType
 ) {
     val context = LocalContext.current
     
@@ -438,6 +447,16 @@ fun PhotoDetailDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     
+                    // 添加角度信息
+                    val (_, angle) = remember(photo.fileName) {
+                        extractPhotoInfo(photo.fileName, moduleType)
+                    }
+                    Text(
+                        text = "拍摄角度: ${angle}°",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
                     Spacer(modifier = Modifier.height(8.dp))
                     
                     Row(
@@ -486,24 +505,47 @@ fun PhotoDetailDialog(
 }
 
 /**
- * 从文件名中提取照片序号
+ * 从文件名中提取照片序号和角度
  */
-private fun extractPhotoNumber(fileName: String): Int {
-    // 文件名格式: 项目名称_照片类型_序号_角度.jpg 或 
-    // 项目名称_车辆名称_照片类型_序号_角度.jpg 或
-    // 项目名称_车辆名称_轨迹名称_照片类型_序号_角度.jpg
+private fun extractPhotoInfo(fileName: String, moduleType: ModuleType): Pair<Int, Int> {
     try {
-        // 尝试从文件名中提取序号
+        Log.d("GalleryScreen", "Extracting info from: $fileName")
         val parts = fileName.split("_")
-        // 序号部分可能在不同位置，需要寻找数字部分
-        for (i in 2 until parts.size) {
-            if (parts[i].all { it.isDigit() }) {
-                return parts[i].toIntOrNull() ?: 0
-            }
+        
+        // 根据不同模块类型，序号位置不同
+        val numIndex = when (moduleType) {
+            ModuleType.PROJECT -> 2 // 项目名称_照片类型_序号_角度.jpg
+            ModuleType.VEHICLE -> 3 // 项目名称_车辆名称_照片类型_序号_角度.jpg
+            ModuleType.TRACK -> 4   // 项目名称_车辆名称_轨迹名称_照片类型_序号_角度.jpg
         }
-        return 0
+        
+        // 打印调试信息
+        Log.d("GalleryScreen", "Filename parts: ${parts.joinToString()}, numIndex: $numIndex")
+        
+        // 确保序号索引有效
+        if (numIndex >= parts.size) {
+            Log.e("GalleryScreen", "Invalid numIndex: $numIndex for parts size: ${parts.size}")
+            return Pair(0, 0)
+        }
+        
+        // 提取序号
+        val photoNumber = parts[numIndex].toIntOrNull() ?: 0
+        
+        // 提取角度 - 更强健的方法
+        val angle = if (numIndex + 1 < parts.size) {
+            // 获取可能包含角度和扩展名的部分
+            val anglePart = parts[numIndex + 1]
+            // 使用正则表达式提取数字部分
+            val angleMatch = Regex("(\\d+)").find(anglePart)
+            angleMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
+        } else 0
+        
+        Log.d("GalleryScreen", "Extracted number: $photoNumber, angle: $angle")
+        return Pair(photoNumber, angle)
     } catch (e: Exception) {
-        return 0
+        Log.e("GalleryScreen", "Error extracting photo info: ${e.message}")
+        return Pair(0, 0)
     }
 }
+
 

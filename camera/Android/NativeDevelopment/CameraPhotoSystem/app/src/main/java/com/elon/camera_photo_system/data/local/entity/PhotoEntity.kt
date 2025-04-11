@@ -18,6 +18,8 @@ data class PhotoEntity(
     val photoType: String, // 照片类型，存储枚举字符串值
     val filePath: String, // 照片文件路径
     val fileName: String, // 照片文件名
+    val photoNumber: Int = 0, // 照片序号
+    val angle: Int = 0, // 拍摄角度
     val createdAt: String, // 创建时间，ISO格式字符串
     val latitude: Double?, // 纬度
     val longitude: Double?, // 经度

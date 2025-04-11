@@ -12,6 +12,8 @@ data class Photo(
     val photoType: PhotoType, // 照片类型
     val filePath: String, // 照片文件路径
     val fileName: String, // 照片文件名
+    val photoNumber: Int = 0, // 照片序号
+    val angle: Int = 0, // 拍摄角度
     val createdAt: LocalDateTime = LocalDateTime.now(), // 创建时间
     val latitude: Double? = null, // 纬度
     val longitude: Double? = null, // 经度

@@ -585,7 +585,7 @@ fun TrackPhotoTypeButton(
 }
 
 /**
- * 拍照方法
+ * 拍照
  */
 private fun takePhoto(
     imageCapture: ImageCapture?,
@@ -596,13 +596,18 @@ private fun takePhoto(
     moduleId: Long,
     moduleInfo: ModuleInfo,
     photoNumber: Int,
-    onSuccess: (filePath: String, fileName: String) -> Unit
+    onSuccess: (String, String) -> Unit
 ) {
     imageCapture ?: return
     
     try {
-        // 创建照片文件
-        val photoFile = createPhotoFile(context, photoType, angle, moduleType, moduleInfo, photoNumber)
+        // 创建照片文件，确保角度值非负
+        val safeAngle = if (angle < 0) 0 else angle
+        val photoFile = createPhotoFile(context, photoType, safeAngle, moduleType, moduleInfo, photoNumber)
+        
+        // 打印日志确认角度值
+        android.util.Log.d("CameraScreen", "拍照 - 类型: ${photoType.label}, 序号: $photoNumber, 角度: $safeAngle")
+        android.util.Log.d("CameraScreen", "生成的文件名: ${photoFile.name}")
         
         // 确保目录存在
         photoFile.parentFile?.mkdirs()
@@ -640,24 +645,27 @@ private fun createPhotoFile(
     moduleInfo: ModuleInfo,
     photoNumber: Int
 ): File {
-    // 生成照片名称
-    val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+    // 确保角度值是整数
+    val safeAngle = if (angle < 0) 0 else angle
     
     // 照片名称根据不同模块类型构建
     val photoFileName = when (moduleType) {
         ModuleType.PROJECT -> {
             // 格式：项目名称_照片类型_序号_角度.jpg
-            "${moduleInfo.projectName}_${getPhotoTypeCode(photoType)}_${photoNumber}_${angle}°.jpg"
+            "${moduleInfo.projectName}_${getPhotoTypeCode(photoType)}_${photoNumber}_${safeAngle}°.jpg"
         }
         ModuleType.VEHICLE -> {
             // 格式：父项目名称_车辆名称_照片类型_序号_角度.jpg
-            "${moduleInfo.projectName}_${moduleInfo.vehicleName}_${getPhotoTypeCode(photoType)}_${photoNumber}_${angle}°.jpg"
+            "${moduleInfo.projectName}_${moduleInfo.vehicleName}_${getPhotoTypeCode(photoType)}_${photoNumber}_${safeAngle}°.jpg"
         }
         ModuleType.TRACK -> {
             // 格式：父项目名称_父车辆名称_当前轨迹名称_照片类型_序号_角度.jpg
-            "${moduleInfo.projectName}_${moduleInfo.vehicleName}_${moduleInfo.trackName}_${getPhotoTypeCode(photoType)}_${photoNumber}_${angle}°.jpg"
+            "${moduleInfo.projectName}_${moduleInfo.vehicleName}_${moduleInfo.trackName}_${getPhotoTypeCode(photoType)}_${photoNumber}_${safeAngle}°.jpg"
         }
     }
+    
+    // 打印调试信息
+    android.util.Log.d("CameraScreen", "创建文件: $photoFileName, 角度: $safeAngle")
     
     // 创建照片文件
     val storageDir = context.getExternalFilesDir("Photos")
