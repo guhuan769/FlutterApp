@@ -33,6 +33,7 @@ import com.elon.camera_photo_system.presentation.track.TrackViewModel
 import com.elon.camera_photo_system.presentation.vehicle.VehicleDetailScreen
 import com.elon.camera_photo_system.presentation.vehicle.VehicleListScreen
 import com.elon.camera_photo_system.presentation.vehicle.VehicleViewModel
+import com.elon.camera_photo_system.presentation.home.state.UploadState
 
 /**
  * 导航路由
@@ -296,6 +297,15 @@ fun NavGraph(
                 onNavigateToProjectList = { vehicleId ->
                     // 目前没有项目列表功能，返回上一级
                     navController.popBackStack()
+                },
+                onNavigateToCamera = { vehicleId ->
+                    // 导航到车辆拍照界面
+                    navController.navigate(NavRoute.VehicleCamera.createRoute(projectId, vehicleId))
+                },
+                onNavigateToGallery = { vehicleId ->
+                    // 导航到车辆相册界面
+                    galleryViewModel.loadModulePhotos(vehicleId, ModuleType.VEHICLE)
+                    navController.navigate(NavRoute.VehicleGallery.createRoute(projectId, vehicleId))
                 }
             )
         }
@@ -381,6 +391,10 @@ fun NavGraph(
                 },
                 onNavigateToCamera = { id ->
                     navController.navigate(NavRoute.TrackCamera.createRoute(projectId, vehicleId, id))
+                },
+                onNavigateToGallery = { id ->
+                    galleryViewModel.loadModulePhotos(id, ModuleType.TRACK)
+                    navController.navigate(NavRoute.TrackGallery.createRoute(projectId, vehicleId, id))
                 }
             )
         }

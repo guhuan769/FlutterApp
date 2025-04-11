@@ -27,7 +27,51 @@ class PhotoRepositoryImpl @Inject constructor(
     private val formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME
     
     override suspend fun savePhoto(photo: Photo): Long {
-        return photoDao.insertPhoto(photo.toPhotoEntity())
+        // 根据不同模块类型生成标准化的文件名
+        val standardizedPhoto = generateStandardizedPhotoName(photo)
+        return photoDao.insertPhoto(standardizedPhoto.toPhotoEntity())
+    }
+    
+    /**
+     * 生成标准化的照片名称
+     * 项目照片：项目名称_照片类型(中文)_序号.jpg
+     * 车辆照片：项目名称_车辆名称_照片类型(中文)_序号.jpg
+     * 轨迹照片：项目名称_车辆名称_轨迹名称_照片类型(中文)_序号.jpg
+     */
+    private suspend fun generateStandardizedPhotoName(photo: Photo): Photo {
+        val originalFileName = photo.fileName
+        // 获取文件扩展名
+        val extension = originalFileName.substringAfterLast('.', "")
+        
+        // 获取照片类型的中文描述
+        val photoTypeLabel = photo.photoType.label
+        
+        // 根据模块类型获取相应的命名
+        val newFileName = when (photo.moduleType) {
+            ModuleType.PROJECT -> {
+                val projectName = photoDao.getProjectName(photo.moduleId) ?: "未知项目"
+                val photoCount = photoDao.getPhotoCountByModule(photo.moduleId, photo.moduleType.name) + 1
+                "${projectName}_${photoTypeLabel}_$photoCount.$extension"
+            }
+            ModuleType.VEHICLE -> {
+                val vehicleWithProject = photoDao.getVehicleWithProject(photo.moduleId)
+                val projectName = vehicleWithProject?.projectName ?: "未知项目"
+                val vehicleName = vehicleWithProject?.vehicleName ?: "未知车辆"
+                val photoCount = photoDao.getPhotoCountByModule(photo.moduleId, photo.moduleType.name) + 1
+                "${projectName}_${vehicleName}_${photoTypeLabel}_$photoCount.$extension"
+            }
+            ModuleType.TRACK -> {
+                val trackWithVehicleAndProject = photoDao.getTrackWithVehicleAndProject(photo.moduleId)
+                val projectName = trackWithVehicleAndProject?.projectName ?: "未知项目"
+                val vehicleName = trackWithVehicleAndProject?.vehicleName ?: "未知车辆"
+                val trackName = trackWithVehicleAndProject?.trackName ?: "未知轨迹"
+                val photoCount = photoDao.getPhotoCountByModule(photo.moduleId, photo.moduleType.name) + 1
+                "${projectName}_${vehicleName}_${trackName}_${photoTypeLabel}_$photoCount.$extension"
+            }
+        }
+        
+        // 返回更新了文件名的照片对象
+        return photo.copy(fileName = newFileName)
     }
     
     override suspend fun updatePhoto(photo: Photo) {
@@ -76,21 +120,37 @@ class PhotoRepositoryImpl @Inject constructor(
     
     override suspend fun uploadPhoto(photo: Photo): Boolean {
         try {
+            // 获取照片的标准化文件名（如果已经标准化过则不需要再次处理）
+            val standardizedPhoto = if (isStandardizedFileName(photo)) {
+                photo
+            } else {
+                generateStandardizedPhotoName(photo)
+            }
+            
             val result = photoRemoteDataSource.uploadPhoto(
-                filePath = photo.filePath,
-                fileName = photo.fileName,
-                moduleId = photo.moduleId,
-                moduleType = photo.moduleType,
-                photoType = photo.photoType,
-                projectName = getProjectName(photo.moduleId),
-                latitude = photo.latitude,
-                longitude = photo.longitude
+                filePath = standardizedPhoto.filePath,
+                fileName = standardizedPhoto.fileName,
+                moduleId = standardizedPhoto.moduleId,
+                moduleType = standardizedPhoto.moduleType,
+                photoType = standardizedPhoto.photoType,
+                projectName = getProjectName(standardizedPhoto.moduleId),
+                latitude = standardizedPhoto.latitude,
+                longitude = standardizedPhoto.longitude
             )
             
             if (result) {
-                // 更新照片上传状态
-                val updatedPhoto = photo.copy(isUploaded = true)
-                updatePhoto(updatedPhoto)
+                // 更新照片上传状态和文件名（如果更改了）
+                val updatedPhoto = if (standardizedPhoto.fileName != photo.fileName) {
+                    // 如果文件名改变了，更新数据库中的文件名
+                    val updated = standardizedPhoto.copy(isUploaded = true)
+                    updatePhoto(updated)
+                    updated
+                } else {
+                    // 仅更新上传状态
+                    val updated = photo.copy(isUploaded = true)
+                    updatePhoto(updated)
+                    updated
+                }
             }
             
             return result
@@ -98,6 +158,30 @@ class PhotoRepositoryImpl @Inject constructor(
             Log.e("PhotoRepository", "上传照片失败: ${photo.fileName}", e)
             // 重新抛出异常给上层处理
             throw e
+        }
+    }
+    
+    /**
+     * 检查照片名称是否已经标准化
+     */
+    private fun isStandardizedFileName(photo: Photo): Boolean {
+        val fileName = photo.fileName
+        val photoTypeLabel = photo.photoType.label
+        
+        // 更准确的正则表达式检查
+        return when (photo.moduleType) {
+            ModuleType.PROJECT -> {
+                // 项目照片格式：项目名称_照片类型(中文)_序号.扩展名
+                fileName.matches(Regex(".+_${photoTypeLabel}_\\d+\\..+"))
+            }
+            ModuleType.VEHICLE -> {
+                // 车辆照片格式：项目名称_车辆名称_照片类型(中文)_序号.扩展名
+                fileName.matches(Regex(".+_.+_${photoTypeLabel}_\\d+\\..+"))
+            }
+            ModuleType.TRACK -> {
+                // 轨迹照片格式：项目名称_车辆名称_轨迹名称_照片类型(中文)_序号.扩展名
+                fileName.matches(Regex(".+_.+_.+_${photoTypeLabel}_\\d+\\..+"))
+            }
         }
     }
     

@@ -93,6 +93,8 @@ fun VehicleDetailScreen(
     onNavigateToEdit: (Long) -> Unit,
     onNavigateToTrackList: (Long) -> Unit,
     onNavigateToProjectList: (Long) -> Unit,
+    onNavigateToCamera: (Long) -> Unit,
+    onNavigateToGallery: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val vehicleState by viewModel.vehicleState.collectAsState()
@@ -176,7 +178,7 @@ fun VehicleDetailScreen(
                             
                             Spacer(modifier = Modifier.height(24.dp))
                             
-                            // 功能区域
+                            // 功能区域 - 第一行
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -200,6 +202,36 @@ fun VehicleDetailScreen(
                                     description = "${vehicle.projectCount}个项目",
                                     color = secondaryColor,
                                     onClick = { onNavigateToProjectList(vehicle.id) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.height(16.dp))
+                            
+                            // 功能区域 - 第二行（相机和相册功能）
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                // 缓存颜色，减少重组
+                                val cameraColor = MaterialTheme.colorScheme.tertiary
+                                val galleryColor = MaterialTheme.colorScheme.secondary
+                                
+                                FunctionCard(
+                                    icon = Icons.Default.PhotoCamera,
+                                    title = "拍照",
+                                    description = "车辆拍照",
+                                    color = cameraColor,
+                                    onClick = { onNavigateToCamera(vehicle.id) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                
+                                FunctionCard(
+                                    icon = Icons.Default.PhotoLibrary,
+                                    title = "相册",
+                                    description = "${vehicle.photoCount}张照片",
+                                    color = galleryColor,
+                                    onClick = { onNavigateToGallery(vehicle.id) },
                                     modifier = Modifier.weight(1f)
                                 )
                             }

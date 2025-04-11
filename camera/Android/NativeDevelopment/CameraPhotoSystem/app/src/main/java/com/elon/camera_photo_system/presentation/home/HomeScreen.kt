@@ -23,6 +23,14 @@ import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import java.time.format.DateTimeFormatter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.navigation.NavController
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.elon.camera_photo_system.presentation.home.state.UploadState
+
 
 /**
  * 项目模块主界面 - 项目列表
@@ -38,18 +46,20 @@ import androidx.compose.foundation.shape.CircleShape
 fun HomeScreen(
     state: HomeScreenState,
     uploadState: UploadState,
-    onAddProject: () -> Unit,
     onProjectClick: (Project) -> Unit,
+    onRefresh: () -> Unit,
+    onAddProject: () -> Unit,
     onTakeModelPhoto: (Project) -> Unit,
     onOpenGallery: (Project) -> Unit,
     onAddVehicle: (Project) -> Unit,
     onUploadProject: (Project) -> Unit,
     onDeleteProject: (Project) -> Unit,
-    onNavigateToSettings: () -> Unit,
-    onRefresh: () -> Unit
+    onNavigateToSettings: () -> Unit
 ) {
     val swipeRefreshState = rememberSwipeRefreshState(state.isLoading)
     var showDeleteDialog by remember { mutableStateOf<Project?>(null) }
+    var showUploadDialog by remember { mutableStateOf(false) }
+    var selectedProject by remember { mutableStateOf<Project?>(null) }
     
     Scaffold(
         topBar = {
@@ -91,7 +101,11 @@ fun HomeScreen(
                         onTakeModelPhoto = onTakeModelPhoto,
                         onOpenGallery = onOpenGallery,
                         onAddVehicle = onAddVehicle,
-                        onUploadProject = onUploadProject,
+                        onUploadProject = { project ->
+                            selectedProject = project
+                            showUploadDialog = true
+                            onUploadProject(project)
+                        },
                         onDeleteProject = { project -> showDeleteDialog = project }
                     )
                 }
@@ -197,6 +211,16 @@ fun HomeScreen(
                     Text("取消")
                 }
             }
+        )
+    }
+    
+    // 显示批量上传对话框
+    if (showUploadDialog && selectedProject != null) {
+        BatchProjectUploadDialog(
+            isVisible = showUploadDialog,
+            project = selectedProject!!,
+            uploadState = uploadState,
+            onDismissRequest = { showUploadDialog = false }
         )
     }
 }
@@ -568,4 +592,172 @@ private fun ProjectActionButton(
             )
         }
     }
+}
+
+/**
+ * 项目批量上传对话框
+ * 用于显示项目照片上传的进度和状态
+ */
+@Composable
+fun BatchProjectUploadDialog(
+    isVisible: Boolean,
+    project: Project?,
+    uploadState: UploadState,
+    onDismissRequest: () -> Unit
+) {
+    if (!isVisible || project == null) return
+    
+    // 处理进度，确保值在0-1之间
+    val progressValue = if (uploadState.totalCount > 0) {
+        (uploadState.uploadedCount.toFloat() / uploadState.totalCount).coerceIn(0f, 1f)
+    } else {
+        0f  // 当总数为0时，确保进度为0
+    }
+    
+    val uploadProgress by animateFloatAsState(
+        targetValue = progressValue,
+        animationSpec = tween(durationMillis = 300),
+        label = "upload_progress"
+    )
+    
+    // 记录数值，避免在动画过程中变化
+    val uploadedCount = remember(uploadState.uploadedCount) { uploadState.uploadedCount }
+    val totalCount = remember(uploadState.totalCount) { uploadState.totalCount }
+    val progressPercentage = remember(uploadProgress) { (uploadProgress * 100).toInt() }
+    
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        icon = {
+            when {
+                uploadState.isSuccess -> Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "上传成功",
+                    tint = Color.Green
+                )
+                uploadState.error != null -> Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "上传失败",
+                    tint = Color.Red
+                )
+                else -> Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = "正在上传",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        },
+        title = {
+            Text(
+                text = "批量上传项目照片",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // 项目信息
+                Text(
+                    text = "项目：${project.name}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium
+                )
+                
+                // 上传进度
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "上传进度",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = "$progressPercentage%",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    
+                    // 使用LinearProgressIndicator显示进度
+                    if (totalCount > 0) {
+                        // 有照片需要上传，显示确定进度条
+                        LinearProgressIndicator(
+                            progress = { uploadProgress },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else if (uploadState.isSuccess) {
+                        // 上传成功但没有照片，显示满进度
+                        LinearProgressIndicator(
+                            progress = { 1f },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        // 未开始上传或正在计算，显示不确定进度条
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+                
+                // 已上传/总数
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "已上传：$uploadedCount",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = "总计：$totalCount",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+                
+                // 错误信息
+                uploadState.error?.let { error ->
+                    Text(
+                        text = "错误：$error",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Red
+                    )
+                }
+                
+                // 成功信息
+                if (uploadState.isSuccess) {
+                    Text(
+                        text = if (totalCount == 0) "没有照片需要上传" 
+                               else "所有照片上传成功！",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Green,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onDismissRequest,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (uploadState.isSuccess || uploadState.error != null)
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.secondary
+                )
+            ) {
+                Text(
+                    text = if (uploadState.isSuccess || uploadState.error != null) "关闭" else "取消上传"
+                )
+            }
+        }
+    )
 } 

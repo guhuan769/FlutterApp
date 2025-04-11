@@ -34,11 +34,19 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.elon.camera_photo_system.R
 import com.elon.camera_photo_system.domain.model.ModuleType
 import com.elon.camera_photo_system.domain.model.Photo
+import com.elon.camera_photo_system.domain.model.PhotoType
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import kotlinx.coroutines.launch
@@ -61,6 +69,25 @@ fun GalleryScreen(
 ) {
     val swipeRefreshState = rememberSwipeRefreshState(isLoading)
     var selectedPhoto by remember { mutableStateOf<Photo?>(null) }
+    
+    // 按照类型分组照片
+    val photosByType = remember(photos) {
+        photos.groupBy { it.photoType }
+    }
+    
+    // 选项卡状态
+    var selectedTab by remember { mutableStateOf(0) }
+    val tabs = remember(photosByType) {
+        photosByType.keys.toList().sortedBy { 
+            when (it) {
+                PhotoType.START_POINT -> 0
+                PhotoType.MIDDLE_POINT -> 1
+                PhotoType.MODEL_POINT -> 2
+                PhotoType.END_POINT -> 3
+                else -> 4 // 添加else分支以防枚举扩展
+            }
+        }
+    }
     
     Scaffold(
         topBar = {
@@ -97,20 +124,56 @@ fun GalleryScreen(
                     Text("暂无照片")
                 }
             } else {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    contentPadding = PaddingValues(8.dp),
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    items(photos) { photo ->
-                        PhotoCard(
-                            photo = photo,
-                            onClick = { 
-                                selectedPhoto = photo
-                                onPhotoClick(photo)
-                            },
-                            onDelete = { onDeletePhoto(photo) }
-                        )
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // 如果是轨迹模块且存在多种类型的照片，显示选项卡
+                    if (moduleType == ModuleType.TRACK && photosByType.size > 1) {
+                        ScrollableTabRow(
+                            selectedTabIndex = selectedTab,
+                            contentColor = MaterialTheme.colorScheme.primary,
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            edgePadding = 0.dp
+                        ) {
+                            tabs.forEachIndexed { index, photoType ->
+                                val count = photosByType[photoType]?.size ?: 0
+                                Tab(
+                                    selected = selectedTab == index,
+                                    onClick = { selectedTab = index },
+                                    text = {
+                                        Text(
+                                            text = "${photoType.label}($count)",
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                    },
+                                    selectedContentColor = MaterialTheme.colorScheme.primary,
+                                    unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                    
+                    // 根据选择的选项卡或者照片类型显示对应的照片
+                    val displayPhotos = if (moduleType == ModuleType.TRACK && photosByType.size > 1 && tabs.isNotEmpty()) {
+                        photosByType[tabs[selectedTab]] ?: emptyList()
+                    } else {
+                        photos
+                    }
+                    
+                    // 照片网格
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        contentPadding = PaddingValues(8.dp),
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        items(displayPhotos) { photo ->
+                            PhotoCard(
+                                photo = photo,
+                                onClick = { 
+                                    selectedPhoto = photo
+                                    onPhotoClick(photo)
+                                },
+                                onDelete = { onDeletePhoto(photo) }
+                            )
+                        }
                     }
                 }
             }
@@ -148,6 +211,11 @@ fun PhotoCard(
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
+    // 从文件名中提取序号
+    val photoNumber = remember(photo.fileName) {
+        extractPhotoNumber(photo.fileName)
+    }
+    
     Box(
         modifier = Modifier
             .padding(4.dp)
@@ -194,7 +262,7 @@ fun PhotoCard(
                     )
                 }
                 
-                // 照片类型标签
+                // 显示照片类型和序号
                 Surface(
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                     shape = RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp),
@@ -203,7 +271,7 @@ fun PhotoCard(
                         .padding(bottom = 8.dp)
                 ) {
                     Text(
-                        text = photo.photoType.label,
+                        text = "${photo.photoType.label}-$photoNumber",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -214,7 +282,7 @@ fun PhotoCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun PhotoDetailDialog(
     photo: Photo,
@@ -222,6 +290,11 @@ fun PhotoDetailDialog(
     onDelete: () -> Unit
 ) {
     val context = LocalContext.current
+    
+    // 获取照片文件名的简化版用于显示
+    val displayName = remember(photo.fileName) {
+        photo.fileName.substringBeforeLast(".")
+    }
     
     // 计算图片分辨率
     val resolution = remember {
@@ -308,167 +381,129 @@ fun PhotoDetailDialog(
                             }
                         }
                     }
-                    .pointerInput(Unit) {
-                        detectTapGestures(
-                            onDoubleTap = {
-                                coroutineScope.launch {
-                                    if (scale > 1f) {
-                                        // 如果已经放大，则重置为原始大小
-                                        scale = 1f
-                                        offset = Offset.Zero
-                                    } else {
-                                        // 如果是原始大小，则放大到2倍
-                                        scale = 2f
-                                    }
+                    .combinedClickable(
+                        onClick = { showDetails = !showDetails },
+                        onDoubleClick = {
+                            coroutineScope.launch {
+                                if (scale > 1f) {
+                                    // 双击恢复正常大小
+                                    scale = 1f
+                                    offset = Offset.Zero
+                                } else {
+                                    // 双击放大
+                                    scale = 2f
                                 }
-                            },
-                            onTap = {
-                                showDetails = !showDetails
                             }
-                        )
-                    }
+                        }
+                    )
             )
             
-            // 顶部工具栏
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 24.dp)
-                    .background(Color.Black.copy(alpha = 0.5f))
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // 顶部信息栏
+            AnimatedVisibility(
+                visible = showDetails,
+                enter = fadeIn() + slideInVertically { fullHeight -> -fullHeight },
+                exit = fadeOut() + slideOutVertically { fullHeight -> -fullHeight },
+                modifier = Modifier.align(Alignment.TopCenter)
             ) {
-                IconButton(onClick = onDismiss) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "关闭",
-                        tint = Color.White
-                    )
-                }
-                
-                IconButton(
-                    onClick = { showDetails = !showDetails }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = "信息",
-                        tint = Color.White
-                    )
-                }
-                
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "删除",
-                        tint = Color.White
-                    )
-                }
-            }
-            
-            // 底部信息栏
-            if (showDetails) {
-                Surface(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f))
                         .padding(16.dp)
-                        .clip(RoundedCornerShape(12.dp)),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
+                    Text(
+                        text = displayName,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Bold
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Text(
+                        text = "分辨率: $resolution",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    Text(
+                        text = "大小: $fileSize",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    Text(
+                        text = "照片类型: ${photo.photoType.label}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
                     ) {
-                        Text(
-                            text = "照片信息",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                        OutlinedButton(
+                            onClick = onDelete,
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            )
                         ) {
-                            Text(
-                                text = "类型",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "删除",
+                                modifier = Modifier.size(16.dp)
                             )
-                            Text(
-                                text = photo.photoType.label,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "分辨率",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = resolution,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "文件大小",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = fileSize,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "创建时间",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-//                                text = photo.creationDate,
-                                text = "",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("删除")
                         }
                     }
                 }
             }
             
-            // 提示信息
-            if (scale == 1f) {
-                Text(
-                    text = "双击放大图片",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.White.copy(alpha = 0.7f),
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .offset(y = 150.dp)
-                        .alpha(0.7f)
+            // 底部关闭按钮
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp)
+                    .size(48.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
+                        shape = CircleShape
+                    )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "关闭",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
+    }
+}
+
+/**
+ * 从文件名中提取照片序号
+ */
+private fun extractPhotoNumber(fileName: String): Int {
+    // 文件名格式: 项目名称_照片类型_序号_角度.jpg 或 
+    // 项目名称_车辆名称_照片类型_序号_角度.jpg 或
+    // 项目名称_车辆名称_轨迹名称_照片类型_序号_角度.jpg
+    try {
+        // 尝试从文件名中提取序号
+        val parts = fileName.split("_")
+        // 序号部分可能在不同位置，需要寻找数字部分
+        for (i in 2 until parts.size) {
+            if (parts[i].all { it.isDigit() }) {
+                return parts[i].toIntOrNull() ?: 0
+            }
+        }
+        return 0
+    } catch (e: Exception) {
+        return 0
     }
 }
 

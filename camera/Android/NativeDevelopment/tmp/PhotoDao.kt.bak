@@ -7,28 +7,6 @@ import kotlinx.coroutines.flow.Flow
 import android.database.Cursor
 
 /**
- * 车辆和项目信息
- */
-data class VehicleWithProjectInfo(
-    val vehicleId: Long,
-    val vehicleName: String,
-    val projectId: Long,
-    val projectName: String
-)
-
-/**
- * 轨迹、车辆和项目信息
- */
-data class TrackWithVehicleAndProjectInfo(
-    val trackId: Long,
-    val trackName: String,
-    val vehicleId: Long,
-    val vehicleName: String,
-    val projectId: Long,
-    val projectName: String
-)
-
-/**
  * 照片数据访问对象
  */
 @Dao
@@ -58,12 +36,6 @@ interface PhotoDao {
     @Query("SELECT COUNT(*) FROM photos WHERE moduleId = :moduleId AND moduleType = :moduleType AND photoType = :photoType")
     suspend fun getPhotoCountByType(moduleId: Long, moduleType: String, photoType: String): Int
     
-    /**
-     * 获取指定模块的照片数量
-     */
-    @Query("SELECT COUNT(*) FROM photos WHERE moduleId = :moduleId AND moduleType = :moduleType")
-    suspend fun getPhotoCountByModule(moduleId: Long, moduleType: String): Int
-    
     @Query("SELECT * FROM photos WHERE isUploaded = 0")
     fun getNotUploadedPhotos(): Flow<List<PhotoEntity>>
     
@@ -72,26 +44,6 @@ interface PhotoDao {
      */
     @Query("SELECT name FROM projects WHERE id = :projectId")
     suspend fun getProjectName(projectId: Long): String?
-    
-    /**
-     * 获取车辆信息及其所属项目名称
-     */
-    @Query("SELECT v.id AS vehicleId, v.name AS vehicleName, p.id AS projectId, p.name AS projectName " +
-           "FROM vehicles v JOIN projects p ON v.projectId = p.id " +
-           "WHERE v.id = :vehicleId")
-    suspend fun getVehicleWithProject(vehicleId: Long): VehicleWithProjectInfo?
-    
-    /**
-     * 获取轨迹信息及其所属车辆和项目信息
-     */
-    @Query("SELECT t.id AS trackId, t.name AS trackName, " +
-           "v.id AS vehicleId, v.name AS vehicleName, " +
-           "p.id AS projectId, p.name AS projectName " +
-           "FROM tracks t " +
-           "JOIN vehicles v ON t.vehicleId = v.id " +
-           "JOIN projects p ON v.projectId = p.id " +
-           "WHERE t.id = :trackId")
-    suspend fun getTrackWithVehicleAndProject(trackId: Long): TrackWithVehicleAndProjectInfo?
     
     /**
      * 执行原生SQL查询

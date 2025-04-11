@@ -4,6 +4,8 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Linq;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 
 namespace BackendInterface.Controllers
 {
@@ -16,6 +18,8 @@ namespace BackendInterface.Controllers
     {
         private readonly ILogger<PhotoController> _logger;
         private readonly string _uploadFolder;
+        // 用于存储上传状态的并发字典
+        private static readonly ConcurrentDictionary<string, UploadStatus> _uploadStatuses = new ConcurrentDictionary<string, UploadStatus>();
 
         /// <summary>
         /// 构造函数
@@ -97,15 +101,48 @@ namespace BackendInterface.Controllers
                     return BadRequest("未提供有效的文件");
                 }
 
-                // 创建基于模块类型和ID的子文件夹
-                string subfolder = Path.Combine(_uploadFolder, moduleType, moduleId);
+                // 确定基本目录结构
+                string baseFolder = Path.Combine(_uploadFolder, moduleType);
+                string subfolder;
                 
-                // 如果提供了项目名称，则使用项目名称作为子文件夹名
-                if (!string.IsNullOrEmpty(projectName))
+                // 根据moduleType决定存储结构
+                if (moduleType.Equals("PROJECT", StringComparison.OrdinalIgnoreCase))
                 {
-                    subfolder = Path.Combine(_uploadFolder, moduleType, $"{moduleId}_{projectName}");
+                    // 项目级照片直接存储在项目文件夹下
+                    subfolder = !string.IsNullOrEmpty(projectName) 
+                        ? Path.Combine(baseFolder, $"{moduleId}_{projectName}")
+                        : Path.Combine(baseFolder, moduleId);
+                }
+                else if (moduleType.Equals("VEHICLE", StringComparison.OrdinalIgnoreCase))
+                {
+                    // 车辆级照片存储在车辆文件夹下，并包含车辆ID信息
+                    string vehicleFolderName = $"Vehicle_{moduleId}";
+                    subfolder = !string.IsNullOrEmpty(projectName)
+                        ? Path.Combine(baseFolder, projectName, vehicleFolderName)
+                        : Path.Combine(baseFolder, vehicleFolderName);
+                }
+                else if (moduleType.Equals("TRACK", StringComparison.OrdinalIgnoreCase))
+                {
+                    // 从moduleId中解析出必要信息 (这里假设moduleId格式为 "trackId_vehicleId")
+                    string[] idParts = moduleId.Split('_');
+                    string trackId = idParts[0];
+                    string vehicleId = idParts.Length > 1 ? idParts[1] : "unknown";
+                    
+                    // 轨迹级照片存储在车辆下的轨迹文件夹中
+                    string vehicleFolderName = $"Vehicle_{vehicleId}";
+                    string trackFolderName = $"Track_{trackId}";
+                    
+                    subfolder = !string.IsNullOrEmpty(projectName)
+                        ? Path.Combine(baseFolder, projectName, vehicleFolderName, trackFolderName)
+                        : Path.Combine(baseFolder, vehicleFolderName, trackFolderName);
+                }
+                else
+                {
+                    // 其他类型，使用默认结构
+                    subfolder = Path.Combine(baseFolder, moduleId);
                 }
                 
+                // 确保目录存在
                 if (!Directory.Exists(subfolder))
                 {
                     Directory.CreateDirectory(subfolder);
@@ -139,6 +176,260 @@ namespace BackendInterface.Controllers
             {
                 _logger.LogError($"上传照片失败：{ex.Message}");
                 return StatusCode(500, $"上传照片失败：{ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 批量上传照片API
+        /// </summary>
+        /// <remarks>
+        /// 允许一次性上传多张照片，返回批次ID用于查询状态
+        /// </remarks>
+        /// <param name="moduleId">模块ID</param>
+        /// <param name="moduleType">模块类型</param>
+        /// <param name="projectName">项目名称</param>
+        /// <returns>批量上传结果</returns>
+        [HttpPost("batch-upload")]
+        [Consumes("multipart/form-data")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> BatchUpload(string moduleId, string moduleType, string projectName = "")
+        {
+            try
+            {
+                var files = Request.Form.Files;
+                if (files == null || !files.Any())
+                {
+                    return BadRequest("未提供有效的文件");
+                }
+
+                // 创建批次ID
+                string batchId = Guid.NewGuid().ToString();
+                int totalFiles = files.Count;
+                
+                // 注册上传状态
+                var status = new UploadStatus
+                {
+                    BatchId = batchId,
+                    ModuleId = moduleId,
+                    ModuleType = moduleType,
+                    TotalCount = totalFiles,
+                    UploadedCount = 0,
+                    Progress = 0,
+                    IsUploading = true,
+                    StartTime = DateTime.Now
+                };
+                
+                _uploadStatuses[batchId] = status;
+                
+                // 启动异步上传任务
+                _ = Task.Run(async () => 
+                {
+                    try 
+                    {
+                        await ProcessBatchUploadAsync(batchId, moduleId, moduleType, projectName, files);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError($"批量上传处理失败: {ex.Message}");
+                        MarkUploadAsFailed(batchId, ex.Message);
+                    }
+                });
+
+                // 立即返回批次ID
+                return Ok(new 
+                { 
+                    batchId,
+                    totalCount = totalFiles,
+                    status = "processing"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"批量上传请求失败: {ex.Message}");
+                return StatusCode(500, $"批量上传失败: {ex.Message}");
+            }
+        }
+        
+        /// <summary>
+        /// 获取上传状态
+        /// </summary>
+        /// <param name="batchId">批次ID</param>
+        /// <returns>上传状态</returns>
+        [HttpGet("upload-status/{batchId}")]
+        public IActionResult GetUploadStatus(string batchId)
+        {
+            if (_uploadStatuses.TryGetValue(batchId, out var status))
+            {
+                return Ok(status);
+            }
+            
+            return NotFound($"未找到批次ID为 {batchId} 的上传状态");
+        }
+        
+        /// <summary>
+        /// 处理批量上传的实际逻辑
+        /// </summary>
+        private async Task ProcessBatchUploadAsync(string batchId, string moduleId, string moduleType, string projectName, IFormFileCollection files)
+        {
+            // 确定基本目录结构
+            string baseFolder = Path.Combine(_uploadFolder, moduleType);
+            string subfolder;
+            
+            // 根据moduleType决定存储结构
+            if (moduleType.Equals("PROJECT", StringComparison.OrdinalIgnoreCase))
+            {
+                // 项目级照片直接存储在项目文件夹下
+                subfolder = !string.IsNullOrEmpty(projectName) 
+                    ? Path.Combine(baseFolder, $"{moduleId}_{projectName}")
+                    : Path.Combine(baseFolder, moduleId);
+            }
+            else if (moduleType.Equals("VEHICLE", StringComparison.OrdinalIgnoreCase))
+            {
+                // 车辆级照片存储在车辆文件夹下，并包含车辆ID信息
+                string vehicleFolderName = $"Vehicle_{moduleId}";
+                subfolder = !string.IsNullOrEmpty(projectName)
+                    ? Path.Combine(baseFolder, projectName, vehicleFolderName)
+                    : Path.Combine(baseFolder, vehicleFolderName);
+            }
+            else if (moduleType.Equals("TRACK", StringComparison.OrdinalIgnoreCase))
+            {
+                // 从moduleId中解析出必要信息 (这里假设moduleId格式为 "trackId_vehicleId")
+                string[] idParts = moduleId.Split('_');
+                string trackId = idParts[0];
+                string vehicleId = idParts.Length > 1 ? idParts[1] : "unknown";
+                
+                // 轨迹级照片存储在车辆下的轨迹文件夹中
+                string vehicleFolderName = $"Vehicle_{vehicleId}";
+                string trackFolderName = $"Track_{trackId}";
+                
+                subfolder = !string.IsNullOrEmpty(projectName)
+                    ? Path.Combine(baseFolder, projectName, vehicleFolderName, trackFolderName)
+                    : Path.Combine(baseFolder, vehicleFolderName, trackFolderName);
+            }
+            else
+            {
+                // 其他类型，使用默认结构
+                subfolder = Path.Combine(baseFolder, moduleId);
+            }
+            
+            // 确保目录存在
+            if (!Directory.Exists(subfolder))
+            {
+                Directory.CreateDirectory(subfolder);
+            }
+
+            // 现有的处理逻辑保持不变
+            int processedCount = 0;
+            int successCount = 0;
+            List<string> errors = new List<string>();
+
+            foreach (var file in files)
+            {
+                try
+                {
+                    string fileName = $"{Guid.NewGuid()}_{file.FileName}";
+                    string filePath = Path.Combine(subfolder, fileName);
+
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await file.CopyToAsync(stream);
+                    }
+
+                    successCount++;
+                    _logger.LogInformation($"批量上传 - 已成功上传照片：{filePath}");
+                }
+                catch (Exception ex)
+                {
+                    errors.Add($"{file.FileName}: {ex.Message}");
+                    _logger.LogError($"批量上传 - 文件 {file.FileName} 上传失败: {ex.Message}");
+                }
+                finally
+                {
+                    processedCount++;
+                    // 更新进度
+                    UpdateUploadProgress(batchId, processedCount);
+                    
+                    // 模拟更真实的上传过程
+                    await Task.Delay(500);
+                }
+            }
+
+            // 标记上传完成
+            if (errors.Count == 0)
+            {
+                MarkUploadAsCompleted(batchId);
+            }
+            else if (successCount > 0)
+            {
+                string errorMessage = $"部分文件上传失败: {string.Join("; ", errors)}";
+                MarkUploadAsPartialSuccess(batchId, errorMessage, successCount);
+            }
+            else
+            {
+                string errorMessage = $"所有文件上传失败: {string.Join("; ", errors)}";
+                MarkUploadAsFailed(batchId, errorMessage);
+            }
+        }
+        
+        /// <summary>
+        /// 更新上传进度
+        /// </summary>
+        private void UpdateUploadProgress(string batchId, int uploadedCount)
+        {
+            if (_uploadStatuses.TryGetValue(batchId, out var status))
+            {
+                status.UploadedCount = uploadedCount;
+                status.Progress = (float)uploadedCount / status.TotalCount;
+                _uploadStatuses[batchId] = status;
+            }
+        }
+        
+        /// <summary>
+        /// 标记上传完成
+        /// </summary>
+        private void MarkUploadAsCompleted(string batchId)
+        {
+            if (_uploadStatuses.TryGetValue(batchId, out var status))
+            {
+                status.IsUploading = false;
+                status.IsSuccess = true;
+                status.Progress = 1.0f;
+                status.UploadedCount = status.TotalCount;
+                status.EndTime = DateTime.Now;
+                _uploadStatuses[batchId] = status;
+            }
+        }
+        
+        /// <summary>
+        /// 标记部分上传成功
+        /// </summary>
+        private void MarkUploadAsPartialSuccess(string batchId, string message, int successCount)
+        {
+            if (_uploadStatuses.TryGetValue(batchId, out var status))
+            {
+                status.IsUploading = false;
+                status.IsSuccess = true;  // 部分成功也算成功
+                status.Error = message;
+                status.UploadedCount = successCount;
+                status.Progress = (float)successCount / status.TotalCount;
+                status.EndTime = DateTime.Now;
+                _uploadStatuses[batchId] = status;
+            }
+        }
+        
+        /// <summary>
+        /// 标记上传失败
+        /// </summary>
+        private void MarkUploadAsFailed(string batchId, string error)
+        {
+            if (_uploadStatuses.TryGetValue(batchId, out var status))
+            {
+                status.IsUploading = false;
+                status.IsSuccess = false;
+                status.Error = error;
+                status.EndTime = DateTime.Now;
+                _uploadStatuses[batchId] = status;
             }
         }
 
@@ -213,5 +504,23 @@ namespace BackendInterface.Controllers
                 return StatusCode(500, $"删除项目照片失败：{ex.Message}");
             }
         }
+    }
+    
+    /// <summary>
+    /// 上传状态类
+    /// </summary>
+    public class UploadStatus
+    {
+        public string BatchId { get; set; }
+        public string ModuleId { get; set; }
+        public string ModuleType { get; set; }
+        public int TotalCount { get; set; }
+        public int UploadedCount { get; set; }
+        public float Progress { get; set; }
+        public bool IsUploading { get; set; }
+        public bool IsSuccess { get; set; }
+        public string Error { get; set; }
+        public DateTime StartTime { get; set; }
+        public DateTime? EndTime { get; set; }
     }
 } 

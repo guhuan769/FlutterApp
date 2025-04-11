@@ -23,6 +23,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import javax.inject.Provider
 import javax.inject.Singleton
 
 @Module
@@ -77,18 +78,18 @@ object AppModule {
     
     @Provides
     @Singleton
-    fun provideProjectRepository(
-        projectDao: ProjectDao,
-        photoRepository: PhotoRepository,
-        vehicleRepository: VehicleRepository
-    ): ProjectRepository {
-        return ProjectRepositoryImpl(projectDao, photoRepository, vehicleRepository)
+    fun provideVehicleRepository(vehicleDao: VehicleDao): VehicleRepository {
+        return VehicleRepositoryImpl(vehicleDao)
     }
     
     @Provides
     @Singleton
-    fun provideVehicleRepository(vehicleDao: VehicleDao): VehicleRepository {
-        return VehicleRepositoryImpl(vehicleDao)
+    fun provideProjectRepository(
+        projectDao: ProjectDao,
+        photoRepository: PhotoRepository,
+        vehicleRepositoryProvider: Provider<VehicleRepository>
+    ): ProjectRepository {
+        return ProjectRepositoryImpl(projectDao, photoRepository, vehicleRepositoryProvider)
     }
     
     @Provides

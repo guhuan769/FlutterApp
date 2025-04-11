@@ -20,9 +20,14 @@ class UploadProjectPhotosUseCase @Inject constructor(
      *
      * @param projectId 项目ID
      * @param forceReupload 是否强制重新上传所有照片（忽略isUploaded标记）
+     * @param progressListener 上传进度监听器
      * @return 上传结果，包含是否成功和其他信息
      */
-    suspend operator fun invoke(projectId: Long, forceReupload: Boolean = true): Result<UploadResult> {
+    suspend operator fun invoke(
+        projectId: Long, 
+        forceReupload: Boolean = true,
+        progressListener: UploadProgressListener? = null
+    ): Result<UploadResult> {
         return try {
             Log.d("UploadProjectPhotos", "开始上传项目 $projectId 的照片, 强制重新上传: $forceReupload")
             
@@ -34,6 +39,8 @@ class UploadProjectPhotosUseCase @Inject constructor(
             
             if (photos.isEmpty()) {
                 Log.d("UploadProjectPhotos", "项目没有照片需要上传")
+                // 发送零进度事件，表示没有任务
+                progressListener?.onProgress(0, 0)
                 return Result.success(UploadResult(
                     success = true,
                     hasActualUploads = false,
@@ -50,6 +57,8 @@ class UploadProjectPhotosUseCase @Inject constructor(
             
             if (photosToUpload.isEmpty() && !forceReupload) {
                 Log.d("UploadProjectPhotos", "项目照片已全部上传")
+                // 发送零进度事件，表示没有任务
+                progressListener?.onProgress(0, 0)
                 return Result.success(UploadResult(
                     success = true,
                     hasActualUploads = false,
@@ -57,7 +66,10 @@ class UploadProjectPhotosUseCase @Inject constructor(
                 ))
             }
             
-            Log.d("UploadProjectPhotos", "准备上传 ${photosToUpload.size} 张照片")
+            val totalPhotos = photosToUpload.size
+            Log.d("UploadProjectPhotos", "准备上传 $totalPhotos 张照片")
+            // 发送初始进度事件
+            progressListener?.onProgress(0, totalPhotos)
             
             try {
                 // 先删除后端服务器上该项目的所有照片，避免重复
@@ -72,15 +84,20 @@ class UploadProjectPhotosUseCase @Inject constructor(
                 
                 // 上传所有照片
                 var allSuccess = true
-                photosToUpload.forEach { photo ->
+                var uploadedCount = 0
+                
+                photosToUpload.forEachIndexed { index, photo ->
                     try {
-                        Log.d("UploadProjectPhotos", "正在上传照片: ${photo.fileName}")
+                        Log.d("UploadProjectPhotos", "正在上传照片(${index + 1}/$totalPhotos): ${photo.fileName}")
                         val uploadResult = photoRepository.uploadPhoto(photo)
                         if (!uploadResult) {
                             Log.e("UploadProjectPhotos", "照片 ${photo.fileName} 上传失败")
                             allSuccess = false
                         } else {
                             Log.d("UploadProjectPhotos", "照片 ${photo.fileName} 上传成功")
+                            uploadedCount++
+                            // 更新进度
+                            progressListener?.onProgress(uploadedCount, totalPhotos)
                         }
                     } catch (e: IOException) {
                         // 捕获并重新抛出网络相关异常
@@ -92,7 +109,10 @@ class UploadProjectPhotosUseCase @Inject constructor(
                     }
                 }
                 
-                Log.d("UploadProjectPhotos", "照片上传完成，全部成功: $allSuccess")
+                Log.d("UploadProjectPhotos", "照片上传完成，全部成功: $allSuccess，已上传: $uploadedCount/$totalPhotos")
+                
+                // 最终更新进度
+                progressListener?.onProgress(uploadedCount, totalPhotos)
                 
                 val status = if (allSuccess) UploadStatus.SUCCESS else UploadStatus.PARTIAL_SUCCESS
                 Result.success(UploadResult(

@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.first
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import javax.inject.Inject
+import javax.inject.Provider
 
 /**
  * 项目仓库实现
@@ -19,7 +20,7 @@ import javax.inject.Inject
 class ProjectRepositoryImpl @Inject constructor(
     private val projectDao: ProjectDao,
     private val photoRepository: PhotoRepository,
-    private val vehicleRepository: VehicleRepository
+    private val vehicleRepositoryProvider: Provider<VehicleRepository>
 ) : ProjectRepository {
     
     override suspend fun addProject(project: Project): Long {
@@ -96,16 +97,26 @@ class ProjectRepositoryImpl @Inject constructor(
     private suspend fun updateProjectCounts(project: Project): Project {
         try {
             // 获取照片数量
-            val photos = photoRepository.getPhotosByModule(
-                moduleId = project.id,
-                moduleType = ModuleType.PROJECT
-            ).first()
+            val photoCount = try {
+                val photos = photoRepository.getPhotosByModule(
+                    moduleId = project.id,
+                    moduleType = ModuleType.PROJECT
+                ).first()
+                photos.size
+            } catch (e: Exception) {
+                Log.e("ProjectRepository", "获取照片列表失败", e)
+                0
+            }
             
-            val photoCount = photos.size
-            
-            // 获取车辆数量 - 读取当前车辆数量
-            val vehicles = vehicleRepository.getVehiclesByProject(project.id).first()
-            val vehicleCount = vehicles.size
+            // 获取车辆数量 - 使用Provider延迟获取VehicleRepository实例
+            val vehicleCount = try {
+                val vehicleRepository = vehicleRepositoryProvider.get()
+                val vehicles = vehicleRepository.getVehiclesByProject(project.id).first()
+                vehicles.size
+            } catch (e: Exception) {
+                Log.e("ProjectRepository", "获取车辆列表失败", e)
+                0
+            }
             
             Log.d("ProjectRepository", "项目 ${project.name} (ID: ${project.id}) 照片数: $photoCount, 车辆数: $vehicleCount")
             

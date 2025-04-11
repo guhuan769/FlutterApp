@@ -40,6 +40,50 @@
             <param name="projectName">项目名称</param>
             <returns>上传结果</returns>
         </member>
+        <member name="M:BackendInterface.Controllers.PhotoController.BatchUpload(System.String,System.String,System.String)">
+            <summary>
+            批量上传照片API
+            </summary>
+            <remarks>
+            允许一次性上传多张照片，返回批次ID用于查询状态
+            </remarks>
+            <param name="moduleId">模块ID</param>
+            <param name="moduleType">模块类型</param>
+            <param name="projectName">项目名称</param>
+            <returns>批量上传结果</returns>
+        </member>
+        <member name="M:BackendInterface.Controllers.PhotoController.GetUploadStatus(System.String)">
+            <summary>
+            获取上传状态
+            </summary>
+            <param name="batchId">批次ID</param>
+            <returns>上传状态</returns>
+        </member>
+        <member name="M:BackendInterface.Controllers.PhotoController.ProcessBatchUploadAsync(System.String,System.String,System.String,System.String,Microsoft.AspNetCore.Http.IFormFileCollection)">
+            <summary>
+            处理批量上传的实际逻辑
+            </summary>
+        </member>
+        <member name="M:BackendInterface.Controllers.PhotoController.UpdateUploadProgress(System.String,System.Int32)">
+            <summary>
+            更新上传进度
+            </summary>
+        </member>
+        <member name="M:BackendInterface.Controllers.PhotoController.MarkUploadAsCompleted(System.String)">
+            <summary>
+            标记上传完成
+            </summary>
+        </member>
+        <member name="M:BackendInterface.Controllers.PhotoController.MarkUploadAsPartialSuccess(System.String,System.String,System.Int32)">
+            <summary>
+            标记部分上传成功
+            </summary>
+        </member>
+        <member name="M:BackendInterface.Controllers.PhotoController.MarkUploadAsFailed(System.String,System.String)">
+            <summary>
+            标记上传失败
+            </summary>
+        </member>
         <member name="M:BackendInterface.Controllers.PhotoController.DeleteProjectPhotos(System.String,System.String)">
             <summary>
             删除指定项目的所有照片
@@ -47,6 +91,11 @@
             <param name="moduleId">模块ID</param>
             <param name="moduleType">模块类型</param>
             <returns>删除结果</returns>
+        </member>
+        <member name="T:BackendInterface.Controllers.UploadStatus">
+            <summary>
+            上传状态类
+            </summary>
         </member>
         <member name="T:BackendInterface.Controllers.TestController">
             <summary>

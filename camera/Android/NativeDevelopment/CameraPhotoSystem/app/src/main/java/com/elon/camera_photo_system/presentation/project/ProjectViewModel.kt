@@ -7,7 +7,7 @@ import com.elon.camera_photo_system.domain.model.Project
 import com.elon.camera_photo_system.domain.repository.ProjectRepository
 import com.elon.camera_photo_system.domain.usecase.project.UploadProjectPhotosUseCase
 import com.elon.camera_photo_system.domain.usecase.project.UploadStatus
-import com.elon.camera_photo_system.presentation.home.UploadState
+import com.elon.camera_photo_system.presentation.home.state.UploadState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

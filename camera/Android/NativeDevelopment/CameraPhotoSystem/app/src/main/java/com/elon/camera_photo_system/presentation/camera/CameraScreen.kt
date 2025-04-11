@@ -1,7 +1,6 @@
 package com.elon.camera_photo_system.presentation.camera
 
 import android.content.Context
-import android.graphics.Color
 import android.view.ViewGroup
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
@@ -16,6 +15,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
@@ -29,9 +29,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -67,9 +70,13 @@ fun CameraScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     val coroutineScope = rememberCoroutineScope()
     val cameraUiState by viewModel.cameraUIState.collectAsStateWithLifecycle()
+    val moduleInfo by viewModel.moduleInfo.collectAsStateWithLifecycle()
     
     var imageCapture: ImageCapture? by remember { mutableStateOf(null) }
     var selectedPhotoType by remember { mutableStateOf(getDefaultPhotoType(moduleType)) }
+    
+    // 添加角度输入状态
+    var angleValue by remember { mutableStateOf("0") }
     
     // 拍照成功提示状态
     var showCaptureSuccess by remember { mutableStateOf(false) }
@@ -86,6 +93,11 @@ fun CameraScreen(
         ),
         label = "successScale"
     )
+    
+    // 加载模块信息
+    LaunchedEffect(moduleId, moduleType) {
+        viewModel.loadModuleInfo(moduleId, moduleType)
+    }
     
     // 处理上传状态
     val snackbarHostState = remember { SnackbarHostState() }
@@ -159,6 +171,62 @@ fun CameraScreen(
                 )
             }
             
+            // 将角度输入框移到顶部
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp, start = 16.dp, end = 16.dp)
+                    .align(Alignment.TopCenter)
+            ) {
+                // 添加角度输入框
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(8.dp),
+                    ) {
+                        Text(
+                            text = "拍摄角度",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        OutlinedTextField(
+                            value = angleValue,
+                            onValueChange = { 
+                                // 仅允许输入数字
+                                if (it.isEmpty() || it.all { char -> char.isDigit() }) {
+                                    angleValue = it
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number
+                            ),
+                            singleLine = true,
+                            placeholder = { Text("输入拍摄角度（0-360）") },
+                            trailingIcon = {
+                                Text(
+                                    text = "°",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.padding(end = 8.dp)
+                                )
+                            },
+                            colors = TextFieldDefaults.outlinedTextFieldColors(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface
+                            )
+                        )
+                    }
+                }
+            }
+            
             // 底部拍照按钮
             Column(
                 modifier = Modifier
@@ -167,12 +235,13 @@ fun CameraScreen(
                     .padding(bottom = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // 照片类型选择器 - 所有模块都显示，但根据模块类型启用或禁用按钮
+                // 照片类型选择器
                 PhotoTypeSelector(
                     selectedPhotoType = selectedPhotoType,
                     onPhotoTypeSelected = { selectedPhotoType = it },
                     moduleType = moduleType
                 )
+                
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 // 拍照按钮
@@ -185,10 +254,18 @@ fun CameraScreen(
                 ) {
                     Button(
                         onClick = {
+                            // 获取下一个照片序号
+                            val photoNumber = viewModel.getNextPhotoNumber(selectedPhotoType)
+                            
                             takePhoto(
                                 imageCapture = imageCapture,
                                 context = context,
                                 photoType = selectedPhotoType,
+                                angle = angleValue.toIntOrNull() ?: 0,
+                                moduleType = moduleType,
+                                moduleId = moduleId,
+                                moduleInfo = moduleInfo,
+                                photoNumber = photoNumber,
                                 onSuccess = { filePath, fileName ->
                                     // 显示成功提示
                                     coroutineScope.launch {
@@ -397,86 +474,112 @@ fun PhotoTypeSelector(
     onPhotoTypeSelected: (PhotoType) -> Unit,
     moduleType: ModuleType
 ) {
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly
+            .padding(horizontal = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 根据模块类型确定每个按钮是否可用
-        val startPointEnabled = moduleType == ModuleType.TRACK
-        val middlePointEnabled = moduleType == ModuleType.TRACK
-        val modelPointEnabled = moduleType != ModuleType.TRACK // 当moduleType为TRACK时禁用模型点
-        val endPointEnabled = moduleType == ModuleType.TRACK
-        
-        // 只显示当前模块类型可用的按钮
-        if (moduleType == ModuleType.TRACK) {
-            // 轨迹模式下只显示轨迹相关按钮
-            PhotoTypeButton(
-                text = "起始点",
-                isSelected = selectedPhotoType == PhotoType.START_POINT,
-                enabled = startPointEnabled,
-                onClick = { onPhotoTypeSelected(PhotoType.START_POINT) }
-            )
-            
-            PhotoTypeButton(
-                text = "中间点",
-                isSelected = selectedPhotoType == PhotoType.MIDDLE_POINT,
-                enabled = middlePointEnabled,
-                onClick = { onPhotoTypeSelected(PhotoType.MIDDLE_POINT) }
-            )
-            
-            PhotoTypeButton(
-                text = "结束点",
-                isSelected = selectedPhotoType == PhotoType.END_POINT,
-                enabled = endPointEnabled,
-                onClick = { onPhotoTypeSelected(PhotoType.END_POINT) }
-            )
-        } else {
-            // 非轨迹模式下只显示模型点按钮
-            PhotoTypeButton(
-                text = "模型点",
-                isSelected = selectedPhotoType == PhotoType.MODEL_POINT,
-                enabled = true,
-                onClick = { onPhotoTypeSelected(PhotoType.MODEL_POINT) }
-            )
+        // 设置每种模块类型可用的按钮
+        when (moduleType) {
+            ModuleType.PROJECT, ModuleType.VEHICLE -> {
+                // 项目和车辆只能选择模型点
+                Button(
+                    onClick = { onPhotoTypeSelected(PhotoType.MODEL_POINT) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    Text(
+                        text = "模型点拍照", 
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+            ModuleType.TRACK -> {
+                // 轨迹模式下显示网格按钮布局
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // 第一行：起始点和中间点
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        TrackPhotoTypeButton(
+                            text = "起始点",
+                            isSelected = selectedPhotoType == PhotoType.START_POINT,
+                            color = MaterialTheme.colorScheme.primary,
+                            onClick = { onPhotoTypeSelected(PhotoType.START_POINT) }
+                        )
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        TrackPhotoTypeButton(
+                            text = "中间点",
+                            isSelected = selectedPhotoType == PhotoType.MIDDLE_POINT,
+                            color = MaterialTheme.colorScheme.secondary,
+                            onClick = { onPhotoTypeSelected(PhotoType.MIDDLE_POINT) }
+                        )
+                    }
+                    
+                    // 第二行：模型点和结束点
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        TrackPhotoTypeButton(
+                            text = "模型点",
+                            isSelected = selectedPhotoType == PhotoType.MODEL_POINT,
+                            color = MaterialTheme.colorScheme.tertiary,
+                            onClick = { onPhotoTypeSelected(PhotoType.MODEL_POINT) }
+                        )
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        TrackPhotoTypeButton(
+                            text = "结束点",
+                            isSelected = selectedPhotoType == PhotoType.END_POINT,
+                            color = MaterialTheme.colorScheme.error,
+                            onClick = { onPhotoTypeSelected(PhotoType.END_POINT) }
+                        )
+                    }
+                }
+            }
         }
     }
 }
 
+/**
+ * 轨迹照片类型按钮
+ */
 @Composable
-fun PhotoTypeButton(
+fun TrackPhotoTypeButton(
     text: String,
     isSelected: Boolean,
-    enabled: Boolean = true,
+    color: Color,
     onClick: () -> Unit
 ) {
     Button(
         onClick = onClick,
         modifier = Modifier
-            .height(36.dp)
-            .widthIn(min = 60.dp)
-            .padding(horizontal = 2.dp),
-        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp),
+            .fillMaxWidth()
+            .height(50.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = when {
-                !enabled -> MaterialTheme.colorScheme.surfaceVariant
-                isSelected -> MaterialTheme.colorScheme.primary
-                else -> MaterialTheme.colorScheme.secondary
-            },
-            contentColor = when {
-                !enabled -> MaterialTheme.colorScheme.onSurfaceVariant
-                else -> MaterialTheme.colorScheme.onPrimary
-            }
+            containerColor = if (isSelected) color else color.copy(alpha = 0.6f),
+            contentColor = MaterialTheme.colorScheme.onPrimary
         ),
-        enabled = enabled
+        shape = RoundedCornerShape(8.dp)
     ) {
         Text(
-            text = text, 
-            style = MaterialTheme.typography.labelSmall,
-            fontSize = 11.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Visible
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
         )
     }
 }
@@ -488,13 +591,18 @@ private fun takePhoto(
     imageCapture: ImageCapture?,
     context: Context,
     photoType: PhotoType,
+    angle: Int,
+    moduleType: ModuleType,
+    moduleId: Long,
+    moduleInfo: ModuleInfo,
+    photoNumber: Int,
     onSuccess: (filePath: String, fileName: String) -> Unit
 ) {
     imageCapture ?: return
     
     try {
         // 创建照片文件
-        val photoFile = createPhotoFile(context, photoType)
+        val photoFile = createPhotoFile(context, photoType, angle, moduleType, moduleInfo, photoNumber)
         
         // 确保目录存在
         photoFile.parentFile?.mkdirs()
@@ -524,14 +632,31 @@ private fun takePhoto(
 /**
  * 创建照片文件
  */
-private fun createPhotoFile(context: Context, photoType: PhotoType): File {
+private fun createPhotoFile(
+    context: Context, 
+    photoType: PhotoType, 
+    angle: Int, 
+    moduleType: ModuleType, 
+    moduleInfo: ModuleInfo,
+    photoNumber: Int
+): File {
     // 生成照片名称
     val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-    val photoFileName = when (photoType) {
-        PhotoType.START_POINT -> "起始点拍照_$timeStamp.jpg"
-        PhotoType.MIDDLE_POINT -> "中间点拍照_$timeStamp.jpg"
-        PhotoType.MODEL_POINT -> "模型点拍照_$timeStamp.jpg"
-        PhotoType.END_POINT -> "结束点拍照_$timeStamp.jpg"
+    
+    // 照片名称根据不同模块类型构建
+    val photoFileName = when (moduleType) {
+        ModuleType.PROJECT -> {
+            // 格式：项目名称_照片类型_序号_角度.jpg
+            "${moduleInfo.projectName}_${getPhotoTypeCode(photoType)}_${photoNumber}_${angle}°.jpg"
+        }
+        ModuleType.VEHICLE -> {
+            // 格式：父项目名称_车辆名称_照片类型_序号_角度.jpg
+            "${moduleInfo.projectName}_${moduleInfo.vehicleName}_${getPhotoTypeCode(photoType)}_${photoNumber}_${angle}°.jpg"
+        }
+        ModuleType.TRACK -> {
+            // 格式：父项目名称_父车辆名称_当前轨迹名称_照片类型_序号_角度.jpg
+            "${moduleInfo.projectName}_${moduleInfo.vehicleName}_${moduleInfo.trackName}_${getPhotoTypeCode(photoType)}_${photoNumber}_${angle}°.jpg"
+        }
     }
     
     // 创建照片文件
@@ -542,12 +667,23 @@ private fun createPhotoFile(context: Context, photoType: PhotoType): File {
 }
 
 /**
+ * 获取照片类型代码
+ */
+private fun getPhotoTypeCode(photoType: PhotoType): String {
+    return when (photoType) {
+        PhotoType.START_POINT -> "起始点"
+        PhotoType.MIDDLE_POINT -> "中间点"
+        PhotoType.MODEL_POINT -> "模型点" 
+        PhotoType.END_POINT -> "结束点"
+    }
+}
+
+/**
  * 获取默认照片类型
  */
 private fun getDefaultPhotoType(moduleType: ModuleType): PhotoType {
     return when (moduleType) {
-        ModuleType.PROJECT -> PhotoType.MODEL_POINT
-        ModuleType.VEHICLE -> PhotoType.MODEL_POINT
+        ModuleType.PROJECT, ModuleType.VEHICLE -> PhotoType.MODEL_POINT
         ModuleType.TRACK -> PhotoType.START_POINT
     }
 }

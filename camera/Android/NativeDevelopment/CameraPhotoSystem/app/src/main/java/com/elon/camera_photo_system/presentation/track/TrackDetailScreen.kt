@@ -43,6 +43,7 @@ fun TrackDetailScreen(
     onStartTrack: (Long) -> Unit,
     onEndTrack: (Long) -> Unit,
     onNavigateToCamera: (Long) -> Unit,
+    onNavigateToGallery: (Long) -> Unit,
     trackId: Long
 ) {
     val context = LocalContext.current
@@ -162,6 +163,7 @@ fun TrackDetailScreen(
                         onStartTrack = { onStartTrack(trackId) },
                         onEndTrack = { onEndTrack(trackId) },
                         onNavigateToCamera = { onNavigateToCamera(trackId) },
+                        onNavigateToGallery = { onNavigateToGallery(trackId) },
                         scrollState = scrollState
                     )
                     
@@ -354,6 +356,7 @@ private fun TrackDetailContent(
     onStartTrack: () -> Unit,
     onEndTrack: () -> Unit,
     onNavigateToCamera: (Long) -> Unit,
+    onNavigateToGallery: (Long) -> Unit,
     scrollState: ScrollState
 ) {
     Box(
@@ -383,7 +386,7 @@ private fun TrackDetailContent(
             
             // 查看照片按钮
             FilledTonalButton(
-                onClick = { onNavigateToCamera(track.id) },
+                onClick = { onNavigateToGallery(track.id) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
