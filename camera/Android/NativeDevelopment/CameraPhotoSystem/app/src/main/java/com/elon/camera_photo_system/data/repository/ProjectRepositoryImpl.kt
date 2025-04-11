@@ -14,6 +14,11 @@ import java.time.ZoneOffset
 import javax.inject.Inject
 import javax.inject.Provider
 
+// 添加缺少的导入
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flow
+
 /**
  * 项目仓库实现
  */
@@ -35,6 +40,22 @@ class ProjectRepositoryImpl @Inject constructor(
         return projectDao.insertProject(entity)
     }
     
+    /**
+     * 创建新项目
+     */
+    override suspend fun createProject(name: String, description: String): Long {
+        val newProject = Project(
+            id = 0, // 数据库会自动生成
+            name = name,
+            description = description,
+            createdAt = LocalDateTime.now(),
+            vehicleCount = 0,
+            photoCount = 0
+        )
+        
+        return addProject(newProject)
+    }
+    
     override suspend fun getProjects(): List<Project> {
         // 加载并转换数据库实体为领域模型
         val projects = projectDao.getAllProjects().map { entity ->
@@ -52,6 +73,14 @@ class ProjectRepositoryImpl @Inject constructor(
         return projects.map { project ->
             updateProjectCounts(project)
         }
+    }
+    
+    /**
+     * 获取所有项目（Flow形式）
+     */
+    override fun getAllProjects(): Flow<List<Project>> = flow {
+        val projects = getProjects() // 重用已有方法
+        emit(projects)
     }
     
     override suspend fun getProjectById(projectId: Long): Project? {

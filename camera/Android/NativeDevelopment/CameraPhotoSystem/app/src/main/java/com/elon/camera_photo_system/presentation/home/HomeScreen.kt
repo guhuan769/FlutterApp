@@ -73,7 +73,12 @@ fun HomeScreen(
     onAddVehicle: (Project) -> Unit,
     onUploadProject: (Project) -> Unit,
     onDeleteProject: (Project) -> Unit,
-    onNavigateToSettings: () -> Unit
+    onNavigateToSettings: () -> Unit,
+    modelTypes: List<ModelType> = listOf(ModelType.DEFAULT), // 模型类型列表
+    processTypes: List<ProcessType> = listOf(ProcessType.DEFAULT), // 工艺类型列表
+    onSelectUploadType: (UploadPhotoType, String) -> Unit = { _, _ -> }, // 选择上传类型和ID的回调
+    onManageModelTypes: () -> Unit = {}, // 管理模型类型按钮点击事件
+    onManageProcessTypes: () -> Unit = {} // 管理工艺类型按钮点击事件
 ) {
     val swipeRefreshState = rememberSwipeRefreshState(state.isLoading)
     var showDeleteDialog by remember { mutableStateOf<Project?>(null) }
@@ -236,10 +241,15 @@ fun HomeScreen(
     // 显示批量上传对话框
     if (showUploadDialog && selectedProject != null) {
         BatchProjectUploadDialog(
-            isVisible = showUploadDialog,
-            project = selectedProject!!,
+            isVisible = true,
+            project = selectedProject,
             uploadState = uploadState,
-            onDismissRequest = { showUploadDialog = false }
+            onDismissRequest = { showUploadDialog = false },
+            modelTypes = modelTypes,
+            processTypes = processTypes,
+            onSelectUploadType = onSelectUploadType,
+            onManageModelTypes = onManageModelTypes,
+            onManageProcessTypes = onManageProcessTypes
         )
     }
 }
@@ -643,6 +653,12 @@ fun BatchProjectUploadDialog(
         else -> emptyList()
     }
     
+    // 上传按钮是否可用（必须选择一个类型才能上传）
+    val isUploadEnabled = selectedUploadType != null && selectedTypeId != null
+    
+    // 类型选择是否可用（上传中禁止修改）
+    val isTypeSelectionEnabled = !uploadState.isUploading && !uploadState.isSuccess
+    
     // 对话框尺寸
     val dialogWidth = 360.dp
     val dialogHeight = 480.dp
@@ -886,7 +902,7 @@ fun BatchProjectUploadDialog(
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = selectedUploadType != null && selectedTypeId != null
+                        enabled = isUploadEnabled
                     ) {
                         Icon(
                             imageVector = Icons.Default.CloudUpload,
@@ -1001,6 +1017,23 @@ fun BatchProjectUploadDialog(
                                 color = MaterialTheme.colorScheme.tertiary
                             )
                         }
+                    }
+                    
+                    // 显示上传类型信息
+                    if (uploadState.selectedUploadPhotoType.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        val typeText = when (uploadState.selectedUploadPhotoType) {
+                            "MODEL" -> "模型: ${uploadState.selectedUploadTypeName}"
+                            "PROCESS" -> "工艺: ${uploadState.selectedUploadTypeName}"
+                            else -> "类型: ${uploadState.selectedUploadTypeName}"
+                        }
+                        
+                        Text(
+                            text = typeText,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
                     
                     // 错误信息

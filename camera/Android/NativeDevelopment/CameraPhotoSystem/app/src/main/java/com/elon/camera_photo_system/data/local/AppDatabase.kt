@@ -7,15 +7,21 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.elon.camera_photo_system.data.local.dao.ModelTypeDao
 import com.elon.camera_photo_system.data.local.dao.PhotoDao
+import com.elon.camera_photo_system.data.local.dao.ProcessTypeDao
 import com.elon.camera_photo_system.data.local.dao.ProjectDao
 import com.elon.camera_photo_system.data.local.dao.TrackDao
 import com.elon.camera_photo_system.data.local.dao.VehicleDao
+import com.elon.camera_photo_system.data.local.entity.ModelTypeEntity
 import com.elon.camera_photo_system.data.local.entity.PhotoEntity
+import com.elon.camera_photo_system.data.local.entity.ProcessTypeEntity
 import com.elon.camera_photo_system.data.local.entity.ProjectEntity
 import com.elon.camera_photo_system.data.local.entity.TrackEntity
 import com.elon.camera_photo_system.data.local.entity.VehicleEntity
 import com.elon.camera_photo_system.data.local.util.Converters
+import com.elon.camera_photo_system.domain.model.upload.ModelType
+import com.elon.camera_photo_system.domain.model.upload.ProcessType
 
 /**
  * 应用数据库
@@ -25,9 +31,11 @@ import com.elon.camera_photo_system.data.local.util.Converters
         PhotoEntity::class,
         ProjectEntity::class,
         VehicleEntity::class,
-        TrackEntity::class
+        TrackEntity::class,
+        ModelTypeEntity::class,
+        ProcessTypeEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -40,6 +48,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun vehicleDao(): VehicleDao
     
     abstract fun trackDao(): TrackDao
+    
+    abstract fun modelTypeDao(): ModelTypeDao
+    
+    abstract fun processTypeDao(): ProcessTypeDao
     
     companion object {
         const val DATABASE_NAME = "camera_photo_system.db"
@@ -250,6 +262,59 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // 添加从版本7迁移到版本8的迁移策略
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // 创建模型类型表
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS model_types (
+                        id TEXT PRIMARY KEY NOT NULL,
+                        name TEXT NOT NULL,
+                        description TEXT NOT NULL,
+                        createdAt INTEGER NOT NULL
+                    )
+                    """
+                )
+                
+                // 创建工艺类型表
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS process_types (
+                        id TEXT PRIMARY KEY NOT NULL,
+                        name TEXT NOT NULL,
+                        description TEXT NOT NULL,
+                        createdAt INTEGER NOT NULL
+                    )
+                    """
+                )
+                
+                // 添加默认的模型类型
+                database.execSQL(
+                    """
+                    INSERT OR IGNORE INTO model_types (id, name, description, createdAt)
+                    VALUES ('default', '默认模型', '系统默认模型', ${System.currentTimeMillis()})
+                    """
+                )
+                
+                // 添加默认的工艺类型
+                database.execSQL(
+                    """
+                    INSERT OR IGNORE INTO process_types (id, name, description, createdAt)
+                    VALUES ('default', '默认工艺', '系统默认工艺', ${System.currentTimeMillis()})
+                    """
+                )
+                
+                // 如果photos表不存在uploadPhotoType和uploadTypeId字段，则添加
+                try {
+                    database.execSQL("ALTER TABLE photos ADD COLUMN uploadPhotoType TEXT")
+                    database.execSQL("ALTER TABLE photos ADD COLUMN uploadTypeId TEXT")
+                } catch (e: Exception) {
+                    // 字段可能已存在，忽略错误
+                }
+            }
+        }
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
         
@@ -261,7 +326,10 @@ abstract class AppDatabase : RoomDatabase() {
                         AppDatabase::class.java,
                         DATABASE_NAME
                     )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_6, MIGRATION_6_4, MIGRATION_6_7)  // 添加迁移策略
+                    .addMigrations(
+                        MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, 
+                        MIGRATION_4_6, MIGRATION_6_4, MIGRATION_6_7, MIGRATION_7_8
+                    )
                     .build()
                     INSTANCE = instance
                     instance

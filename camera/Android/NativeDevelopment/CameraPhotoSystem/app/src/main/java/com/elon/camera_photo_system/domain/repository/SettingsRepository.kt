@@ -32,4 +32,14 @@ class SettingsRepository @Inject constructor(
     }
     
     suspend fun getApiUrl(): Flow<String> = apiUrl
+    
+    /**
+     * 同步获取API基础URL，主要用于初始化
+     * 注意：这应该只在构造函数等非挂起函数中使用，其他地方应优先使用Flow版本
+     */
+    fun getApiBaseUrl(): String {
+        return "http://192.168.101.21:5000/" // 默认使用真机地址
+    }
+
+    // 尝试读取并添加需要的方法
 } 

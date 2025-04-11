@@ -8,6 +8,12 @@ import com.elon.camera_photo_system.domain.repository.ProjectRepository
 import com.elon.camera_photo_system.domain.usecase.project.UploadProjectPhotosUseCase
 import com.elon.camera_photo_system.domain.usecase.project.UploadStatus
 import com.elon.camera_photo_system.presentation.home.state.UploadState
+import com.elon.camera_photo_system.domain.model.upload.ModelType
+import com.elon.camera_photo_system.domain.repository.ModelTypeRepository
+import com.elon.camera_photo_system.domain.model.upload.ProcessType
+import com.elon.camera_photo_system.domain.repository.ProcessTypeRepository
+import com.elon.camera_photo_system.domain.repository.PhotoRepository
+import com.elon.camera_photo_system.domain.model.upload.UploadPhotoType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,7 +27,10 @@ import javax.inject.Inject
 @HiltViewModel
 class ProjectViewModel @Inject constructor(
     private val projectRepository: ProjectRepository,
-    private val uploadProjectPhotosUseCase: UploadProjectPhotosUseCase
+    private val uploadProjectPhotosUseCase: UploadProjectPhotosUseCase,
+    private val modelTypeRepository: ModelTypeRepository,
+    private val processTypeRepository: ProcessTypeRepository,
+    private val photoRepository: PhotoRepository
 ) : ViewModel() {
     private val _projectsState = MutableStateFlow(ProjectsState())
     val projectsState: StateFlow<ProjectsState> = _projectsState.asStateFlow()
@@ -31,10 +40,19 @@ class ProjectViewModel @Inject constructor(
     
     private val _uploadState = MutableStateFlow(UploadState())
     val uploadState: StateFlow<UploadState> = _uploadState.asStateFlow()
+    
+    // 缓存模型类型和工艺类型
+    private val _modelTypes = MutableStateFlow<List<ModelType>>(emptyList())
+    val modelTypes: StateFlow<List<ModelType>> = _modelTypes.asStateFlow()
+    
+    private val _processTypes = MutableStateFlow<List<ProcessType>>(emptyList())
+    val processTypes: StateFlow<List<ProcessType>> = _processTypes.asStateFlow()
 
     init {
         // 初始加载项目
         loadProjects()
+        // 加载模型和工艺类型
+        loadTypes()
     }
 
     fun loadProjects() {
@@ -257,6 +275,67 @@ class ProjectViewModel @Inject constructor(
                 _projectsState.update { 
                     it.copy(error = "删除项目失败: ${e.message}") 
                 }
+            }
+        }
+    }
+
+    /**
+     * 加载模型和工艺类型
+     */
+    private fun loadTypes() {
+        viewModelScope.launch {
+            try {
+                // 确保默认类型存在
+                modelTypeRepository.ensureDefaultModelTypeExists()
+                processTypeRepository.ensureDefaultProcessTypeExists()
+                
+                // 加载模型类型
+                modelTypeRepository.getAllModelTypes().collect { types ->
+                    _modelTypes.value = types
+                }
+            } catch (e: Exception) {
+                Log.e("ProjectViewModel", "加载模型类型失败", e)
+            }
+        }
+        
+        viewModelScope.launch {
+            try {
+                // 加载工艺类型
+                processTypeRepository.getAllProcessTypes().collect { types ->
+                    _processTypes.value = types
+                }
+            } catch (e: Exception) {
+                Log.e("ProjectViewModel", "加载工艺类型失败", e)
+            }
+        }
+    }
+
+    /**
+     * 设置上传照片类型和类型ID
+     */
+    fun setUploadPhotoType(uploadPhotoType: UploadPhotoType, uploadTypeId: String) {
+        viewModelScope.launch {
+            // 获取类型名称
+            val typeName = try {
+                when (uploadPhotoType) {
+                    UploadPhotoType.MODEL -> {
+                        modelTypeRepository.getModelTypeById(uploadTypeId)?.name ?: ""
+                    }
+                    UploadPhotoType.PROCESS -> {
+                        processTypeRepository.getProcessTypeById(uploadTypeId)?.name ?: ""
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("ProjectViewModel", "获取类型名称失败", e)
+                ""
+            }
+            
+            _uploadState.update { state ->
+                state.copy(
+                    selectedUploadPhotoType = uploadPhotoType.name,
+                    selectedUploadTypeId = uploadTypeId,
+                    selectedUploadTypeName = typeName
+                )
             }
         }
     }

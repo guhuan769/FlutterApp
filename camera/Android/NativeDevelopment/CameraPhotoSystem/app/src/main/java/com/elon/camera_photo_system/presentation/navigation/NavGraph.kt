@@ -34,6 +34,8 @@ import com.elon.camera_photo_system.presentation.vehicle.VehicleDetailScreen
 import com.elon.camera_photo_system.presentation.vehicle.VehicleListScreen
 import com.elon.camera_photo_system.presentation.vehicle.VehicleViewModel
 import com.elon.camera_photo_system.presentation.home.state.UploadState
+import com.elon.camera_photo_system.presentation.settings.TypeManagementScreen
+import com.elon.camera_photo_system.presentation.settings.TypeManagementState
 
 /**
  * 导航路由
@@ -96,6 +98,9 @@ sealed class NavRoute(val route: String) {
     
     // 设置
     object Settings : NavRoute("settings")
+    
+    // 类型管理
+    object TypeManagement : NavRoute("settings/type-management")
 }
 
 /**
@@ -148,6 +153,8 @@ fun NavGraph(
             val projectsState by projectViewModel.projectsState.collectAsState()
             val uploadState by projectViewModel.uploadState.collectAsState()
             var showAddProjectDialog by remember { mutableStateOf(false) }
+            val modelTypes by projectViewModel.modelTypes.collectAsState()
+            val processTypes by projectViewModel.processTypes.collectAsState()
             
             HomeScreen(
                 state = HomeScreenState(
@@ -189,6 +196,17 @@ fun NavGraph(
                 onNavigateToSettings = {
                     // 跳转到设置界面
                     navController.navigate(NavRoute.Settings.route)
+                },
+                modelTypes = modelTypes,
+                processTypes = processTypes,
+                onSelectUploadType = { type, id ->
+                    projectViewModel.setUploadPhotoType(type, id)
+                },
+                onManageModelTypes = {
+                    navController.navigate(NavRoute.TypeManagement.route)
+                },
+                onManageProcessTypes = {
+                    navController.navigate(NavRoute.TypeManagement.route)
                 }
             )
             
@@ -571,7 +589,48 @@ fun NavGraph(
         composable(NavRoute.Settings.route) {
             SettingsScreen(
                 viewModel = settingsViewModel,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { 
+                    navController.popBackStack() 
+                },
+                onNavigateToTypeManagement = {
+                    navController.navigate(NavRoute.TypeManagement.route)
+                }
+            )
+        }
+        
+        // 类型管理
+        composable(NavRoute.TypeManagement.route) {
+            val modelTypesState by settingsViewModel.modelTypesState.collectAsState()
+            val processTypesState by settingsViewModel.processTypesState.collectAsState()
+            
+            TypeManagementScreen(
+                state = TypeManagementState(
+                    modelTypes = modelTypesState.types,
+                    processTypes = processTypesState.types,
+                    isLoading = modelTypesState.isLoading || processTypesState.isLoading,
+                    error = modelTypesState.error ?: processTypesState.error
+                ),
+                onAddModelType = { modelType ->
+                    settingsViewModel.addModelType(modelType)
+                },
+                onUpdateModelType = { modelType ->
+                    settingsViewModel.updateModelType(modelType)
+                },
+                onDeleteModelType = { modelType ->
+                    settingsViewModel.deleteModelType(modelType)
+                },
+                onAddProcessType = { processType ->
+                    settingsViewModel.addProcessType(processType)
+                },
+                onUpdateProcessType = { processType ->
+                    settingsViewModel.updateProcessType(processType)
+                },
+                onDeleteProcessType = { processType ->
+                    settingsViewModel.deleteProcessType(processType)
+                },
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
             )
         }
     }

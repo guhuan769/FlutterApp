@@ -5,11 +5,18 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.elon.camera_photo_system.data.api.ApiService
 import com.elon.camera_photo_system.data.remote.ApiConfig
+import com.elon.camera_photo_system.domain.model.upload.ModelType
+import com.elon.camera_photo_system.domain.model.upload.ProcessType
+import com.elon.camera_photo_system.domain.repository.ModelTypeRepository
+import com.elon.camera_photo_system.domain.repository.PhotoRepository
+import com.elon.camera_photo_system.domain.repository.ProcessTypeRepository
 import com.elon.camera_photo_system.domain.repository.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -24,19 +31,44 @@ import java.net.UnknownHostException
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
-    private val apiService: ApiService,
-    private val apiConfig: ApiConfig
+    private val photoRepository: PhotoRepository,
+    private val modelTypeRepository: ModelTypeRepository,
+    private val processTypeRepository: ProcessTypeRepository,
+    private val apiConfig: ApiConfig,
+    private val apiService: ApiService
 ) : ViewModel() {
     
     private val _settingsUiState = MutableStateFlow(SettingsUiState())
     val settingsUiState: StateFlow<SettingsUiState> = _settingsUiState.asStateFlow()
     
+    // API基础URL
+    private val _apiBaseUrl = MutableStateFlow(apiConfig.baseUrl)
+    val apiBaseUrl: StateFlow<String> = _apiBaseUrl.asStateFlow()
+    
+    // 模型类型状态
+    private val _modelTypesState = MutableStateFlow(ModelTypesState(isLoading = true))
+    val modelTypesState: StateFlow<ModelTypesState> = _modelTypesState.asStateFlow()
+    
+    // 工艺类型状态
+    private val _processTypesState = MutableStateFlow(ProcessTypesState(isLoading = true))
+    val processTypesState: StateFlow<ProcessTypesState> = _processTypesState.asStateFlow()
+    
     init {
+        // 初始化加载模型类型和工艺类型
+        loadModelTypes()
+        loadProcessTypes()
+        
+        // 确保默认类型存在
+        viewModelScope.launch {
+            modelTypeRepository.ensureDefaultModelTypeExists()
+            processTypeRepository.ensureDefaultProcessTypeExists()
+        }
+        
         viewModelScope.launch {
             settingsRepository.getApiUrl().collect { url ->
                 try {
                     // 同时更新 UI 状态和 ApiConfig
-                    apiConfig.updateBaseUrl(url)
+                    _apiBaseUrl.value = url
                     _settingsUiState.update { currentState ->
                         currentState.copy(
                             apiUrl = url,
@@ -116,8 +148,8 @@ class SettingsViewModel @Inject constructor(
                 }
                 
                 // 更新 ApiConfig
-                apiConfig.updateBaseUrl(url)
-                Log.d("SettingsViewModel", "更新 ApiConfig.baseUrl: ${apiConfig.baseUrl}")
+                _apiBaseUrl.value = url
+                Log.d("SettingsViewModel", "更新 ApiConfig.baseUrl: ${_apiBaseUrl.value}")
                 
                 // 保存到持久化存储
                 settingsRepository.saveApiUrl(url)
@@ -190,8 +222,8 @@ class SettingsViewModel @Inject constructor(
                 }
                 
                 // 先更新ApiConfig确保使用最新的URL
-                apiConfig.updateBaseUrl(url)
-                Log.d("SettingsViewModel", "已更新ApiConfig: ${apiConfig.baseUrl}")
+                _apiBaseUrl.value = url
+                Log.d("SettingsViewModel", "已更新ApiConfig: ${_apiBaseUrl.value}")
                 
                 val response = apiService.testConnection()
                 
@@ -298,6 +330,160 @@ class SettingsViewModel @Inject constructor(
             return UrlValidationResult(false, e.message ?: "URL格式不正确")
         }
     }
+    
+    /**
+     * 加载所有模型类型
+     */
+    private fun loadModelTypes() {
+        viewModelScope.launch {
+            _modelTypesState.update { it.copy(isLoading = true, error = null) }
+            
+            modelTypeRepository.getAllModelTypes()
+                .catch { e ->
+                    _modelTypesState.update { 
+                        it.copy(isLoading = false, error = "加载模型类型失败: ${e.message}") 
+                    }
+                }
+                .collectLatest { types ->
+                    _modelTypesState.update { 
+                        it.copy(types = types, isLoading = false) 
+                    }
+                }
+        }
+    }
+    
+    /**
+     * 加载所有工艺类型
+     */
+    private fun loadProcessTypes() {
+        viewModelScope.launch {
+            _processTypesState.update { it.copy(isLoading = true, error = null) }
+            
+            processTypeRepository.getAllProcessTypes()
+                .catch { e ->
+                    _processTypesState.update { 
+                        it.copy(isLoading = false, error = "加载工艺类型失败: ${e.message}") 
+                    }
+                }
+                .collectLatest { types ->
+                    _processTypesState.update { 
+                        it.copy(types = types, isLoading = false) 
+                    }
+                }
+        }
+    }
+    
+    /**
+     * 添加模型类型
+     */
+    fun addModelType(modelType: ModelType) {
+        viewModelScope.launch {
+            try {
+                modelTypeRepository.saveModelType(modelType)
+                loadModelTypes() // 重新加载数据
+            } catch (e: Exception) {
+                _modelTypesState.update { 
+                    it.copy(error = "添加模型类型失败: ${e.message}") 
+                }
+            }
+        }
+    }
+    
+    /**
+     * 更新模型类型
+     */
+    fun updateModelType(modelType: ModelType) {
+        viewModelScope.launch {
+            try {
+                modelTypeRepository.updateModelType(modelType)
+                loadModelTypes() // 重新加载数据
+            } catch (e: Exception) {
+                _modelTypesState.update { 
+                    it.copy(error = "更新模型类型失败: ${e.message}") 
+                }
+            }
+        }
+    }
+    
+    /**
+     * 删除模型类型
+     */
+    fun deleteModelType(modelType: ModelType) {
+        // 默认类型不能删除
+        if (modelType.id == ModelType.DEFAULT.id) {
+            _modelTypesState.update { 
+                it.copy(error = "默认类型不能删除") 
+            }
+            return
+        }
+        
+        viewModelScope.launch {
+            try {
+                modelTypeRepository.deleteModelType(modelType)
+                loadModelTypes() // 重新加载数据
+            } catch (e: Exception) {
+                _modelTypesState.update { 
+                    it.copy(error = "删除模型类型失败: ${e.message}") 
+                }
+            }
+        }
+    }
+    
+    /**
+     * 添加工艺类型
+     */
+    fun addProcessType(processType: ProcessType) {
+        viewModelScope.launch {
+            try {
+                processTypeRepository.saveProcessType(processType)
+                loadProcessTypes() // 重新加载数据
+            } catch (e: Exception) {
+                _processTypesState.update { 
+                    it.copy(error = "添加工艺类型失败: ${e.message}") 
+                }
+            }
+        }
+    }
+    
+    /**
+     * 更新工艺类型
+     */
+    fun updateProcessType(processType: ProcessType) {
+        viewModelScope.launch {
+            try {
+                processTypeRepository.updateProcessType(processType)
+                loadProcessTypes() // 重新加载数据
+            } catch (e: Exception) {
+                _processTypesState.update { 
+                    it.copy(error = "更新工艺类型失败: ${e.message}") 
+                }
+            }
+        }
+    }
+    
+    /**
+     * 删除工艺类型
+     */
+    fun deleteProcessType(processType: ProcessType) {
+        // 默认类型不能删除
+        if (processType.id == ProcessType.DEFAULT.id) {
+            _processTypesState.update { 
+                it.copy(error = "默认类型不能删除") 
+            }
+            return
+        }
+        
+        viewModelScope.launch {
+            try {
+                processTypeRepository.deleteProcessType(processType)
+                loadProcessTypes() // 重新加载数据
+            } catch (e: Exception) {
+                _processTypesState.update { 
+                    it.copy(error = "删除工艺类型失败: ${e.message}") 
+                }
+            }
+        }
+    }
 }
 
 /**
@@ -326,4 +512,22 @@ data class SettingsUiState(
 data class TestResult(
     val success: Boolean,
     val message: String
+)
+
+/**
+ * 模型类型状态
+ */
+data class ModelTypesState(
+    val types: List<ModelType> = emptyList(),
+    val isLoading: Boolean = false,
+    val error: String? = null
+)
+
+/**
+ * 工艺类型状态
+ */
+data class ProcessTypesState(
+    val types: List<ProcessType> = emptyList(),
+    val isLoading: Boolean = false,
+    val error: String? = null
 ) 

@@ -14,6 +14,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.text.font.FontWeight
 
 /**
  * 设置界面
@@ -22,7 +24,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToTypeManagement: () -> Unit
 ) {
     val settingsUiState by viewModel.settingsUiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -249,6 +252,48 @@ fun SettingsScreen(
                             )
                         }
                     }
+                }
+            }
+            
+            // 添加照片分类设置区域
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = "照片分类管理",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    ListItem(
+                        leadingContent = {
+                            Icon(
+                                imageVector = Icons.Default.Category,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        headlineContent = { Text("管理照片分类类型") },
+                        supportingContent = { Text("添加、编辑或删除模型和工艺类型") },
+                        trailingContent = {
+                            IconButton(onClick = onNavigateToTypeManagement) {
+                                Icon(
+                                    imageVector = Icons.Default.ArrowForward,
+                                    contentDescription = "前往"
+                                )
+                            }
+                        },
+                        modifier = Modifier.clickable { onNavigateToTypeManagement() }
+                    )
                 }
             }
         }
