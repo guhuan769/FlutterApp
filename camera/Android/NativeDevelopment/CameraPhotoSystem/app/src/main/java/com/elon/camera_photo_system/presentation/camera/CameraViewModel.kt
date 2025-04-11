@@ -142,6 +142,7 @@ class CameraViewModel @Inject constructor(
             PhotoType.START_POINT -> _moduleInfo.value.startPointPhotoCount + 1
             PhotoType.MIDDLE_POINT -> _moduleInfo.value.middlePointPhotoCount + 1
             PhotoType.MODEL_POINT -> _moduleInfo.value.modelPointPhotoCount + 1
+            PhotoType.TRANSITION_POINT -> 1 // 过渡点照片计数暂时硬编码为1
             PhotoType.END_POINT -> _moduleInfo.value.endPointPhotoCount + 1
         }
     }

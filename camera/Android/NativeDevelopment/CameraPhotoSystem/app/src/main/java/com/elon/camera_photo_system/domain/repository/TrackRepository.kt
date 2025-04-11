@@ -49,6 +49,7 @@ interface TrackRepository {
                                       startPointCount: Int? = null,
                                       middlePointCount: Int? = null,
                                       modelPointCount: Int? = null,
+                                      transitionPointCount: Int? = null,
                                       endPointCount: Int? = null)
 
     /**

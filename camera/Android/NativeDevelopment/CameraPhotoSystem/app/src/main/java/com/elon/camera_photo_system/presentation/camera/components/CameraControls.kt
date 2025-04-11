@@ -100,7 +100,7 @@ fun TrackPhotoTypeSelector(
             .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        // 只显示四种特定点类型
+        // 只显示四种特定点类型（移除了模型点）
         // 起始点 - 只有在轨迹未开始时可用
         TrackPhotoTypeButton(
             text = "起始点",
@@ -119,12 +119,12 @@ fun TrackPhotoTypeSelector(
             enabled = isTrackStarted && !isTrackEnded
         )
         
-        // 模型点 - 随时可用
+        // 过渡点 - 随时可用
         TrackPhotoTypeButton(
-            text = "模型点",
-            isSelected = selectedPhotoType == PhotoType.MODEL_POINT,
+            text = "过渡点",
+            isSelected = selectedPhotoType == PhotoType.TRANSITION_POINT,
             color = MaterialTheme.colorScheme.tertiary,
-            onClick = { onPhotoTypeSelected(PhotoType.MODEL_POINT) },
+            onClick = { onPhotoTypeSelected(PhotoType.TRANSITION_POINT) },
             enabled = true
         )
         

@@ -84,8 +84,9 @@ fun GalleryScreen(
                 PhotoType.START_POINT -> 0
                 PhotoType.MIDDLE_POINT -> 1
                 PhotoType.MODEL_POINT -> 2
-                PhotoType.END_POINT -> 3
-                else -> 4 // 添加else分支以防枚举扩展
+                PhotoType.TRANSITION_POINT -> 3
+                PhotoType.END_POINT -> 4
+                else -> 5 // 添加else分支以防枚举扩展
             }
         }
     }
@@ -447,12 +448,16 @@ fun PhotoDetailDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     
-                    // 添加角度信息
-                    val (_, angle) = remember(photo.fileName) {
-                        extractPhotoInfo(photo.fileName, moduleType)
-                    }
+                    // 添加角度信息 - 修改为直接使用photo对象中的angle字段
+                    // 旧代码: val (_, angle) = remember(photo.fileName) { extractPhotoInfo(photo.fileName, moduleType) }
+                    
+                    // 添加调试日志
+                    val angleFromDB = photo.angle
+                    val (_, angleFromFile) = extractPhotoInfo(photo.fileName, moduleType)
+                    android.util.Log.d("PhotoDetail", "Photo ID: ${photo.id}, DB Angle: $angleFromDB, File Angle: $angleFromFile")
+                    
                     Text(
-                        text = "拍摄角度: ${angle}°",
+                        text = "拍摄角度: ${angleFromDB}°",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

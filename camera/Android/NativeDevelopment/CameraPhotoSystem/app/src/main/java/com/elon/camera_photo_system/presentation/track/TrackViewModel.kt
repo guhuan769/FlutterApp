@@ -190,6 +190,7 @@ class TrackViewModel @Inject constructor(
             PhotoType.START_POINT -> !track.isStarted
             PhotoType.MIDDLE_POINT -> track.isStarted && !track.isEnded
             PhotoType.MODEL_POINT -> true // 模型点随时可用
+            PhotoType.TRANSITION_POINT -> track.isStarted && !track.isEnded  // 过渡点在轨迹已开始且未结束时可用
             PhotoType.END_POINT -> track.isStarted && !track.isEnded
         }
     }
@@ -204,6 +205,7 @@ class TrackViewModel @Inject constructor(
             PhotoType.START_POINT -> "起始点拍照"
             PhotoType.MIDDLE_POINT -> "中间点拍照"
             PhotoType.MODEL_POINT -> "模型点拍照"
+            PhotoType.TRANSITION_POINT -> "过渡点拍照"
             PhotoType.END_POINT -> "结束点拍照"
         }
         
@@ -211,6 +213,7 @@ class TrackViewModel @Inject constructor(
             PhotoType.START_POINT -> track.startPointPhotoCount
             PhotoType.MIDDLE_POINT -> track.middlePointPhotoCount
             PhotoType.MODEL_POINT -> track.modelPointPhotoCount
+            PhotoType.TRANSITION_POINT -> track.transitionPointPhotoCount
             PhotoType.END_POINT -> track.endPointPhotoCount
         }
         
@@ -256,6 +259,12 @@ class TrackViewModel @Inject constructor(
                         trackRepository.updateTrackPhotoCount(
                             trackId = currentTrack.id,
                             modelPointCount = currentTrack.modelPointPhotoCount + 1
+                        )
+                    }
+                    PhotoType.TRANSITION_POINT -> {
+                        trackRepository.updateTrackPhotoCount(
+                            trackId = currentTrack.id,
+                            transitionPointCount = currentTrack.transitionPointPhotoCount + 1
                         )
                     }
                     PhotoType.END_POINT -> {

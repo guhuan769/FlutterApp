@@ -36,6 +36,7 @@ fun CameraOverlay(
                         PhotoType.START_POINT -> "起始点拍照"
                         PhotoType.MIDDLE_POINT -> "中间点拍照"
                         PhotoType.MODEL_POINT -> "模型点拍照"
+                        PhotoType.TRANSITION_POINT -> "过渡点拍照"
                         PhotoType.END_POINT -> "结束点拍照"
                     }
                 },

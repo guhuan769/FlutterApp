@@ -57,12 +57,14 @@ class TrackRepositoryImpl @Inject constructor(
         startPointCount: Int?,
         middlePointCount: Int?,
         modelPointCount: Int?,
+        transitionPointCount: Int?,
         endPointCount: Int?
     ) {
         // 更新各个点的照片数量
         startPointCount?.let { trackDao.updateStartPointPhotoCount(trackId, it) }
         middlePointCount?.let { trackDao.updateMiddlePointPhotoCount(trackId, it) }
         modelPointCount?.let { trackDao.updateModelPointPhotoCount(trackId, it) }
+        transitionPointCount?.let { trackDao.updateTransitionPointPhotoCount(trackId, it) }
         endPointCount?.let { trackDao.updateEndPointPhotoCount(trackId, it) }
         
         // 计算并更新总照片数量
@@ -80,6 +82,7 @@ class TrackRepositoryImpl @Inject constructor(
             val startCount = photoRepository.getPhotoCountByType(trackId, ModuleType.TRACK, PhotoType.START_POINT)
             val middleCount = photoRepository.getPhotoCountByType(trackId, ModuleType.TRACK, PhotoType.MIDDLE_POINT)
             val modelCount = photoRepository.getPhotoCountByType(trackId, ModuleType.TRACK, PhotoType.MODEL_POINT)
+            val transitionCount = photoRepository.getPhotoCountByType(trackId, ModuleType.TRACK, PhotoType.TRANSITION_POINT)
             val endCount = photoRepository.getPhotoCountByType(trackId, ModuleType.TRACK, PhotoType.END_POINT)
             
             // 更新轨迹的照片计数
@@ -88,6 +91,7 @@ class TrackRepositoryImpl @Inject constructor(
                 startPointCount = startCount,
                 middlePointCount = middleCount,
                 modelPointCount = modelCount,
+                transitionPointCount = transitionCount,
                 endPointCount = endCount
             )
             

@@ -114,7 +114,8 @@ class GalleryViewModel @Inject constructor(
             PhotoType.START_POINT -> 0
             PhotoType.MIDDLE_POINT -> 1
             PhotoType.MODEL_POINT -> 2
-            PhotoType.END_POINT -> 3
+            PhotoType.TRANSITION_POINT -> 3
+            PhotoType.END_POINT -> 4
         }
     }
     

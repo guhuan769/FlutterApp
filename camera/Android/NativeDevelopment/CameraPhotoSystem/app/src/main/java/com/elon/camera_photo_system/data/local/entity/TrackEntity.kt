@@ -37,5 +37,6 @@ data class TrackEntity(
     val startPointPhotoCount: Int = 0,
     val middlePointPhotoCount: Int = 0,
     val modelPointPhotoCount: Int = 0,
+    val transitionPointPhotoCount: Int = 0,
     val endPointPhotoCount: Int = 0
 ) 

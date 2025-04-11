@@ -506,7 +506,7 @@ fun PhotoTypeSelector(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // 第一行：起始点和中间点
+                    // 第一列：起始点和中间点
                     Column(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.Center
@@ -528,16 +528,16 @@ fun PhotoTypeSelector(
                         )
                     }
                     
-                    // 第二行：模型点和结束点
+                    // 第二列：过渡点和结束点 (移除了模型点)
                     Column(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.Center
                     ) {
                         TrackPhotoTypeButton(
-                            text = "模型点",
-                            isSelected = selectedPhotoType == PhotoType.MODEL_POINT,
-                            color = MaterialTheme.colorScheme.tertiary,
-                            onClick = { onPhotoTypeSelected(PhotoType.MODEL_POINT) }
+                            text = "过渡点",
+                            isSelected = selectedPhotoType == PhotoType.TRANSITION_POINT,
+                            color = MaterialTheme.colorScheme.surfaceTint,
+                            onClick = { onPhotoTypeSelected(PhotoType.TRANSITION_POINT) }
                         )
                         
                         Spacer(modifier = Modifier.height(8.dp))
@@ -682,17 +682,8 @@ private fun getPhotoTypeCode(photoType: PhotoType): String {
         PhotoType.START_POINT -> "起始点"
         PhotoType.MIDDLE_POINT -> "中间点"
         PhotoType.MODEL_POINT -> "模型点" 
+        PhotoType.TRANSITION_POINT -> "过渡点"
         PhotoType.END_POINT -> "结束点"
-    }
-}
-
-/**
- * 获取默认照片类型
- */
-private fun getDefaultPhotoType(moduleType: ModuleType): PhotoType {
-    return when (moduleType) {
-        ModuleType.PROJECT, ModuleType.VEHICLE -> PhotoType.MODEL_POINT
-        ModuleType.TRACK -> PhotoType.START_POINT
     }
 }
 
@@ -703,8 +694,19 @@ private fun getPhotoTypeDisplayName(photoType: PhotoType): String {
     return when (photoType) {
         PhotoType.START_POINT -> "起始点照片"
         PhotoType.MIDDLE_POINT -> "中间点照片"
-        PhotoType.MODEL_POINT -> "模型点照片" 
+        PhotoType.MODEL_POINT -> "模型点照片"
+        PhotoType.TRANSITION_POINT -> "过渡点照片"
         PhotoType.END_POINT -> "结束点照片"
+    }
+}
+
+/**
+ * 获取默认照片类型
+ */
+private fun getDefaultPhotoType(moduleType: ModuleType): PhotoType {
+    return when (moduleType) {
+        ModuleType.TRACK -> PhotoType.START_POINT
+        ModuleType.PROJECT, ModuleType.VEHICLE -> PhotoType.MODEL_POINT
     }
 }
 

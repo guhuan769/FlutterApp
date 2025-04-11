@@ -24,6 +24,7 @@ object TrackMapper {
             startPointPhotoCount = startPointPhotoCount,
             middlePointPhotoCount = middlePointPhotoCount,
             modelPointPhotoCount = modelPointPhotoCount,
+            transitionPointPhotoCount = transitionPointPhotoCount,
             endPointPhotoCount = endPointPhotoCount
         )
     }
@@ -45,6 +46,7 @@ object TrackMapper {
             startPointPhotoCount = startPointPhotoCount,
             middlePointPhotoCount = middlePointPhotoCount,
             modelPointPhotoCount = modelPointPhotoCount,
+            transitionPointPhotoCount = transitionPointPhotoCount,
             endPointPhotoCount = endPointPhotoCount
         )
     }

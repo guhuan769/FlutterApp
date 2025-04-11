@@ -522,6 +522,7 @@ private fun PhotoStatisticsSection(track: Track) {
             
             PhotoTypeRow("起始点照片", track.startPointPhotoCount)
             PhotoTypeRow("中间点照片", track.middlePointPhotoCount)
+            PhotoTypeRow("过渡点照片", track.transitionPointPhotoCount)
             PhotoTypeRow("结束点照片", track.endPointPhotoCount)
             
             Divider(

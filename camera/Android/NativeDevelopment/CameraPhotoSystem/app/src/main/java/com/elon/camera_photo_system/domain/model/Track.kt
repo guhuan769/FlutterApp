@@ -18,8 +18,9 @@ data class Track(
     val startPointPhotoCount: Int = 0,
     val middlePointPhotoCount: Int = 0,
     val modelPointPhotoCount: Int = 0,
+    val transitionPointPhotoCount: Int = 0, // 过渡点照片数量
     val endPointPhotoCount: Int = 0
 ) {
     val totalPhotoCount: Int
-        get() = startPointPhotoCount + middlePointPhotoCount + modelPointPhotoCount + endPointPhotoCount
+        get() = startPointPhotoCount + middlePointPhotoCount + modelPointPhotoCount + transitionPointPhotoCount + endPointPhotoCount
 } 

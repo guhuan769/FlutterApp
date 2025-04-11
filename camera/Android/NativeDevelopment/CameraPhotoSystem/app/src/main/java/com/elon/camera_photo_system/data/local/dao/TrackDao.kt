@@ -71,6 +71,12 @@ interface TrackDao {
     suspend fun updateModelPointPhotoCount(trackId: Long, count: Int)
     
     /**
+     * 更新过渡点照片数量
+     */
+    @Query("UPDATE tracks SET transitionPointPhotoCount = :count WHERE id = :trackId")
+    suspend fun updateTransitionPointPhotoCount(trackId: Long, count: Int)
+    
+    /**
      * 更新终点照片数量
      */
     @Query("UPDATE tracks SET endPointPhotoCount = :count WHERE id = :trackId")
