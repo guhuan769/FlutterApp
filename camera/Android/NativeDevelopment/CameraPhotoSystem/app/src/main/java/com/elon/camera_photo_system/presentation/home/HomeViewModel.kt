@@ -158,7 +158,15 @@ class HomeViewModel @Inject constructor(
                         isSuccess = false,
                         progress = 0f,
                         uploadedCount = 0,
-                        totalCount = 0 // 初始化为0，后续会更新实际数量
+                        totalCount = 0, // 初始化为0，后续会更新实际数量
+                        currentModuleType = "",
+                        currentModuleName = "",
+                        projectPhotosCount = 0,
+                        vehiclePhotosCount = 0,
+                        trackPhotosCount = 0,
+                        projectUploadedCount = 0,
+                        vehicleUploadedCount = 0,
+                        trackUploadedCount = 0
                     ) 
                 }
                 
@@ -167,33 +175,54 @@ class HomeViewModel @Inject constructor(
                 
                 // 获取项目下所有车辆
                 val vehicles = vehicleRepository.getVehiclesByProject(project.id).first()
-                var vehiclePhotos = emptyList<Photo>()
-                var trackPhotos = emptyList<Photo>()
+                var vehiclePhotos = mutableListOf<Pair<Long, Photo>>() // 添加车辆ID与照片的映射
+                var trackPhotos = mutableListOf<Pair<Long, Photo>>() // 添加轨迹ID与照片的映射
+                var vehicleMap = mutableMapOf<Long, String>() // 存储车辆ID到名称的映射
+                var trackMap = mutableMapOf<Long, String>() // 存储轨迹ID到名称的映射
                 
                 // 获取车辆照片
                 vehicles.forEach { vehicle ->
+                    // 保存车辆名称映射
+                    vehicleMap[vehicle.id] = vehicle.name
+                    
                     // 获取车辆照片
                     val photos = photoRepository.getPhotosByModule(vehicle.id, ModuleType.VEHICLE).first()
-                    vehiclePhotos = vehiclePhotos + photos
+                    photos.forEach { photo ->
+                        vehiclePhotos.add(Pair(vehicle.id, photo))
+                    }
                     
                     // 获取车辆下所有轨迹的照片
                     val tracks = trackRepository.getTracksByVehicle(vehicle.id).first()
                     tracks.forEach { track ->
+                        // 保存轨迹名称映射
+                        trackMap[track.id] = track.name
+                        
                         val trackPhotoList = photoRepository.getPhotosByModule(track.id, ModuleType.TRACK).first()
-                        trackPhotos = trackPhotos + trackPhotoList
+                        trackPhotoList.forEach { photo ->
+                            trackPhotos.add(Pair(track.id, photo))
+                        }
                     }
                 }
                 
-                // 计算总数量
-                val allPhotos = projectPhotos + vehiclePhotos + trackPhotos
-                val totalPhotos = allPhotos.size
+                // 计算分层级的照片数量
+                val projectPhotosCount = projectPhotos.size
+                val vehiclePhotosCount = vehiclePhotos.size
+                val trackPhotosCount = trackPhotos.size
                 
-                // 更新总数量
+                // 计算总数量
+                val totalPhotos = projectPhotosCount + vehiclePhotosCount + trackPhotosCount
+                
+                // 更新总数量和分层级数量
                 _uploadState.update {
-                    it.copy(totalCount = totalPhotos)
+                    it.copy(
+                        totalCount = totalPhotos,
+                        projectPhotosCount = projectPhotosCount,
+                        vehiclePhotosCount = vehiclePhotosCount,
+                        trackPhotosCount = trackPhotosCount
+                    )
                 }
                 
-                Log.d("HomeViewModel", "照片总数: 项目(${projectPhotos.size}), 车辆(${vehiclePhotos.size}), 轨迹(${trackPhotos.size})")
+                Log.d("HomeViewModel", "照片总数: 项目(${projectPhotosCount}), 车辆(${vehiclePhotosCount}), 轨迹(${trackPhotosCount})")
                 
                 // 如果没有照片，直接标记为上传成功
                 if (totalPhotos == 0) {
@@ -207,36 +236,22 @@ class HomeViewModel @Inject constructor(
                     return@launch
                 }
                 
-                // 创建进度监听器
+                // 创建进度监听器和计数变量
                 var currentUploaded = 0
+                var projectUploaded = 0
+                var vehicleUploaded = 0
+                var trackUploaded = 0
                 var overallSuccess = true
-                
-                val progressListener = object : UploadProgressListener {
-                    override fun onProgress(uploaded: Int, total: Int) {
-                        currentUploaded = uploaded
-                        
-                        // 计算总体进度 - 基于所有照片的总数
-                        val progress = if (totalPhotos > 0) {
-                            uploaded.toFloat() / totalPhotos
-                        } else {
-                            0f
-                        }
-                        
-                        // 更新状态
-                        _uploadState.update {
-                            it.copy(
-                                progress = progress,
-                                uploadedCount = uploaded,
-                                totalCount = totalPhotos // 使用总照片数
-                            )
-                        }
-                        
-                        Log.d("HomeViewModel", "上传进度: $uploaded/$totalPhotos (${(progress * 100).toInt()}%)")
-                    }
-                }
                 
                 // 2. 上传项目照片
                 if (projectPhotos.isNotEmpty()) {
+                    _uploadState.update { 
+                        it.copy(
+                            currentModuleType = "项目",
+                            currentModuleName = project.name
+                        )
+                    }
+                    
                     Log.d("HomeViewModel", "开始上传项目照片: ${projectPhotos.size}张")
                     
                     // 逐个上传项目照片，保持原始文件名
@@ -245,7 +260,13 @@ class HomeViewModel @Inject constructor(
                             val result = photoRepository.uploadPhoto(photo)
                             if (result) {
                                 currentUploaded++
-                                progressListener.onProgress(currentUploaded, totalPhotos)
+                                projectUploaded++
+                                
+                                // 更新进度状态
+                                updateUploadProgress(
+                                    totalPhotos, currentUploaded, 
+                                    projectUploaded, vehicleUploaded, trackUploaded
+                                )
                             } else {
                                 Log.e("HomeViewModel", "项目照片上传失败: ${photo.fileName}")
                                 overallSuccess = false
@@ -259,44 +280,84 @@ class HomeViewModel @Inject constructor(
                 
                 // 3. 上传车辆照片
                 if (vehiclePhotos.isNotEmpty()) {
-                    Log.d("HomeViewModel", "开始上传车辆照片: ${vehiclePhotos.size}张")
+                    // 分组上传不同车辆的照片，为每个车辆更新状态
+                    val groupedVehiclePhotos = vehiclePhotos.groupBy { it.first }
                     
-                    // 逐个上传车辆照片，保持原始文件名
-                    for (photo in vehiclePhotos) {
-                        try {
-                            val result = photoRepository.uploadPhoto(photo)
-                            if (result) {
-                                currentUploaded++
-                                progressListener.onProgress(currentUploaded, totalPhotos)
-                            } else {
-                                Log.e("HomeViewModel", "车辆照片上传失败: ${photo.fileName}")
+                    for ((vehicleId, photos) in groupedVehiclePhotos) {
+                        val vehicleName = vehicleMap[vehicleId] ?: "未知车辆"
+                        
+                        _uploadState.update { 
+                            it.copy(
+                                currentModuleType = "车辆",
+                                currentModuleName = vehicleName
+                            )
+                        }
+                        
+                        Log.d("HomeViewModel", "开始上传车辆[${vehicleName}]照片: ${photos.size}张")
+                        
+                        // 逐个上传车辆照片
+                        for ((_, photo) in photos) {
+                            try {
+                                val result = photoRepository.uploadPhoto(photo)
+                                if (result) {
+                                    currentUploaded++
+                                    vehicleUploaded++
+                                    
+                                    // 更新进度状态
+                                    updateUploadProgress(
+                                        totalPhotos, currentUploaded, 
+                                        projectUploaded, vehicleUploaded, trackUploaded
+                                    )
+                                } else {
+                                    Log.e("HomeViewModel", "车辆照片上传失败: ${photo.fileName}")
+                                    overallSuccess = false
+                                }
+                            } catch (e: Exception) {
+                                Log.e("HomeViewModel", "车辆照片上传异常: ${e.message}")
                                 overallSuccess = false
                             }
-                        } catch (e: Exception) {
-                            Log.e("HomeViewModel", "车辆照片上传异常: ${e.message}")
-                            overallSuccess = false
                         }
                     }
                 }
                 
                 // 4. 上传轨迹照片
                 if (trackPhotos.isNotEmpty()) {
-                    Log.d("HomeViewModel", "开始上传轨迹照片: ${trackPhotos.size}张")
+                    // 分组上传不同轨迹的照片，为每个轨迹更新状态
+                    val groupedTrackPhotos = trackPhotos.groupBy { it.first }
                     
-                    // 逐个上传轨迹照片，保持原始文件名
-                    for (photo in trackPhotos) {
-                        try {
-                            val result = photoRepository.uploadPhoto(photo)
-                            if (result) {
-                                currentUploaded++
-                                progressListener.onProgress(currentUploaded, totalPhotos)
-                            } else {
-                                Log.e("HomeViewModel", "轨迹照片上传失败: ${photo.fileName}")
+                    for ((trackId, photos) in groupedTrackPhotos) {
+                        val trackName = trackMap[trackId] ?: "未知轨迹"
+                        
+                        _uploadState.update { 
+                            it.copy(
+                                currentModuleType = "轨迹",
+                                currentModuleName = trackName
+                            )
+                        }
+                        
+                        Log.d("HomeViewModel", "开始上传轨迹[${trackName}]照片: ${photos.size}张")
+                        
+                        // 逐个上传轨迹照片
+                        for ((_, photo) in photos) {
+                            try {
+                                val result = photoRepository.uploadPhoto(photo)
+                                if (result) {
+                                    currentUploaded++
+                                    trackUploaded++
+                                    
+                                    // 更新进度状态
+                                    updateUploadProgress(
+                                        totalPhotos, currentUploaded, 
+                                        projectUploaded, vehicleUploaded, trackUploaded
+                                    )
+                                } else {
+                                    Log.e("HomeViewModel", "轨迹照片上传失败: ${photo.fileName}")
+                                    overallSuccess = false
+                                }
+                            } catch (e: Exception) {
+                                Log.e("HomeViewModel", "轨迹照片上传异常: ${e.message}")
                                 overallSuccess = false
                             }
-                        } catch (e: Exception) {
-                            Log.e("HomeViewModel", "轨迹照片上传异常: ${e.message}")
-                            overallSuccess = false
                         }
                     }
                 }
@@ -308,7 +369,9 @@ class HomeViewModel @Inject constructor(
                         isSuccess = overallSuccess,
                         error = if (!overallSuccess) "部分照片上传失败" else null,
                         progress = 1f,
-                        uploadedCount = currentUploaded
+                        uploadedCount = currentUploaded,
+                        currentModuleType = "",
+                        currentModuleName = ""
                     )
                 }
                 
@@ -326,6 +389,40 @@ class HomeViewModel @Inject constructor(
                 }
             }
         }
+    }
+    
+    /**
+     * 更新上传进度状态
+     */
+    private fun updateUploadProgress(
+        totalPhotos: Int,
+        currentUploaded: Int,
+        projectUploaded: Int,
+        vehicleUploaded: Int,
+        trackUploaded: Int
+    ) {
+        // 计算总体进度
+        val progress = if (totalPhotos > 0) {
+            currentUploaded.toFloat() / totalPhotos
+        } else {
+            0f
+        }
+        
+        // 更新状态
+        _uploadState.update {
+            it.copy(
+                progress = progress,
+                uploadedCount = currentUploaded,
+                projectUploadedCount = projectUploaded,
+                vehicleUploadedCount = vehicleUploaded,
+                trackUploadedCount = trackUploaded
+            )
+        }
+        
+        Log.d("HomeViewModel", "上传进度: $currentUploaded/$totalPhotos (${(progress * 100).toInt()}%), " +
+                              "项目: $projectUploaded/${_uploadState.value.projectPhotosCount}, " +
+                              "车辆: $vehicleUploaded/${_uploadState.value.vehiclePhotosCount}, " +
+                              "轨迹: $trackUploaded/${_uploadState.value.trackPhotosCount}")
     }
     
     /**

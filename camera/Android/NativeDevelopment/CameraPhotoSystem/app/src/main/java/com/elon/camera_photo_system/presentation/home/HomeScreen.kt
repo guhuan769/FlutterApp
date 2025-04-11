@@ -30,6 +30,25 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.elon.camera_photo_system.presentation.home.state.UploadState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.style.TextAlign
+import com.elon.camera_photo_system.domain.model.upload.ModelType
+import com.elon.camera_photo_system.domain.model.upload.ProcessType
+import com.elon.camera_photo_system.domain.model.upload.UploadPhotoType
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.VisualTransformation
+
+import androidx.compose.foundation.interaction.MutableInteractionSource
 
 
 /**
@@ -596,168 +615,470 @@ private fun ProjectActionButton(
 
 /**
  * 项目批量上传对话框
- * 用于显示项目照片上传的进度和状态
+ * 用于显示项目照片上传的进度和状态，并支持选择上传照片的用途类型
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BatchProjectUploadDialog(
     isVisible: Boolean,
     project: Project?,
     uploadState: UploadState,
-    onDismissRequest: () -> Unit
+    onDismissRequest: () -> Unit,
+    modelTypes: List<ModelType> = listOf(ModelType.DEFAULT), // 可选的模型类型列表
+    processTypes: List<ProcessType> = listOf(ProcessType.DEFAULT), // 可选的工艺类型列表
+    onSelectUploadType: (UploadPhotoType, String) -> Unit = { _, _ -> }, // 选择上传类型和ID
+    onManageModelTypes: () -> Unit = {}, // 管理模型类型按钮点击事件
+    onManageProcessTypes: () -> Unit = {} // 管理工艺类型按钮点击事件
 ) {
     if (!isVisible || project == null) return
     
-    // 处理进度，确保值在0-1之间
-    val progressValue = if (uploadState.totalCount > 0) {
-        (uploadState.uploadedCount.toFloat() / uploadState.totalCount).coerceIn(0f, 1f)
-    } else {
-        0f  // 当总数为0时，确保进度为0
+    var selectedUploadType by remember { mutableStateOf<UploadPhotoType?>(null) }
+    var selectedTypeId by remember { mutableStateOf<String?>(null) }
+    var showTypeDialog by remember { mutableStateOf(false) }
+    
+    // 确定当前选择的类型列表
+    val currentTypeList = when (selectedUploadType) {
+        UploadPhotoType.MODEL -> modelTypes
+        UploadPhotoType.PROCESS -> processTypes
+        else -> emptyList()
     }
     
-    val uploadProgress by animateFloatAsState(
-        targetValue = progressValue,
-        animationSpec = tween(durationMillis = 300),
-        label = "upload_progress"
-    )
+    // 对话框尺寸
+    val dialogWidth = 360.dp
+    val dialogHeight = 480.dp
     
-    // 记录数值，避免在动画过程中变化
-    val uploadedCount = remember(uploadState.uploadedCount) { uploadState.uploadedCount }
-    val totalCount = remember(uploadState.totalCount) { uploadState.totalCount }
-    val progressPercentage = remember(uploadProgress) { (uploadProgress * 100).toInt() }
-    
-    AlertDialog(
-        onDismissRequest = onDismissRequest,
-        icon = {
-            when {
-                uploadState.isSuccess -> Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = "上传成功",
-                    tint = Color.Green
-                )
-                uploadState.error != null -> Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "上传失败",
-                    tint = Color.Red
-                )
-                else -> Icon(
-                    imageVector = Icons.Default.Info,
-                    contentDescription = "正在上传",
-                    tint = MaterialTheme.colorScheme.primary
-                )
+    Dialog(
+        onDismissRequest = {
+            if (!uploadState.isUploading) {
+                onDismissRequest()
             }
         },
-        title = {
-            Text(
-                text = "批量上传项目照片",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
+        properties = DialogProperties(
+            dismissOnBackPress = !uploadState.isUploading,
+            dismissOnClickOutside = !uploadState.isUploading
+        )
+    ) {
+        Card(
+            modifier = Modifier
+                .width(dialogWidth)
+                .heightIn(max = dialogHeight)
+                .animateContentSize(),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+        ) {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .padding(24.dp)
+                    .fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // 项目信息
-                Text(
-                    text = "项目：${project.name}",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium
+                // 标题和图标
+                Icon(
+                    imageVector = when {
+                        uploadState.isSuccess -> Icons.Default.CheckCircle
+                        uploadState.error != null -> Icons.Default.Error
+                        uploadState.isUploading -> Icons.Default.CloudUpload
+                        else -> Icons.Default.CloudUpload
+                    },
+                    contentDescription = null,
+                    tint = when {
+                        uploadState.isSuccess -> Color.Green
+                        uploadState.error != null -> MaterialTheme.colorScheme.error
+                        else -> MaterialTheme.colorScheme.primary
+                    },
+                    modifier = Modifier.size(48.dp)
                 )
                 
-                // 上传进度
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Text(
+                    text = "上传项目照片",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text(
+                    text = "项目: ${project.name}",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                // 仅在上传前显示选择部分
+                if (!uploadState.isUploading && !uploadState.isSuccess && uploadState.error == null) {
+                    // 上传类型选择
+                    Text(
+                        text = "请选择照片用途",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.align(Alignment.Start)
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    // 上传类型单选组
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        Text(
-                            text = "上传进度",
-                            style = MaterialTheme.typography.bodyMedium
+                        // 模型按钮
+                        FilterChip(
+                            selected = selectedUploadType == UploadPhotoType.MODEL,
+                            onClick = { 
+                                selectedUploadType = UploadPhotoType.MODEL
+                                selectedTypeId = null
+                            },
+                            label = { Text("模型") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Category, // 假定使用Category图标表示模型
+                                    contentDescription = null
+                                )
+                            }
                         )
-                        Text(
-                            text = "$progressPercentage%",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold
+                        
+                        // 工艺按钮
+                        FilterChip(
+                            selected = selectedUploadType == UploadPhotoType.PROCESS,
+                            onClick = { 
+                                selectedUploadType = UploadPhotoType.PROCESS
+                                selectedTypeId = null
+                            },
+                            label = { Text("工艺") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Settings, // 假定使用Settings图标表示工艺
+                                    contentDescription = null
+                                )
+                            }
                         )
                     }
                     
-                    // 使用LinearProgressIndicator显示进度
+                    // 只有选择了上传类型才显示类型选择
+                    AnimatedVisibility(
+                        visible = selectedUploadType != null,
+                        enter = fadeIn() + expandVertically(),
+                        exit = fadeOut() + shrinkVertically()
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            
+                            Text(
+                                text = "请选择具体类型",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.align(Alignment.Start)
+                            )
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            // 类型选择下拉菜单
+                            ExposedDropdownMenuBox(
+                                expanded = showTypeDialog,
+                                onExpandedChange = { showTypeDialog = !showTypeDialog }
+                            ) {
+                                TextField(
+                                    value = if (selectedTypeId != null) {
+                                        currentTypeList.firstOrNull { 
+                                            when (it) {
+                                                is ModelType -> it.id == selectedTypeId
+                                                is ProcessType -> it.id == selectedTypeId
+                                                else -> false
+                                            }
+                                        }?.let { 
+                                            when (it) {
+                                                is ModelType -> it.name
+                                                is ProcessType -> it.name
+                                                else -> "请选择"
+                                            }
+                                        } ?: "请选择"
+                                    } else "请选择",
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    trailingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Default.ArrowDropDown,
+                                            contentDescription = "下拉菜单",
+                                            modifier = Modifier.rotate(if (showTypeDialog) 180f else 0f)
+                                        )
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .menuAnchor(),
+                                    colors = TextFieldDefaults.colors()
+                                )
+                                
+                                ExposedDropdownMenu(
+                                    expanded = showTypeDialog,
+                                    onDismissRequest = { showTypeDialog = false }
+                                ) {
+                                    currentTypeList.forEach { type ->
+                                        DropdownMenuItem(
+                                            text = { 
+                                                Text(
+                                                    text = when (type) {
+                                                        is ModelType -> type.name
+                                                        is ProcessType -> type.name
+                                                        else -> ""
+                                                    }
+                                                ) 
+                                            },
+                                            onClick = {
+                                                selectedTypeId = when (type) {
+                                                    is ModelType -> type.id
+                                                    is ProcessType -> type.id
+                                                    else -> null
+                                                }
+                                                showTypeDialog = false
+                                            }
+                                        )
+                                    }
+                                    
+                                    // 管理类型选项
+                                    Divider()
+                                    DropdownMenuItem(
+                                        text = { 
+                                            Text(
+                                                text = "管理类型...",
+                                                style = MaterialTheme.typography.bodyMedium.copy(
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                            ) 
+                                        },
+                                        onClick = {
+                                            showTypeDialog = false
+                                            if (selectedUploadType == UploadPhotoType.MODEL) {
+                                                onManageModelTypes()
+                                            } else {
+                                                onManageProcessTypes()
+                                            }
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.Settings,
+                                                contentDescription = null
+                                            )
+                                        }
+                                    )
+                                }
+                            }
+                            
+                            Spacer(modifier = Modifier.height(24.dp))
+                        }
+                    }
+                    
+                    // 上传按钮
+                    Button(
+                        onClick = {
+                            // 确保已选择类型
+                            if (selectedUploadType != null && selectedTypeId != null) {
+                                onSelectUploadType(selectedUploadType!!, selectedTypeId!!)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = selectedUploadType != null && selectedTypeId != null
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CloudUpload,
+                            contentDescription = null
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("开始上传")
+                    }
+                } else {
+                    // 上传进度和状态
+                    val progress = uploadState.progress
+                    val progressAnimated by animateFloatAsState(
+                        targetValue = progress,
+                        animationSpec = tween(
+                            durationMillis = 300,
+                            easing = FastOutSlowInEasing
+                        ),
+                        label = "Progress Animation"
+                    )
+                    
+                    // 总照片数和已上传数量
+                    val totalCount = uploadState.totalCount
+                    val uploadedCount = uploadState.uploadedCount
+                    
+                    // 上传状态文本
+                    Text(
+                        text = when {
+                            uploadState.isSuccess -> "上传完成"
+                            uploadState.error != null -> "上传失败"
+                            uploadState.isUploading -> "正在上传..."
+                            else -> "准备上传"
+                        },
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
+                        color = when {
+                            uploadState.isSuccess -> Color.Green
+                            uploadState.error != null -> MaterialTheme.colorScheme.error
+                            else -> MaterialTheme.colorScheme.onSurface
+                        }
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    // 上传进度条
+                    LinearProgressIndicator(
+                        progress = { progressAnimated },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(4.dp)),
+                        color = when {
+                            uploadState.isSuccess -> Color.Green
+                            uploadState.error != null -> MaterialTheme.colorScheme.error
+                            else -> MaterialTheme.colorScheme.primary
+                        },
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    // 上传数量
                     if (totalCount > 0) {
-                        // 有照片需要上传，显示确定进度条
-                        LinearProgressIndicator(
-                            progress = { uploadProgress },
-                            modifier = Modifier.fillMaxWidth()
+                        Text(
+                            text = "$uploadedCount / $totalCount",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    } else if (uploadState.isSuccess) {
-                        // 上传成功但没有照片，显示满进度
-                        LinearProgressIndicator(
-                            progress = { 1f },
-                            modifier = Modifier.fillMaxWidth()
+                    }
+                    
+                    // 模块级别的上传统计
+                    if (uploadState.projectPhotosCount > 0 || 
+                        uploadState.vehiclePhotosCount > 0 || 
+                        uploadState.trackPhotosCount > 0) {
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        Text(
+                            text = "上传详情",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.align(Alignment.Start)
                         )
-                    } else {
-                        // 未开始上传或正在计算，显示不确定进度条
-                        LinearProgressIndicator(
-                            modifier = Modifier.fillMaxWidth()
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        if (uploadState.projectPhotosCount > 0) {
+                            ModuleProgressItem(
+                                title = "项目照片",
+                                progress = uploadState.projectUploadedCount.toFloat() / uploadState.projectPhotosCount,
+                                uploadedCount = uploadState.projectUploadedCount,
+                                totalCount = uploadState.projectPhotosCount,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        
+                        if (uploadState.vehiclePhotosCount > 0) {
+                            ModuleProgressItem(
+                                title = "车辆照片",
+                                progress = uploadState.vehicleUploadedCount.toFloat() / uploadState.vehiclePhotosCount,
+                                uploadedCount = uploadState.vehicleUploadedCount,
+                                totalCount = uploadState.vehiclePhotosCount,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
+                        
+                        if (uploadState.trackPhotosCount > 0) {
+                            ModuleProgressItem(
+                                title = "轨迹照片",
+                                progress = uploadState.trackUploadedCount.toFloat() / uploadState.trackPhotosCount,
+                                uploadedCount = uploadState.trackUploadedCount,
+                                totalCount = uploadState.trackPhotosCount,
+                                color = MaterialTheme.colorScheme.tertiary
+                            )
+                        }
+                    }
+                    
+                    // 错误信息
+                    uploadState.error?.let { error ->
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        Text(
+                            text = error,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp)
+                                .background(
+                                    color = MaterialTheme.colorScheme.errorContainer,
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .padding(8.dp)
                         )
                     }
                 }
                 
-                // 已上传/总数
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                // 底部按钮
+                TextButton(
+                    onClick = onDismissRequest,
+                    enabled = !uploadState.isUploading
                 ) {
                     Text(
-                        text = "已上传：$uploadedCount",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Text(
-                        text = "总计：$totalCount",
-                        style = MaterialTheme.typography.bodyMedium
+                        text = if (uploadState.isSuccess || uploadState.error != null) "关闭" else "取消"
                     )
                 }
-                
-                // 错误信息
-                uploadState.error?.let { error ->
-                    Text(
-                        text = "错误：$error",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Red
-                    )
-                }
-                
-                // 成功信息
-                if (uploadState.isSuccess) {
-                    Text(
-                        text = if (totalCount == 0) "没有照片需要上传" 
-                               else "所有照片上传成功！",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Green,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = onDismissRequest,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (uploadState.isSuccess || uploadState.error != null)
-                        MaterialTheme.colorScheme.primary
-                    else
-                        MaterialTheme.colorScheme.secondary
-                )
-            ) {
-                Text(
-                    text = if (uploadState.isSuccess || uploadState.error != null) "关闭" else "取消上传"
-                )
             }
         }
-    )
+    }
+}
+
+/**
+ * 模块上传进度项
+ */
+@Composable
+private fun ModuleProgressItem(
+    title: String,
+    progress: Float,
+    uploadedCount: Int,
+    totalCount: Int,
+    color: Color
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = "${(progress * 100).toInt()}%",
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+        
+        LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier.fillMaxWidth(),
+            color = color
+        )
+        
+        Text(
+            text = "$uploadedCount / $totalCount",
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.align(Alignment.End)
+        )
+    }
 } 

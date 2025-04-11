@@ -84,13 +84,25 @@ namespace BackendInterface.Controllers
         /// <param name="moduleType">模块类型</param>
         /// <param name="photoType">照片类型</param>
         /// <param name="projectName">项目名称</param>
+        /// <param name="uploadPhotoType">上传照片类型(MODEL/PROCESS)</param>
+        /// <param name="uploadTypeId">上传类型ID</param>
+        /// <param name="latitude">纬度</param>
+        /// <param name="longitude">经度</param>
         /// <returns>上传结果</returns>
         [HttpPost("upload")]
         [Consumes("multipart/form-data")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> Upload(string moduleId, string moduleType, string photoType, string projectName = "")
+        public async Task<IActionResult> Upload(
+            string moduleId, 
+            string moduleType, 
+            string photoType, 
+            string projectName = "",
+            string uploadPhotoType = "",
+            string uploadTypeId = "",
+            double? latitude = null,
+            double? longitude = null)
         {
             try
             {
@@ -112,6 +124,16 @@ namespace BackendInterface.Controllers
                     subfolder = !string.IsNullOrEmpty(projectName) 
                         ? Path.Combine(baseFolder, $"{moduleId}_{projectName}")
                         : Path.Combine(baseFolder, moduleId);
+                    
+                    // 如果指定了上传类型和ID，则添加到子文件夹结构中
+                    if (!string.IsNullOrEmpty(uploadPhotoType))
+                    {
+                        subfolder = Path.Combine(subfolder, uploadPhotoType);
+                        if (!string.IsNullOrEmpty(uploadTypeId))
+                        {
+                            subfolder = Path.Combine(subfolder, uploadTypeId);
+                        }
+                    }
                 }
                 else if (moduleType.Equals("VEHICLE", StringComparison.OrdinalIgnoreCase))
                 {
@@ -120,6 +142,16 @@ namespace BackendInterface.Controllers
                     subfolder = !string.IsNullOrEmpty(projectName)
                         ? Path.Combine(baseFolder, projectName, vehicleFolderName)
                         : Path.Combine(baseFolder, vehicleFolderName);
+                    
+                    // 如果指定了上传类型和ID，则添加到子文件夹结构中
+                    if (!string.IsNullOrEmpty(uploadPhotoType))
+                    {
+                        subfolder = Path.Combine(subfolder, uploadPhotoType);
+                        if (!string.IsNullOrEmpty(uploadTypeId))
+                        {
+                            subfolder = Path.Combine(subfolder, uploadTypeId);
+                        }
+                    }
                 }
                 else if (moduleType.Equals("TRACK", StringComparison.OrdinalIgnoreCase))
                 {
@@ -135,6 +167,16 @@ namespace BackendInterface.Controllers
                     subfolder = !string.IsNullOrEmpty(projectName)
                         ? Path.Combine(baseFolder, projectName, vehicleFolderName, trackFolderName)
                         : Path.Combine(baseFolder, vehicleFolderName, trackFolderName);
+                    
+                    // 如果指定了上传类型和ID，则添加到子文件夹结构中
+                    if (!string.IsNullOrEmpty(uploadPhotoType))
+                    {
+                        subfolder = Path.Combine(subfolder, uploadPhotoType);
+                        if (!string.IsNullOrEmpty(uploadTypeId))
+                        {
+                            subfolder = Path.Combine(subfolder, uploadTypeId);
+                        }
+                    }
                 }
                 else
                 {
@@ -148,8 +190,9 @@ namespace BackendInterface.Controllers
                     Directory.CreateDirectory(subfolder);
                 }
 
-                // 生成唯一文件名，防止文件覆盖
-                string fileName = $"{Guid.NewGuid()}_{file.FileName}";
+                // 保留原始文件名，不再生成GUID
+                // string fileName = $"{Guid.NewGuid()}_{file.FileName}";
+                string fileName = file.FileName;
                 string filePath = Path.Combine(subfolder, fileName);
 
                 // 保存文件
@@ -158,7 +201,7 @@ namespace BackendInterface.Controllers
                     await file.CopyToAsync(stream);
                 }
 
-                _logger.LogInformation($"已成功上传照片：{filePath}，项目名称：{projectName}");
+                _logger.LogInformation($"已成功上传照片：{filePath}，项目名称：{projectName}，类型：{uploadPhotoType}, 类型ID：{uploadTypeId}");
 
                 // 返回成功信息
                 return Ok(new 
@@ -169,6 +212,10 @@ namespace BackendInterface.Controllers
                     moduleType,
                     photoType,
                     projectName,
+                    uploadPhotoType,
+                    uploadTypeId,
+                    latitude,
+                    longitude,
                     uploadTime = DateTime.Now
                 });
             }
@@ -188,12 +235,19 @@ namespace BackendInterface.Controllers
         /// <param name="moduleId">模块ID</param>
         /// <param name="moduleType">模块类型</param>
         /// <param name="projectName">项目名称</param>
+        /// <param name="uploadPhotoType">上传照片类型(MODEL/PROCESS)</param>
+        /// <param name="uploadTypeId">上传类型ID</param>
         /// <returns>批量上传结果</returns>
         [HttpPost("batch-upload")]
         [Consumes("multipart/form-data")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> BatchUpload(string moduleId, string moduleType, string projectName = "")
+        public async Task<IActionResult> BatchUpload(
+            string moduleId, 
+            string moduleType, 
+            string projectName = "",
+            string uploadPhotoType = "",
+            string uploadTypeId = "")
         {
             try
             {
@@ -217,7 +271,9 @@ namespace BackendInterface.Controllers
                     UploadedCount = 0,
                     Progress = 0,
                     IsUploading = true,
-                    StartTime = DateTime.Now
+                    StartTime = DateTime.Now,
+                    UploadPhotoType = uploadPhotoType,
+                    UploadTypeId = uploadTypeId
                 };
                 
                 _uploadStatuses[batchId] = status;
@@ -227,7 +283,7 @@ namespace BackendInterface.Controllers
                 {
                     try 
                     {
-                        await ProcessBatchUploadAsync(batchId, moduleId, moduleType, projectName, files);
+                        await ProcessBatchUploadAsync(batchId, moduleId, moduleType, projectName, files, uploadPhotoType, uploadTypeId);
                     }
                     catch (Exception ex)
                     {
@@ -241,6 +297,8 @@ namespace BackendInterface.Controllers
                 { 
                     batchId,
                     totalCount = totalFiles,
+                    uploadPhotoType,
+                    uploadTypeId,
                     status = "processing"
                 });
             }
@@ -270,7 +328,14 @@ namespace BackendInterface.Controllers
         /// <summary>
         /// 处理批量上传的实际逻辑
         /// </summary>
-        private async Task ProcessBatchUploadAsync(string batchId, string moduleId, string moduleType, string projectName, IFormFileCollection files)
+        private async Task ProcessBatchUploadAsync(
+            string batchId, 
+            string moduleId, 
+            string moduleType, 
+            string projectName, 
+            IFormFileCollection files,
+            string uploadPhotoType = "",
+            string uploadTypeId = "")
         {
             // 确定基本目录结构
             string baseFolder = Path.Combine(_uploadFolder, moduleType);
@@ -283,6 +348,16 @@ namespace BackendInterface.Controllers
                 subfolder = !string.IsNullOrEmpty(projectName) 
                     ? Path.Combine(baseFolder, $"{moduleId}_{projectName}")
                     : Path.Combine(baseFolder, moduleId);
+                
+                // 如果指定了上传类型和ID，则添加到子文件夹结构中
+                if (!string.IsNullOrEmpty(uploadPhotoType))
+                {
+                    subfolder = Path.Combine(subfolder, uploadPhotoType);
+                    if (!string.IsNullOrEmpty(uploadTypeId))
+                    {
+                        subfolder = Path.Combine(subfolder, uploadTypeId);
+                    }
+                }
             }
             else if (moduleType.Equals("VEHICLE", StringComparison.OrdinalIgnoreCase))
             {
@@ -291,6 +366,16 @@ namespace BackendInterface.Controllers
                 subfolder = !string.IsNullOrEmpty(projectName)
                     ? Path.Combine(baseFolder, projectName, vehicleFolderName)
                     : Path.Combine(baseFolder, vehicleFolderName);
+                
+                // 如果指定了上传类型和ID，则添加到子文件夹结构中
+                if (!string.IsNullOrEmpty(uploadPhotoType))
+                {
+                    subfolder = Path.Combine(subfolder, uploadPhotoType);
+                    if (!string.IsNullOrEmpty(uploadTypeId))
+                    {
+                        subfolder = Path.Combine(subfolder, uploadTypeId);
+                    }
+                }
             }
             else if (moduleType.Equals("TRACK", StringComparison.OrdinalIgnoreCase))
             {
@@ -306,6 +391,16 @@ namespace BackendInterface.Controllers
                 subfolder = !string.IsNullOrEmpty(projectName)
                     ? Path.Combine(baseFolder, projectName, vehicleFolderName, trackFolderName)
                     : Path.Combine(baseFolder, vehicleFolderName, trackFolderName);
+                
+                // 如果指定了上传类型和ID，则添加到子文件夹结构中
+                if (!string.IsNullOrEmpty(uploadPhotoType))
+                {
+                    subfolder = Path.Combine(subfolder, uploadPhotoType);
+                    if (!string.IsNullOrEmpty(uploadTypeId))
+                    {
+                        subfolder = Path.Combine(subfolder, uploadTypeId);
+                    }
+                }
             }
             else
             {
@@ -522,5 +617,7 @@ namespace BackendInterface.Controllers
         public string Error { get; set; }
         public DateTime StartTime { get; set; }
         public DateTime? EndTime { get; set; }
+        public string UploadPhotoType { get; set; }
+        public string UploadTypeId { get; set; }
     }
 } 

@@ -23,5 +23,7 @@ data class PhotoEntity(
     val createdAt: String, // 创建时间，ISO格式字符串
     val latitude: Double?, // 纬度
     val longitude: Double?, // 经度
-    val isUploaded: Boolean // 是否已上传
+    val isUploaded: Boolean, // 是否已上传
+    val uploadPhotoType: String? = null, // 上传照片类型（MODEL/PROCESS）
+    val uploadTypeId: String? = null // 上传类型ID（模型ID或工艺ID）
 ) 

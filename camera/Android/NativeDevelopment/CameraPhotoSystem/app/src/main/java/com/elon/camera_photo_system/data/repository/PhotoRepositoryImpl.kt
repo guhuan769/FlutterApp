@@ -34,9 +34,9 @@ class PhotoRepositoryImpl @Inject constructor(
     
     /**
      * 生成标准化的照片名称
-     * 项目照片：项目名称_照片类型(中文)_序号.jpg
-     * 车辆照片：项目名称_车辆名称_照片类型(中文)_序号.jpg
-     * 轨迹照片：项目名称_车辆名称_轨迹名称_照片类型(中文)_序号.jpg
+     * 项目照片：项目名称_照片类型(中文)_序号_角度°.jpg
+     * 车辆照片：项目名称_车辆名称_照片类型(中文)_序号_角度°.jpg
+     * 轨迹照片：项目名称_车辆名称_轨迹名称_照片类型(中文)_序号_角度°.jpg
      */
     private suspend fun generateStandardizedPhotoName(photo: Photo): Photo {
         val originalFileName = photo.fileName
@@ -46,32 +46,97 @@ class PhotoRepositoryImpl @Inject constructor(
         // 获取照片类型的中文描述
         val photoTypeLabel = photo.photoType.label
         
+        // 确保角度值有效
+        val angle = if (photo.angle > 0) photo.angle else {
+            // 尝试从文件名提取角度信息
+            val (_, extractedAngle) = extractPhotoInfoFromFileName(originalFileName, photo.moduleType)
+            extractedAngle
+        }
+        
+        Log.d("PhotoRepository", "标准化照片名称: 序号=${photo.photoNumber}, 角度=$angle")
+        
         // 根据模块类型获取相应的命名
         val newFileName = when (photo.moduleType) {
             ModuleType.PROJECT -> {
                 val projectName = photoDao.getProjectName(photo.moduleId) ?: "未知项目"
-                val photoCount = photoDao.getPhotoCountByModule(photo.moduleId, photo.moduleType.name) + 1
-                "${projectName}_${photoTypeLabel}_$photoCount.$extension"
+                val photoCount: Int
+                if (photo.photoNumber > 0) {
+                    photoCount = photo.photoNumber
+                } else {
+                    photoCount = photoDao.getPhotoCountByModule(photo.moduleId, photo.moduleType.name) + 1
+                }
+                "${projectName}_${photoTypeLabel}_${photoCount}_${angle}°.$extension"
             }
             ModuleType.VEHICLE -> {
                 val vehicleWithProject = photoDao.getVehicleWithProject(photo.moduleId)
                 val projectName = vehicleWithProject?.projectName ?: "未知项目"
                 val vehicleName = vehicleWithProject?.vehicleName ?: "未知车辆"
-                val photoCount = photoDao.getPhotoCountByModule(photo.moduleId, photo.moduleType.name) + 1
-                "${projectName}_${vehicleName}_${photoTypeLabel}_$photoCount.$extension"
+                val photoCount: Int
+                if (photo.photoNumber > 0) {
+                    photoCount = photo.photoNumber
+                } else {
+                    photoCount = photoDao.getPhotoCountByModule(photo.moduleId, photo.moduleType.name) + 1
+                }
+                "${projectName}_${vehicleName}_${photoTypeLabel}_${photoCount}_${angle}°.$extension"
             }
             ModuleType.TRACK -> {
                 val trackWithVehicleAndProject = photoDao.getTrackWithVehicleAndProject(photo.moduleId)
                 val projectName = trackWithVehicleAndProject?.projectName ?: "未知项目"
                 val vehicleName = trackWithVehicleAndProject?.vehicleName ?: "未知车辆"
                 val trackName = trackWithVehicleAndProject?.trackName ?: "未知轨迹"
-                val photoCount = photoDao.getPhotoCountByModule(photo.moduleId, photo.moduleType.name) + 1
-                "${projectName}_${vehicleName}_${trackName}_${photoTypeLabel}_$photoCount.$extension"
+                val photoCount: Int
+                if (photo.photoNumber > 0) {
+                    photoCount = photo.photoNumber
+                } else {
+                    photoCount = photoDao.getPhotoCountByModule(photo.moduleId, photo.moduleType.name) + 1
+                }
+                "${projectName}_${vehicleName}_${trackName}_${photoTypeLabel}_${photoCount}_${angle}°.$extension"
             }
         }
         
-        // 返回更新了文件名的照片对象
-        return photo.copy(fileName = newFileName)
+        // 返回更新了文件名和角度的照片对象
+        return photo.copy(fileName = newFileName, angle = angle)
+    }
+    
+    /**
+     * 从文件名中提取照片序号和角度信息
+     */
+    private fun extractPhotoInfoFromFileName(fileName: String, moduleType: ModuleType): Pair<Int, Int> {
+        try {
+            Log.d("PhotoRepository", "从文件名提取信息: $fileName")
+            val parts = fileName.split("_")
+            
+            // 根据不同模块类型，序号位置不同
+            val numIndex = when (moduleType) {
+                ModuleType.PROJECT -> 2 // 项目名称_照片类型_序号_角度.jpg
+                ModuleType.VEHICLE -> 3 // 项目名称_车辆名称_照片类型_序号_角度.jpg
+                ModuleType.TRACK -> 4   // 项目名称_车辆名称_轨迹名称_照片类型_序号_角度.jpg
+            }
+            
+            // 确保序号索引有效
+            if (numIndex >= parts.size) {
+                Log.e("PhotoRepository", "无效的序号索引: $numIndex, 部分大小: ${parts.size}")
+                return Pair(0, 0)
+            }
+            
+            // 提取序号
+            val photoNumber = parts[numIndex].toIntOrNull() ?: 0
+            
+            // 提取角度 - 更强健的方法
+            val angle = if (numIndex + 1 < parts.size) {
+                // 获取可能包含角度和扩展名的部分
+                val anglePart = parts[numIndex + 1]
+                // 使用正则表达式提取数字部分
+                val angleMatch = Regex("(\\d+)").find(anglePart)
+                angleMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
+            } else 0
+            
+            Log.d("PhotoRepository", "提取的序号: $photoNumber, 角度: $angle")
+            return Pair(photoNumber, angle)
+        } catch (e: Exception) {
+            Log.e("PhotoRepository", "提取照片信息错误: ${e.message}")
+            return Pair(0, 0)
+        }
     }
     
     override suspend fun updatePhoto(photo: Photo) {
@@ -140,16 +205,14 @@ class PhotoRepositoryImpl @Inject constructor(
             
             if (result) {
                 // 更新照片上传状态和文件名（如果更改了）
-                val updatedPhoto = if (standardizedPhoto.fileName != photo.fileName) {
+                if (standardizedPhoto.fileName != photo.fileName) {
                     // 如果文件名改变了，更新数据库中的文件名
                     val updated = standardizedPhoto.copy(isUploaded = true)
                     updatePhoto(updated)
-                    updated
                 } else {
                     // 仅更新上传状态
                     val updated = photo.copy(isUploaded = true)
                     updatePhoto(updated)
-                    updated
                 }
             }
             
@@ -168,19 +231,19 @@ class PhotoRepositoryImpl @Inject constructor(
         val fileName = photo.fileName
         val photoTypeLabel = photo.photoType.label
         
-        // 更准确的正则表达式检查
+        // 更准确的正则表达式检查，包含角度信息
         return when (photo.moduleType) {
             ModuleType.PROJECT -> {
-                // 项目照片格式：项目名称_照片类型(中文)_序号.扩展名
-                fileName.matches(Regex(".+_${photoTypeLabel}_\\d+\\..+"))
+                // 项目照片格式：项目名称_照片类型(中文)_序号_角度°.扩展名
+                fileName.matches(Regex(".+_${photoTypeLabel}_\\d+_\\d+°\\..+"))
             }
             ModuleType.VEHICLE -> {
-                // 车辆照片格式：项目名称_车辆名称_照片类型(中文)_序号.扩展名
-                fileName.matches(Regex(".+_.+_${photoTypeLabel}_\\d+\\..+"))
+                // 车辆照片格式：项目名称_车辆名称_照片类型(中文)_序号_角度°.扩展名
+                fileName.matches(Regex(".+_.+_${photoTypeLabel}_\\d+_\\d+°\\..+"))
             }
             ModuleType.TRACK -> {
-                // 轨迹照片格式：项目名称_车辆名称_轨迹名称_照片类型(中文)_序号.扩展名
-                fileName.matches(Regex(".+_.+_.+_${photoTypeLabel}_\\d+\\..+"))
+                // 轨迹照片格式：项目名称_车辆名称_轨迹名称_照片类型(中文)_序号_角度°.扩展名
+                fileName.matches(Regex(".+_.+_.+_${photoTypeLabel}_\\d+_\\d+°\\..+"))
             }
         }
     }
@@ -238,7 +301,9 @@ class PhotoRepositoryImpl @Inject constructor(
         return updatedCount
     }
     
-    // 扩展函数：将领域模型转换为数据库实体
+    /**
+     * 将Photo对象转换为数据库实体
+     */
     private fun Photo.toPhotoEntity(): PhotoEntity {
         return PhotoEntity(
             id = id,
@@ -249,14 +314,18 @@ class PhotoRepositoryImpl @Inject constructor(
             fileName = fileName,
             photoNumber = photoNumber,
             angle = angle,
-            createdAt = formatter.format(createdAt),
+            createdAt = createdAt.format(formatter),
             latitude = latitude,
             longitude = longitude,
-            isUploaded = isUploaded
+            isUploaded = isUploaded,
+            uploadPhotoType = uploadPhotoType,
+            uploadTypeId = uploadTypeId
         )
     }
     
-    // 扩展函数：将数据库实体转换为领域模型
+    /**
+     * 将数据库实体转换为Photo对象
+     */
     private fun PhotoEntity.toPhoto(): Photo {
         return Photo(
             id = id,
@@ -270,7 +339,9 @@ class PhotoRepositoryImpl @Inject constructor(
             createdAt = LocalDateTime.parse(createdAt, formatter),
             latitude = latitude,
             longitude = longitude,
-            isUploaded = isUploaded
+            isUploaded = isUploaded,
+            uploadPhotoType = uploadPhotoType,
+            uploadTypeId = uploadTypeId
         )
     }
 } 

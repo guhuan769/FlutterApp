@@ -17,5 +17,7 @@ data class Photo(
     val createdAt: LocalDateTime = LocalDateTime.now(), // 创建时间
     val latitude: Double? = null, // 纬度
     val longitude: Double? = null, // 经度
-    val isUploaded: Boolean = false // 是否已上传
+    val isUploaded: Boolean = false, // 是否已上传
+    val uploadPhotoType: String? = null, // 上传照片类型（MODEL/PROCESS）
+    val uploadTypeId: String? = null // 上传类型ID（模型ID或工艺ID）
 ) 
